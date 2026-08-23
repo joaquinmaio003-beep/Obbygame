@@ -1,61 +1,10 @@
 fileFormatVersion: 2
-guid: 9716f79ced2a3fb40addf5fef5d4ee45
+guid: d5f7410c4b2f41448bb1db2db45e0aa8
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4562376619363976638
-    second: asset piso_0
-  - first:
-      213: 7027993266087166162
-    second: asset piso_1
-  - first:
-      213: 5785026628900993349
-    second: asset piso_2
-  - first:
-      213: 1817457790289372275
-    second: asset piso_3
-  - first:
-      213: -3959928703325129071
-    second: asset piso_4
-  - first:
-      213: -4137671045321028641
-    second: asset piso_5
-  - first:
-      213: -1019309813113947574
-    second: asset piso_6
-  - first:
-      213: -5936123614071853582
-    second: asset piso_7
-  - first:
-      213: 2365850799110472637
-    second: asset piso_8
-  - first:
-      213: 7450977927528782373
-    second: asset piso_9
-  - first:
-      213: 7905056331561941948
-    second: asset piso_10
-  - first:
-      213: 3809156217924280008
-    second: asset piso_11
-  - first:
-      213: 8455543600515436623
-    second: asset piso_12
-  - first:
-      213: 8467953886649121377
-    second: asset piso_13
-  - first:
-      213: 8517574489625782848
-    second: asset piso_14
-  - first:
-      213: -3525835983989367679
-    second: asset piso_15
-  - first:
-      213: -1869196807472522543
-    second: asset piso_16
-  - first:
-      213: -5858531157959213339
-    second: asset piso_17
+      213: -2484899871035377133
+    second: new_floor_obby_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -88,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -102,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 64
+  spritePixelsToUnits: 16
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -126,7 +75,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -151,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: asset piso_0
+      name: new_floor_obby_0
       rect:
         serializedVersion: 2
-        x: 140
-        y: 915
-        width: 388
-        height: 114
+        x: 0
+        y: 48
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -166,382 +115,338 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: eb5ccb0ec51d05f30800000000000000
-      internalID: 4562376619363976638
+      spriteID: 31ab58c9bbcd38dd0800000000000000
+      internalID: -2484899871035377133
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_1
+      name: new_floor_obby_1
       rect:
         serializedVersion: 2
-        x: 683
-        y: 823
-        width: 101
-        height: 216
+        x: 16
+        y: 48
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 2d086fcb3a2788160800000000000000
-      internalID: 7027993266087166162
+      spriteID: 6b4898331a158ba41b5b13a42bbe17f9
+      internalID: -614159608
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_2
+      name: new_floor_obby_2
       rect:
         serializedVersion: 2
-        x: 847
-        y: 829
-        width: 49
-        height: 93
+        x: 32
+        y: 48
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 549b1df811b884050800000000000000
-      internalID: 5785026628900993349
+      spriteID: 17a4bce9a7e825a439a2e2a33a89abc4
+      internalID: 1628846411
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_3
+      name: new_floor_obby_3
       rect:
         serializedVersion: 2
-        x: 44
-        y: 785
-        width: 579
-        height: 113
+        x: 48
+        y: 48
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 374e6702b38e83910800000000000000
-      internalID: 1817457790289372275
+      spriteID: 7036adbba6e475f46b184790f7d69aef
+      internalID: -1536220240
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_4
+      name: new_floor_obby_4
       rect:
         serializedVersion: 2
-        x: 939
-        y: 832
-        width: 107
-        height: 76
+        x: 0
+        y: 32
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 196be6e23d18b09c0800000000000000
-      internalID: -3959928703325129071
+      spriteID: acc5ad61759f3704c95e5723bd111fce
+      internalID: -1087112974
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_5
+      name: new_floor_obby_5
       rect:
         serializedVersion: 2
-        x: 145
-        y: 645
-        width: 357
-        height: 106
+        x: 16
+        y: 32
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: fdb883a4b1a0496c0800000000000000
-      internalID: -4137671045321028641
+      spriteID: 81affae1305fd3c4ea18cdcf760d7aca
+      internalID: -18278278
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_6
+      name: new_floor_obby_6
       rect:
         serializedVersion: 2
-        x: 680
-        y: 631
-        width: 90
-        height: 146
+        x: 32
+        y: 32
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: a4af541202faad1f0800000000000000
-      internalID: -1019309813113947574
+      spriteID: 426c67678cdb41c4a9720abd0340f806
+      internalID: -776006322
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_7
+      name: new_floor_obby_7
       rect:
         serializedVersion: 2
-        x: 941
-        y: 655
-        width: 100
-        height: 106
+        x: 48
+        y: 32
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 2fd60702607ae9da0800000000000000
-      internalID: -5936123614071853582
+      spriteID: ff90283623d723841a6c734f9408e295
+      internalID: -1520310731
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_8
+      name: new_floor_obby_8
       rect:
         serializedVersion: 2
-        x: 1082
-        y: 657
-        width: 92
-        height: 106
+        x: 0
+        y: 16
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: db3cd8854c035d020800000000000000
-      internalID: 2365850799110472637
+      spriteID: 0503784eb4c09904ead7b04f7d032646
+      internalID: -1824632150
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_9
+      name: new_floor_obby_9
       rect:
         serializedVersion: 2
-        x: 135
-        y: 524
-        width: 373
-        height: 99
+        x: 16
+        y: 16
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 52a11a7b2f0376760800000000000000
-      internalID: 7450977927528782373
+      spriteID: 3c674b511fb57ca4b914c10ece8c3e5c
+      internalID: -2065540819
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_10
+      name: new_floor_obby_10
       rect:
         serializedVersion: 2
-        x: 950
-        y: 520
-        width: 81
-        height: 99
+        x: 32
+        y: 16
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: cbbb33cc9d664bd60800000000000000
-      internalID: 7905056331561941948
+      spriteID: 760a7ac74aea9db479f9a4e4e239b359
+      internalID: -1558108774
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_11
+      name: new_floor_obby_11
       rect:
         serializedVersion: 2
-        x: 1092
-        y: 516
-        width: 83
-        height: 99
+        x: 48
+        y: 16
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 8ced85ff567dcd430800000000000000
-      internalID: 3809156217924280008
+      spriteID: 9099fc57e8aca6d44aaf085efcb2ce1b
+      internalID: 169045520
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_12
+      name: new_floor_obby_12
       rect:
         serializedVersion: 2
-        x: 96
-        y: 472
-        width: 7
-        height: 5
+        x: 0
+        y: 0
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: f40dc83fa10285570800000000000000
-      internalID: 8455543600515436623
+      spriteID: 560afacfeb87b2340a356bbb8eaa086f
+      internalID: -828962177
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_13
+      name: new_floor_obby_13
       rect:
         serializedVersion: 2
-        x: 201
-        y: 276
-        width: 289
-        height: 200
+        x: 16
+        y: 0
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 16afb1cd137348570800000000000000
-      internalID: 8467953886649121377
+      spriteID: 99b741d72909f8d4f8f0d16111e65cab
+      internalID: -2134584955
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_14
+      name: new_floor_obby_14
       rect:
         serializedVersion: 2
-        x: 773
-        y: 286
-        width: 162
-        height: 196
+        x: 32
+        y: 0
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 04ae21aced0843670800000000000000
-      internalID: 8517574489625782848
+      spriteID: 4c4dec0a9977d4a428830aef0ed74e47
+      internalID: 1150027119
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: asset piso_15
+      name: new_floor_obby_15
       rect:
         serializedVersion: 2
-        x: 1044
-        y: 286
-        width: 140
-        height: 200
+        x: 48
+        y: 0
+        width: 16
+        height: 16
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 18c160e6ad6b11fc0800000000000000
-      internalID: -3525835983989367679
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: asset piso_16
-      rect:
-        serializedVersion: 2
-        x: 229
-        y: 62
-        width: 93
-        height: 114
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 1da5e4338674f06e0800000000000000
-      internalID: -1869196807472522543
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: asset piso_17
-      rect:
-        serializedVersion: 2
-        x: 406
-        y: 63
-        width: 92
-        height: 114
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 5ee7840a3f052bea0800000000000000
-      internalID: -5858531157959213339
+      spriteID: 85d2a44245d6e294899ccc3f0f7076f7
+      internalID: -1825684316
       vertices: []
       indices: 
       edges: []
@@ -550,7 +455,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 777d754302efc664498c123ed86b2d7e
+    spriteID: e59c69ba661b74f48b5f7a7d545bca04
     internalID: 0
     vertices: []
     indices: 
@@ -560,24 +465,22 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      asset piso_0: 4562376619363976638
-      asset piso_1: 7027993266087166162
-      asset piso_10: 7905056331561941948
-      asset piso_11: 3809156217924280008
-      asset piso_12: 8455543600515436623
-      asset piso_13: 8467953886649121377
-      asset piso_14: 8517574489625782848
-      asset piso_15: -3525835983989367679
-      asset piso_16: -1869196807472522543
-      asset piso_17: -5858531157959213339
-      asset piso_2: 5785026628900993349
-      asset piso_3: 1817457790289372275
-      asset piso_4: -3959928703325129071
-      asset piso_5: -4137671045321028641
-      asset piso_6: -1019309813113947574
-      asset piso_7: -5936123614071853582
-      asset piso_8: 2365850799110472637
-      asset piso_9: 7450977927528782373
+      new_floor_obby_0: -2484899871035377133
+      new_floor_obby_1: -614159608
+      new_floor_obby_10: -1558108774
+      new_floor_obby_11: 169045520
+      new_floor_obby_12: -828962177
+      new_floor_obby_13: -2134584955
+      new_floor_obby_14: 1150027119
+      new_floor_obby_15: -1825684316
+      new_floor_obby_2: 1628846411
+      new_floor_obby_3: -1536220240
+      new_floor_obby_4: -1087112974
+      new_floor_obby_5: -18278278
+      new_floor_obby_6: -776006322
+      new_floor_obby_7: -1520310731
+      new_floor_obby_8: -1824632150
+      new_floor_obby_9: -2065540819
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
