@@ -1,0 +1,585 @@
+fileFormatVersion: 2
+guid: 9716f79ced2a3fb40addf5fef5d4ee45
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4562376619363976638
+    second: asset piso_0
+  - first:
+      213: 7027993266087166162
+    second: asset piso_1
+  - first:
+      213: 5785026628900993349
+    second: asset piso_2
+  - first:
+      213: 1817457790289372275
+    second: asset piso_3
+  - first:
+      213: -3959928703325129071
+    second: asset piso_4
+  - first:
+      213: -4137671045321028641
+    second: asset piso_5
+  - first:
+      213: -1019309813113947574
+    second: asset piso_6
+  - first:
+      213: -5936123614071853582
+    second: asset piso_7
+  - first:
+      213: 2365850799110472637
+    second: asset piso_8
+  - first:
+      213: 7450977927528782373
+    second: asset piso_9
+  - first:
+      213: 7905056331561941948
+    second: asset piso_10
+  - first:
+      213: 3809156217924280008
+    second: asset piso_11
+  - first:
+      213: 8455543600515436623
+    second: asset piso_12
+  - first:
+      213: 8467953886649121377
+    second: asset piso_13
+  - first:
+      213: 8517574489625782848
+    second: asset piso_14
+  - first:
+      213: -3525835983989367679
+    second: asset piso_15
+  - first:
+      213: -1869196807472522543
+    second: asset piso_16
+  - first:
+      213: -5858531157959213339
+    second: asset piso_17
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 64
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: asset piso_0
+      rect:
+        serializedVersion: 2
+        x: 140
+        y: 915
+        width: 388
+        height: 114
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eb5ccb0ec51d05f30800000000000000
+      internalID: 4562376619363976638
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_1
+      rect:
+        serializedVersion: 2
+        x: 683
+        y: 823
+        width: 101
+        height: 216
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d086fcb3a2788160800000000000000
+      internalID: 7027993266087166162
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_2
+      rect:
+        serializedVersion: 2
+        x: 847
+        y: 829
+        width: 49
+        height: 93
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 549b1df811b884050800000000000000
+      internalID: 5785026628900993349
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_3
+      rect:
+        serializedVersion: 2
+        x: 44
+        y: 785
+        width: 579
+        height: 113
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 374e6702b38e83910800000000000000
+      internalID: 1817457790289372275
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_4
+      rect:
+        serializedVersion: 2
+        x: 939
+        y: 832
+        width: 107
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 196be6e23d18b09c0800000000000000
+      internalID: -3959928703325129071
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_5
+      rect:
+        serializedVersion: 2
+        x: 145
+        y: 645
+        width: 357
+        height: 106
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fdb883a4b1a0496c0800000000000000
+      internalID: -4137671045321028641
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_6
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 631
+        width: 90
+        height: 146
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a4af541202faad1f0800000000000000
+      internalID: -1019309813113947574
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_7
+      rect:
+        serializedVersion: 2
+        x: 941
+        y: 655
+        width: 100
+        height: 106
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2fd60702607ae9da0800000000000000
+      internalID: -5936123614071853582
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_8
+      rect:
+        serializedVersion: 2
+        x: 1082
+        y: 657
+        width: 92
+        height: 106
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db3cd8854c035d020800000000000000
+      internalID: 2365850799110472637
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_9
+      rect:
+        serializedVersion: 2
+        x: 135
+        y: 524
+        width: 373
+        height: 99
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 52a11a7b2f0376760800000000000000
+      internalID: 7450977927528782373
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_10
+      rect:
+        serializedVersion: 2
+        x: 950
+        y: 520
+        width: 81
+        height: 99
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cbbb33cc9d664bd60800000000000000
+      internalID: 7905056331561941948
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_11
+      rect:
+        serializedVersion: 2
+        x: 1092
+        y: 516
+        width: 83
+        height: 99
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ced85ff567dcd430800000000000000
+      internalID: 3809156217924280008
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_12
+      rect:
+        serializedVersion: 2
+        x: 96
+        y: 472
+        width: 7
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f40dc83fa10285570800000000000000
+      internalID: 8455543600515436623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_13
+      rect:
+        serializedVersion: 2
+        x: 201
+        y: 276
+        width: 289
+        height: 200
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 16afb1cd137348570800000000000000
+      internalID: 8467953886649121377
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_14
+      rect:
+        serializedVersion: 2
+        x: 773
+        y: 286
+        width: 162
+        height: 196
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 04ae21aced0843670800000000000000
+      internalID: 8517574489625782848
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_15
+      rect:
+        serializedVersion: 2
+        x: 1044
+        y: 286
+        width: 140
+        height: 200
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 18c160e6ad6b11fc0800000000000000
+      internalID: -3525835983989367679
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_16
+      rect:
+        serializedVersion: 2
+        x: 229
+        y: 62
+        width: 93
+        height: 114
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1da5e4338674f06e0800000000000000
+      internalID: -1869196807472522543
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: asset piso_17
+      rect:
+        serializedVersion: 2
+        x: 406
+        y: 63
+        width: 92
+        height: 114
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ee7840a3f052bea0800000000000000
+      internalID: -5858531157959213339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 777d754302efc664498c123ed86b2d7e
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      asset piso_0: 4562376619363976638
+      asset piso_1: 7027993266087166162
+      asset piso_10: 7905056331561941948
+      asset piso_11: 3809156217924280008
+      asset piso_12: 8455543600515436623
+      asset piso_13: 8467953886649121377
+      asset piso_14: 8517574489625782848
+      asset piso_15: -3525835983989367679
+      asset piso_16: -1869196807472522543
+      asset piso_17: -5858531157959213339
+      asset piso_2: 5785026628900993349
+      asset piso_3: 1817457790289372275
+      asset piso_4: -3959928703325129071
+      asset piso_5: -4137671045321028641
+      asset piso_6: -1019309813113947574
+      asset piso_7: -5936123614071853582
+      asset piso_8: 2365850799110472637
+      asset piso_9: 7450977927528782373
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
