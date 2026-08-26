@@ -24,7 +24,7 @@ public class PlayerController2D : MonoBehaviour
     [Tooltip("Gravedad al subir.")]
     public float gravityUp = 55f;
     [Tooltip("Gravedad al caer (mayor = caida mas pesada/rapida).")]
-    public float gravityDown = 80f;
+    public float gravityDown = 48f;
     [Tooltip("Gravedad extra al soltar el salto antes de tiempo (salto variable).")]
     public float jumpCutMultiplier = 3f;
     [Tooltip("Velocidad de caida maxima (terminal).")]
@@ -35,6 +35,14 @@ public class PlayerController2D : MonoBehaviour
     public float coyoteTime = 0.1f;
     [Tooltip("Ventana para bufferear el salto antes de tocar el piso.")]
     public float jumpBuffer = 0.12f;
+
+    [Header("Dash (Shift)")]
+    [Tooltip("Velocidad del dash.")]
+    public float dashSpeed = 22f;
+    [Tooltip("Cuanto dura el dash (seg).")]
+    public float dashDuration = 0.15f;
+    [Tooltip("Espera entre dashes (seg).")]
+    public float dashCooldown = 0.6f;
 
     [Header("Deteccion de piso")]
     public Transform groundCheck;
@@ -50,15 +58,23 @@ public class PlayerController2D : MonoBehaviour
     bool isGrounded;
     int facing = 1;
 
+    // dash
+    bool isDashing;
+    float dashTimer;
+    float dashCdTimer;
+    int dashDir = 1;
+
     // Input System (generado por acciones)
     InputAction moveAction;
     InputAction jumpAction;
+    InputAction dashAction;
 
     // --- accesores publicos (los lee PlayerAnimator) ---
     public bool IsGrounded => isGrounded;
     public float MoveInput => moveInput;
     public int Facing => facing;
     public Vector2 Velocity => rb != null ? rb.linearVelocity : Vector2.zero;
+    public bool IsDashing => isDashing;
 
     void Awake()
     {
@@ -77,8 +93,10 @@ public class PlayerController2D : MonoBehaviour
         {
             moveAction = asset.FindAction("Move");
             jumpAction = asset.FindAction("Jump");
+            dashAction = asset.FindAction("Sprint"); // Shift por defecto
             moveAction?.Enable();
             jumpAction?.Enable();
+            dashAction?.Enable();
         }
     }
 
@@ -91,6 +109,12 @@ public class PlayerController2D : MonoBehaviour
 
         if (jumpAction != null && jumpAction.WasPressedThisFrame())
             bufferCounter = jumpBuffer;
+
+        // dash (Shift): dispara si no estamos ya dasheando y paso el cooldown
+        if (dashCdTimer > 0f) dashCdTimer -= Time.deltaTime;
+        if (!isDashing && dashCdTimer <= 0f &&
+            dashAction != null && dashAction.WasPressedThisFrame())
+            StartDash();
 
         // giro visual
         if (Mathf.Abs(moveInput) > 0.01f)
@@ -117,6 +141,17 @@ public class PlayerController2D : MonoBehaviour
                      Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
         Vector2 vel = rb.linearVelocity;
+
+        // --- dash: sobrescribe el movimiento por un ratito ---
+        if (isDashing)
+        {
+            dashTimer -= Time.fixedDeltaTime;
+            vel.x = dashDir * dashSpeed;
+            vel.y = 0f; // dash horizontal limpio (sin caer)
+            rb.linearVelocity = vel;
+            if (dashTimer <= 0f) isDashing = false;
+            return;
+        }
 
         // --- horizontal ---
         float target = moveInput * moveSpeed;
@@ -147,6 +182,15 @@ public class PlayerController2D : MonoBehaviour
         if (vel.y < -maxFallSpeed) vel.y = -maxFallSpeed;
 
         rb.linearVelocity = vel;
+    }
+
+    void StartDash()
+    {
+        isDashing = true;
+        dashTimer = dashDuration;
+        dashCdTimer = dashCooldown;
+        // dashea hacia donde apunta el input; si no hay, hacia donde mira
+        dashDir = Mathf.Abs(moveInput) > 0.01f ? (moveInput > 0 ? 1 : -1) : facing;
     }
 
     void OnDrawGizmosSelected()
