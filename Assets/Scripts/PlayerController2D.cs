@@ -21,14 +21,14 @@ public class PlayerController2D : MonoBehaviour
     [Header("Salto")]
     [Tooltip("Altura maxima del salto (aprox, en unidades).")]
     public float jumpHeight = 3.2f;
-    [Tooltip("Gravedad al subir.")]
-    public float gravityUp = 55f;
+    [Tooltip("Gravedad al subir (menor = sube mas suave y flotado).")]
+    public float gravityUp = 38f;
     [Tooltip("Gravedad al caer (mayor = caida mas pesada/rapida).")]
-    public float gravityDown = 48f;
+    public float gravityDown = 42f;
     [Tooltip("Gravedad extra al soltar el salto antes de tiempo (salto variable).")]
     public float jumpCutMultiplier = 3f;
     [Tooltip("Velocidad de caida maxima (terminal).")]
-    public float maxFallSpeed = 28f;
+    public float maxFallSpeed = 18f;
 
     [Header("Asistencias")]
     [Tooltip("Tiempo tras dejar el piso en el que todavia podes saltar (coyote time).")]
@@ -49,10 +49,25 @@ public class PlayerController2D : MonoBehaviour
     public float groundCheckRadius = 0.18f;
     public LayerMask groundLayer;
 
+    [Header("Wall slide (deslizar por pared)")]
+    [Tooltip("Distancia para detectar pared al costado (ajustar al ancho de Obby).")]
+    public float wallCheckDistance = 0.35f;
+    [Tooltip("Layer de las paredes. Si lo dejas vacio usa el mismo Ground Layer.")]
+    public LayerMask wallLayer;
+    [Tooltip("Velocidad de caida mientras se desliza por la pared (menor = mas lento).")]
+    public float wallSlideSpeed = 3f;
+
+    [Header("Wall jump (saltar de la pared)")]
+    [Tooltip("Empuje horizontal al saltar desde la pared.")]
+    public float wallJumpX = 7f;
+    [Tooltip("Tiempo sin control horizontal tras el wall jump (para que el empuje se sienta).")]
+    public float wallJumpLock = 0.12f;
+
     // --- estado interno ---
     Rigidbody2D rb;
     float moveInput;
     bool jumpHeld;
+    float prevUp;
     float coyoteCounter;
     float bufferCounter;
     bool isGrounded;
@@ -63,6 +78,10 @@ public class PlayerController2D : MonoBehaviour
     float dashTimer;
     float dashCdTimer;
     int dashDir = 1;
+
+    // wall slide / wall jump
+    bool isWallSliding;
+    float wallJumpLockTimer;
 
     // Input System (generado por acciones)
     InputAction moveAction;
@@ -75,6 +94,7 @@ public class PlayerController2D : MonoBehaviour
     public int Facing => facing;
     public Vector2 Velocity => rb != null ? rb.linearVelocity : Vector2.zero;
     public bool IsDashing => isDashing;
+    public bool IsWallSliding => isWallSliding;
 
     void Awake()
     {
@@ -105,10 +125,14 @@ public class PlayerController2D : MonoBehaviour
         // --- lectura de input ---
         Vector2 mv = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
         moveInput = mv.x;
-        jumpHeld = jumpAction != null && jumpAction.IsPressed();
+        float up = mv.y;
 
-        if (jumpAction != null && jumpAction.WasPressedThisFrame())
-            bufferCounter = jumpBuffer;
+        // saltar con Space (Jump) O con W / flecha arriba (Move up)
+        bool jumpDown = (jumpAction != null && jumpAction.WasPressedThisFrame())
+                        || (up > 0.5f && prevUp <= 0.5f);
+        jumpHeld = (jumpAction != null && jumpAction.IsPressed()) || up > 0.5f;
+        if (jumpDown) bufferCounter = jumpBuffer;
+        prevUp = up;
 
         // dash (Shift): dispara si no estamos ya dasheando y paso el cooldown
         if (dashCdTimer > 0f) dashCdTimer -= Time.deltaTime;
@@ -153,18 +177,44 @@ public class PlayerController2D : MonoBehaviour
             return;
         }
 
-        // --- horizontal ---
-        float target = moveInput * moveSpeed;
-        float rate = Mathf.Abs(target) > 0.01f ? acceleration : deceleration;
-        vel.x = Mathf.MoveTowards(vel.x, target, rate * Time.fixedDeltaTime);
+        // --- deteccion de pared a AMBOS lados (para wall slide y wall jump) ---
+        int inputDir = Mathf.Abs(moveInput) > 0.01f ? (moveInput > 0 ? 1 : -1) : 0;
+        int wallSide = 0;
+        if (!isGrounded)
+        {
+            if (WallOnSide(1)) wallSide = 1;         // pared a la derecha
+            else if (WallOnSide(-1)) wallSide = -1;  // pared a la izquierda
+        }
+        bool pressingIntoWall = wallSide != 0 && inputDir == wallSide;
 
-        // --- salto (con coyote + buffer) ---
+        // --- horizontal (bloqueado un ratito tras el wall jump) ---
+        if (wallJumpLockTimer > 0f)
+        {
+            wallJumpLockTimer -= Time.fixedDeltaTime;
+        }
+        else
+        {
+            float target = moveInput * moveSpeed;
+            float rate = Mathf.Abs(target) > 0.01f ? acceleration : deceleration;
+            vel.x = Mathf.MoveTowards(vel.x, target, rate * Time.fixedDeltaTime);
+        }
+
+        // --- salto normal (coyote + buffer) ---
         if (bufferCounter > 0f && coyoteCounter > 0f)
         {
             float jumpVel = Mathf.Sqrt(2f * gravityUp * jumpHeight);
             vel.y = jumpVel;
             bufferCounter = 0f;
             coyoteCounter = 0f;
+        }
+        // --- wall jump: en el aire pegado a una pared, salta hacia el lado contrario ---
+        else if (bufferCounter > 0f && wallSide != 0)
+        {
+            float jumpVel = Mathf.Sqrt(2f * gravityUp * jumpHeight);
+            vel.y = jumpVel;                 // sube
+            vel.x = -wallSide * wallJumpX;   // y empuja para el lado opuesto a la pared
+            wallJumpLockTimer = wallJumpLock;
+            bufferCounter = 0f;
         }
 
         // --- gravedad + salto variable ---
@@ -181,7 +231,19 @@ public class PlayerController2D : MonoBehaviour
 
         if (vel.y < -maxFallSpeed) vel.y = -maxFallSpeed;
 
+        // --- wall slide: cayendo y empujando contra la pared -> baja despacio ---
+        isWallSliding = pressingIntoWall && vel.y < 0f;
+        if (isWallSliding && vel.y < -wallSlideSpeed)
+            vel.y = -wallSlideSpeed;
+
         rb.linearVelocity = vel;
+    }
+
+    // Raycast horizontal para ver si hay pared de ese lado (dir: -1 izq, +1 der).
+    bool WallOnSide(int dir)
+    {
+        LayerMask mask = wallLayer.value != 0 ? wallLayer : groundLayer;
+        return Physics2D.Raycast(rb.position, new Vector2(dir, 0f), wallCheckDistance, mask);
     }
 
     void StartDash()
@@ -200,5 +262,11 @@ public class PlayerController2D : MonoBehaviour
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
         }
+
+        // rayos de deteccion de pared (izquierda y derecha)
+        Gizmos.color = Color.cyan;
+        Vector3 c = transform.position;
+        Gizmos.DrawLine(c, c + Vector3.right * wallCheckDistance);
+        Gizmos.DrawLine(c, c + Vector3.left * wallCheckDistance);
     }
 }

@@ -22,8 +22,10 @@ public class PlayerAnimator : MonoBehaviour
     }
 
     [Header("Animaciones (arrastra los frames)")]
-    public SpriteAnim idle;     // idle_00, idle_01
-    public SpriteAnim walk;     // walk_00, walk_01
+    public SpriteAnim idle;      // idle_00, idle_01
+    public SpriteAnim walk;      // walk_00..03
+    public SpriteAnim fall;      // fall_00  (pose en el aire / caida)
+    public SpriteAnim wallslide; // wallslide_00  (deslizando por pared)
     public SpriteAnim attack;   // attack_00..02  (un tiro)
     public SpriteAnim death;    // death_00..03   (un tiro)
     public SpriteAnim wave;     // wave_00..02    (un tiro, secreta)
@@ -49,7 +51,7 @@ public class PlayerAnimator : MonoBehaviour
     Material flashMat;
     bool flashing;
 
-    enum State { Idle, Walk, Air, Attack, Death, Wave, Swim, Ship }
+    enum State { Idle, Walk, Air, WallSlide, Attack, Death, Wave, Swim, Ship }
     State state = State.Idle;
     SpriteAnim current;
     int frame;
@@ -95,9 +97,8 @@ public class PlayerAnimator : MonoBehaviour
 
     void Update()
     {
-        // --- input de ataque (un tiro) ---
-        if (!isDead && attackAction != null && attackAction.WasPressedThisFrame())
-            PlayAttack();
+        // el ataque (tirar piedra) lo dispara RockThrower via PlayAttack(),
+        // solo cuando hay municion.
 
         // flash blanco mientras dashea
         UpdateDashFlash();
@@ -150,6 +151,15 @@ public class PlayerAnimator : MonoBehaviour
             return;
         }
 
+        // deslizando por una pared: pose de wall slide
+        if (!player.IsGrounded && player.IsWallSliding &&
+            wallslide != null && wallslide.frames != null && wallslide.frames.Length > 0)
+        {
+            SwitchLoop(wallslide, State.WallSlide);
+            idleTimer = 0f;
+            return;
+        }
+
         // en el aire (saltando o cayendo): pose de salto, nunca idle/saludo
         if (!player.IsGrounded)
         {
@@ -181,9 +191,17 @@ public class PlayerAnimator : MonoBehaviour
         Play(wave, State.Wave, true); // loop
     }
 
-    // Pose fija mientras esta en el aire (no hay frames de salto).
+    // Animacion mientras esta en el aire (saltando/cayendo).
     void ShowAir()
     {
+        // si cargaste la animacion de caida, usala
+        if (fall != null && fall.frames != null && fall.frames.Length > 0)
+        {
+            SwitchLoop(fall, State.Air);
+            return;
+        }
+
+        // si no, pose fija (jumpSprite o primer frame de idle)
         if (state == State.Air) return;
         state = State.Air;
         current = null; // que Advance() no pise el sprite
