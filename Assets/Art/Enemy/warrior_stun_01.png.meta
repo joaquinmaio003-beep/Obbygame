@@ -1,10 +1,13 @@
 fileFormatVersion: 2
-guid: 309e0f3f1e64edc4a970afdeb49ddbec
+guid: 63944a2cb2cd81e47a2ebd4bc1119539
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -1232019638909690966
-    second: rock_pile_0
+      213: -8772326285743511429
+    second: warrior_stun_01_0
+  - first:
+      213: 8512949588795725801
+    second: warrior_stun_01_1
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +103,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: rock_pile_0
+      name: warrior_stun_01_0
       rect:
         serializedVersion: 2
-        x: 21
-        y: 16
-        width: 22
-        height: 18
+        x: 7
+        y: 5
+        width: 24
+        height: 27
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +118,30 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: aab9b7a7aacf6eee0800000000000000
-      internalID: -1232019638909690966
+      spriteID: b78af6c88bf624680800000000000000
+      internalID: -8772326285743511429
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warrior_stun_01_1
+      rect:
+        serializedVersion: 2
+        x: 11
+        y: 0
+        width: 20
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9e71af62c82142670800000000000000
+      internalID: 8512949588795725801
       vertices: []
       indices: 
       edges: []
@@ -135,7 +160,8 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      rock_pile_0: -1232019638909690966
+      warrior_stun_01_0: -8772326285743511429
+      warrior_stun_01_1: 8512949588795725801
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

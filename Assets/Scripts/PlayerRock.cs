@@ -50,12 +50,11 @@ public class PlayerRock : MonoBehaviour
         // ignora a Obby (no autodestruirse al salir de su cuerpo)
         if (other.GetComponentInParent<PlayerController2D>() != null) return;
 
-        // pega en un enemigo -> lo stunea
-        var enemy = other.GetComponentInParent<Enemy>();
+        // pega en un enemigo stuneable (Enemy o WarriorEnemy) -> flash + knockback + stun
+        var enemy = other.GetComponentInParent<IStunnable>();
         if (enemy != null)
         {
-            if (stunTime > 0f) enemy.Stun(stunTime);
-            else enemy.Stun();
+            enemy.HitByRock(transform.position);
             Destroy(gameObject);
             return;
         }

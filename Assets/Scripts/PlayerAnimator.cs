@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -41,15 +42,19 @@ public class PlayerAnimator : MonoBehaviour
     public Sprite jumpSprite;
     [Tooltip("Color al que se pinta Obby durante el dash (blanco por defecto).")]
     public Color dashColor = Color.white;
+    [Tooltip("Color del parpadeo al recibir dano.")]
+    public Color damageColor = Color.red;
 
     // --- estado interno ---
     SpriteRenderer sr;
     PlayerController2D player;
 
-    // flash del dash
+    // flash del dash / dano
     Material normalMat;
     Material flashMat;
+    Material damageMat;
     bool flashing;
+    bool damageFlashing;
 
     enum State { Idle, Walk, Air, WallSlide, Attack, Death, Wave, Swim, Ship }
     State state = State.Idle;
@@ -80,6 +85,8 @@ public class PlayerAnimator : MonoBehaviour
         {
             flashMat = new Material(flashShader);
             flashMat.SetColor("_Color", dashColor);
+            damageMat = new Material(flashShader);
+            damageMat.SetColor("_Color", damageColor);
         }
 
         Play(idle, State.Idle, true);
@@ -121,11 +128,33 @@ public class PlayerAnimator : MonoBehaviour
     // pinta a Obby de blanco mientras dashea y lo restaura al terminar
     void UpdateDashFlash()
     {
-        if (flashMat == null || player == null) return;
+        if (flashMat == null || player == null || damageFlashing) return;
         bool wantFlash = player.IsDashing;
         if (wantFlash == flashing) return;
         flashing = wantFlash;
         sr.material = wantFlash ? flashMat : normalMat;
+    }
+
+    /// <summary>Parpadeo rojo al recibir dano (lo llama PlayerRespawn).</summary>
+    public void DamageFlash()
+    {
+        if (damageMat == null || !gameObject.activeInHierarchy) return;
+        StopCoroutine(nameof(DamageFlashRoutine));
+        StartCoroutine(nameof(DamageFlashRoutine));
+    }
+
+    IEnumerator DamageFlashRoutine()
+    {
+        damageFlashing = true;
+        for (int i = 0; i < 3; i++)
+        {
+            sr.material = damageMat;
+            yield return new WaitForSeconds(0.09f);
+            sr.material = normalMat;
+            yield return new WaitForSeconds(0.09f);
+        }
+        damageFlashing = false;
+        flashing = false; // que el dash reaplique su flash si corresponde
     }
 
     // true si el jugador hizo algo que debe cortar el saludo

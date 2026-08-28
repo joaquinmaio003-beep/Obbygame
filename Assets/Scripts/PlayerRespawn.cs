@@ -1,28 +1,49 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Guarda el ultimo checkpoint y reubica al jugador ahi cuando muere.
+/// Vidas + checkpoints de Obby (estilo Mario).
+/// - Hurt(): golpe de enemigo/bala -> flash rojo + pierde una vida + breve
+///   invulnerabilidad, PERO se queda donde esta (no teleporta).
+/// - Respawn(): caida al vacio o lava/pinchos -> teleporta al ultimo checkpoint
+///   (ahi si, porque no podes quedarte en el pozo) + pierde una vida.
+/// Al llegar a 0 vidas, reinicia el nivel. En el dash es invulnerable a golpes.
 /// Va en el mismo GameObject que el PlayerController2D.
-/// Si hay un PlayerAnimator, reproduce la explosion de muerte antes de reaparecer.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerRespawn : MonoBehaviour
 {
+    [Header("Vidas")]
+    public int maxLives = 3;
+    [Tooltip("Segundos invulnerable tras recibir un golpe.")]
+    public float invulnDuration = 1.2f;
+
+    [Header("Checkpoint")]
     [Tooltip("Punto inicial. Si queda vacio usa la posicion de arranque.")]
     public Transform startPoint;
-
-    [Tooltip("Altura minima: si el jugador cae mas abajo que esto, muere.")]
+    [Tooltip("Altura minima: si cae mas abajo que esto, vuelve al checkpoint.")]
     public float killY = -20f;
 
-    [Tooltip("Segundos que dura la explosion de muerte antes de reaparecer.")]
+    [Header("Knockback (al recibir un golpe)")]
+    public float knockbackX = 7f;
+    public float knockbackY = 6f;
+    [Tooltip("Segundos sin control tras el empuje.")]
+    public float knockbackLock = 0.2f;
+
+    [Header("Game over")]
+    [Tooltip("Segundos de la explosion final antes de reiniciar el nivel.")]
     public float deathDelay = 0.8f;
 
+    int lives;
     Vector3 checkpoint;
     Rigidbody2D rb;
     PlayerController2D controller;
     PlayerAnimator anim;
     bool dying;
+    bool invulnerable;
+
+    public int Lives => lives;
 
     void Awake()
     {
@@ -30,11 +51,12 @@ public class PlayerRespawn : MonoBehaviour
         controller = GetComponent<PlayerController2D>();
         anim = GetComponent<PlayerAnimator>();
         checkpoint = startPoint != null ? startPoint.position : transform.position;
+        lives = maxLives;
     }
 
     void Update()
     {
-        if (!dying && transform.position.y < killY)
+        if (!dying && !invulnerable && transform.position.y < killY)
             Respawn();
     }
 
@@ -44,35 +66,78 @@ public class PlayerRespawn : MonoBehaviour
         checkpoint = pos;
     }
 
-    /// <summary>Mata al jugador: explota, espera y reaparece en el checkpoint.</summary>
+    /// <summary>Golpe sin fuente: empuja hacia atras del facing.</summary>
+    public void Hurt() { Hurt(transform.position); }
+
+    /// <summary>Golpe de enemigo/bala: flash + knockback + pierde vida + invulnerable, SIN teleport.</summary>
+    public void Hurt(Vector2 fromPos)
+    {
+        if (dying || invulnerable) return;
+        if (controller != null && controller.IsDashing) return; // en el dash esquiva ataques
+
+        // empuje hacia el lado opuesto a la fuente del golpe
+        float dx = transform.position.x - fromPos.x;
+        int side = Mathf.Abs(dx) > 0.01f ? (dx > 0f ? 1 : -1)
+                 : (controller != null ? -controller.Facing : 1);
+        if (controller != null)
+            controller.ApplyKnockback(new Vector2(side * knockbackX, knockbackY), knockbackLock);
+        else
+            rb.linearVelocity = new Vector2(side * knockbackX, knockbackY);
+
+        LoseLife(false);
+    }
+
+    /// <summary>Caida/lava: teleporta al checkpoint + pierde una vida.</summary>
     public void Respawn()
     {
-        if (dying) return;
+        if (dying || invulnerable) return;
+        LoseLife(true);
+    }
 
-        // sin animador: teleport directo
-        if (anim == null)
+    void LoseLife(bool teleport)
+    {
+        lives--;
+        if (anim != null) anim.DamageFlash(); // parpadeo rojo
+
+        if (lives <= 0)
         {
-            rb.linearVelocity = Vector2.zero;
-            transform.position = checkpoint;
+            StartCoroutine(GameOverRoutine());
             return;
         }
 
-        StartCoroutine(DeathRoutine());
+        if (teleport) StartCoroutine(TeleportRoutine());
+        else StartCoroutine(InvulnRoutine());
     }
 
-    IEnumerator DeathRoutine()
+    // caida/lava: reaparece en el checkpoint + invulnerable un rato
+    IEnumerator TeleportRoutine()
     {
         dying = true;
         rb.linearVelocity = Vector2.zero;
-        if (controller != null) controller.enabled = false; // no moverse mientras explota
-        anim.PlayDeath();
+        transform.position = checkpoint;
+        dying = false;
+
+        yield return InvulnRoutine();
+    }
+
+    // golpe normal: se queda donde esta, solo invulnerable un rato
+    IEnumerator InvulnRoutine()
+    {
+        invulnerable = true;
+        yield return new WaitForSeconds(invulnDuration);
+        invulnerable = false;
+    }
+
+    // ultima vida: explosion y reinicio del nivel
+    IEnumerator GameOverRoutine()
+    {
+        dying = true;
+        rb.linearVelocity = Vector2.zero;
+        if (controller != null) controller.enabled = false;
+        if (anim != null) anim.PlayDeath();
 
         yield return new WaitForSeconds(deathDelay);
 
-        transform.position = checkpoint;
-        rb.linearVelocity = Vector2.zero;
-        if (controller != null) controller.enabled = true;
-        anim.Revive();
-        dying = false;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }

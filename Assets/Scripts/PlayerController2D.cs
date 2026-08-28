@@ -38,7 +38,7 @@ public class PlayerController2D : MonoBehaviour
 
     [Header("Dash (Shift)")]
     [Tooltip("Velocidad del dash.")]
-    public float dashSpeed = 22f;
+    public float dashSpeed = 16f;
     [Tooltip("Cuanto dura el dash (seg).")]
     public float dashDuration = 0.15f;
     [Tooltip("Espera entre dashes (seg).")]
@@ -59,7 +59,7 @@ public class PlayerController2D : MonoBehaviour
 
     [Header("Wall jump (saltar de la pared)")]
     [Tooltip("Empuje horizontal al saltar desde la pared.")]
-    public float wallJumpX = 7f;
+    public float wallJumpX = 5f;
     [Tooltip("Tiempo sin control horizontal tras el wall jump (para que el empuje se sienta).")]
     public float wallJumpLock = 0.12f;
 
@@ -82,6 +82,8 @@ public class PlayerController2D : MonoBehaviour
     // wall slide / wall jump
     bool isWallSliding;
     float wallJumpLockTimer;
+    int lastWallSide;
+    float controlLockTimer; // bloqueo total del control horizontal (knockback)
 
     // Input System (generado por acciones)
     InputAction moveAction;
@@ -95,6 +97,10 @@ public class PlayerController2D : MonoBehaviour
     public Vector2 Velocity => rb != null ? rb.linearVelocity : Vector2.zero;
     public bool IsDashing => isDashing;
     public bool IsWallSliding => isWallSliding;
+    // 0 = recien usado, 1 = listo para dashear (para la barra de recarga)
+    public float DashChargeNormalized =>
+        dashCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(dashCdTimer / dashCooldown);
+    public bool DashReady => !isDashing && dashCdTimer <= 0f;
 
     void Awake()
     {
@@ -187,12 +193,14 @@ public class PlayerController2D : MonoBehaviour
         }
         bool pressingIntoWall = wallSide != 0 && inputDir == wallSide;
 
-        // --- horizontal (bloqueado un ratito tras el wall jump) ---
-        if (wallJumpLockTimer > 0f)
-        {
-            wallJumpLockTimer -= Time.fixedDeltaTime;
-        }
-        else
+        // --- horizontal ---
+        // tras un wall jump el salto es LIBRE: solo se bloquea volver a empujar
+        // contra la misma pared (para no re-pegarse); podes ir arriba o al otro lado.
+        if (wallJumpLockTimer > 0f) wallJumpLockTimer -= Time.fixedDeltaTime;
+        if (controlLockTimer > 0f) controlLockTimer -= Time.fixedDeltaTime;
+        bool blockHoriz = controlLockTimer > 0f
+                          || (wallJumpLockTimer > 0f && lastWallSide != 0 && inputDir == lastWallSide);
+        if (!blockHoriz)
         {
             float target = moveInput * moveSpeed;
             float rate = Mathf.Abs(target) > 0.01f ? acceleration : deceleration;
@@ -214,6 +222,7 @@ public class PlayerController2D : MonoBehaviour
             vel.y = jumpVel;                 // sube
             vel.x = -wallSide * wallJumpX;   // y empuja para el lado opuesto a la pared
             wallJumpLockTimer = wallJumpLock;
+            lastWallSide = wallSide;
             bufferCounter = 0f;
         }
 
@@ -244,6 +253,15 @@ public class PlayerController2D : MonoBehaviour
     {
         LayerMask mask = wallLayer.value != 0 ? wallLayer : groundLayer;
         return Physics2D.Raycast(rb.position, new Vector2(dir, 0f), wallCheckDistance, mask);
+    }
+
+    /// <summary>Empuja al jugador (knockback) y bloquea el control horizontal un instante.</summary>
+    public void ApplyKnockback(Vector2 velocity, float lockTime)
+    {
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        rb.linearVelocity = velocity;
+        controlLockTimer = Mathf.Max(controlLockTimer, lockTime);
+        isDashing = false; // por las dudas, cortar el dash
     }
 
     void StartDash()

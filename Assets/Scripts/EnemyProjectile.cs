@@ -16,6 +16,7 @@ public class EnemyProjectile : MonoBehaviour
     public float life = 4f;
 
     Rigidbody2D rb;
+    int dir = 1;
 
     void Reset()
     {
@@ -36,6 +37,7 @@ public class EnemyProjectile : MonoBehaviour
     public void Launch(int direction)
     {
         int d = direction >= 0 ? 1 : -1;
+        dir = d;
         rb.linearVelocity = new Vector2(d * speed, 0f);
         var s = transform.localScale;
         s.x = Mathf.Abs(s.x) * d; // que mire hacia donde va
@@ -47,11 +49,11 @@ public class EnemyProjectile : MonoBehaviour
     {
         Debug.Log($"[Bala] toco: {other.name} (layer {LayerMask.LayerToName(other.gameObject.layer)}, trigger {other.isTrigger})");
 
-        // pega en Obby (aunque su collider sea trigger o este en un hijo) -> lo mata
+        // pega en Obby (aunque su collider sea trigger o este en un hijo) -> le pega
         var respawn = other.GetComponentInParent<PlayerRespawn>();
         if (respawn != null)
         {
-            respawn.Respawn();
+            respawn.Hurt(transform.position - new Vector3(dir, 0f, 0f)); // empuja en el sentido del tiro
             Destroy(gameObject);
             return;
         }

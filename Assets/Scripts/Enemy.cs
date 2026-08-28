@@ -14,7 +14,7 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
 [RequireComponent(typeof(SpriteRenderer))]
-public class Enemy : MonoBehaviour
+public class Enemy : MonoBehaviour, IStunnable
 {
     [System.Serializable]
     public class Anim { public Sprite[] frames; public float fps = 8f; }
@@ -59,11 +59,18 @@ public class Enemy : MonoBehaviour
 
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
+    [Tooltip("Cuanto lo empuja la piedra al pegarle (poco).")]
+    public float rockKnockback = 0.3f;
+
+    [Header("Alerta")]
+    [Tooltip("Objeto hijo con el '!' que se prende cuando te ve (opcional).")]
+    public GameObject alertIcon;
 
     // --- estado ---
     Rigidbody2D rb;
     SpriteRenderer sr;
     Collider2D col;
+    EnemyHitFX hitFX;
     Transform player;
     int dir = 1;              // 1 der, -1 izq (arte mira a la derecha por defecto)
     bool isStunned;
@@ -83,12 +90,14 @@ public class Enemy : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
         col = GetComponent<Collider2D>();
+        hitFX = GetComponent<EnemyHitFX>();
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.freezeRotation = true;
 
         var p = FindFirstObjectByType<PlayerController2D>();
         if (p != null) player = p.transform;
 
+        if (alertIcon != null) alertIcon.SetActive(false);
         SetAnim(idle);
     }
 
@@ -97,6 +106,7 @@ public class Enemy : MonoBehaviour
         if (shootCdTimer > 0f) shootCdTimer -= Time.deltaTime;
 
         isAlerted = !isStunned && !isRecovering && PlayerInSight();
+        if (alertIcon != null) alertIcon.SetActive(isAlerted);
 
         // parado apuntando: dispara repetido mientras te ve
         if (isAlerted && !isShooting && canShoot && shootCdTimer <= 0f)
@@ -143,7 +153,7 @@ public class Enemy : MonoBehaviour
     {
         if (!hurtOnContact || isStunned || isRecovering) return;
         var respawn = other.GetComponentInParent<PlayerRespawn>();
-        if (respawn != null) respawn.Respawn();
+        if (respawn != null) respawn.Hurt(transform.position); // empuja lejos del enemigo
     }
 
     bool PlayerInSight()
@@ -177,7 +187,15 @@ public class Enemy : MonoBehaviour
         isShooting = false;
     }
 
-    // ---- API publica: la piedra de Obby llama a Stun() ----
+    // ---- la piedra de Obby: flash + knockback chico + stun ----
+    public void HitByRock(Vector2 fromPos)
+    {
+        if (hitFX != null) hitFX.Flash();
+        float side = transform.position.x >= fromPos.x ? 1f : -1f;
+        transform.position += new Vector3(side * rockKnockback, 0f, 0f);
+        Stun();
+    }
+
     public void Stun() { Stun(defaultStunTime); }
 
     public void Stun(float duration)
