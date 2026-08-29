@@ -166,6 +166,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         isAttacking = false;
     }
 
+    public bool IsStunned => isStunned || isRecovering;
+
     // ---- la piedra de Obby: flash + knockback chico + stun ----
     public void HitByRock(Vector2 fromPos)
     {
@@ -173,6 +175,12 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         float side = transform.position.x >= fromPos.x ? 1f : -1f;
         transform.position += new Vector3(side * rockKnockback, 0f, 0f);
         Stun();
+    }
+
+    // ---- eliminado (le cayo un pincho encima): simplemente desaparece ----
+    public void Defeat()
+    {
+        Destroy(gameObject);
     }
 
     // ---- stun ----

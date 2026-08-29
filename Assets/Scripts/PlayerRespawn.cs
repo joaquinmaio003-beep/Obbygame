@@ -128,7 +128,7 @@ public class PlayerRespawn : MonoBehaviour
         invulnerable = false;
     }
 
-    // ultima vida: explosion y reinicio del nivel
+    // ultima vida: explosion y reinicia el nivel desde el arranque
     IEnumerator GameOverRoutine()
     {
         dying = true;
@@ -138,6 +138,31 @@ public class PlayerRespawn : MonoBehaviour
 
         yield return new WaitForSeconds(deathDelay);
 
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        var scene = SceneManager.GetActiveScene();
+        if (scene.buildIndex >= 0)
+        {
+            SceneManager.LoadScene(scene.buildIndex); // reinicio completo del nivel
+        }
+        else
+        {
+            // la escena no esta en Build Settings: reset manual al inicio
+            Debug.LogWarning("PlayerRespawn: agrega la escena a File > Build Settings > Add Open Scenes " +
+                             "para que el game over reinicie bien el nivel.");
+            ResetToStart();
+        }
+    }
+
+    // reset manual (fallback si la escena no esta en Build Settings)
+    void ResetToStart()
+    {
+        lives = maxLives;
+        Vector3 start = startPoint != null ? startPoint.position : checkpoint;
+        checkpoint = start;
+        transform.position = start;
+        rb.linearVelocity = Vector2.zero;
+        if (controller != null) controller.enabled = true;
+        if (anim != null) anim.Revive();
+        dying = false;
+        invulnerable = false;
     }
 }
