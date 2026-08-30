@@ -63,6 +63,9 @@ public class PlayerController2D : MonoBehaviour
     [Tooltip("Tiempo sin control horizontal tras el wall jump (para que el empuje se sienta).")]
     public float wallJumpLock = 0.12f;
 
+    [Header("Sonido")]
+    public AudioClip jumpSound;   // salto.ogg
+
     // --- estado interno ---
     Rigidbody2D rb;
     float moveInput;
@@ -214,6 +217,7 @@ public class PlayerController2D : MonoBehaviour
             vel.y = jumpVel;
             bufferCounter = 0f;
             coyoteCounter = 0f;
+            PlayJumpSound();
         }
         // --- wall jump: en el aire pegado a una pared, salta hacia el lado contrario ---
         else if (bufferCounter > 0f && wallSide != 0)
@@ -224,6 +228,7 @@ public class PlayerController2D : MonoBehaviour
             wallJumpLockTimer = wallJumpLock;
             lastWallSide = wallSide;
             bufferCounter = 0f;
+            PlayJumpSound();
         }
 
         // --- gravedad + salto variable ---
@@ -262,6 +267,12 @@ public class PlayerController2D : MonoBehaviour
         rb.linearVelocity = velocity;
         controlLockTimer = Mathf.Max(controlLockTimer, lockTime);
         isDashing = false; // por las dudas, cortar el dash
+    }
+
+    void PlayJumpSound()
+    {
+        if (jumpSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(jumpSound);
     }
 
     void StartDash()

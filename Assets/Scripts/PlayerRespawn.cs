@@ -35,6 +35,9 @@ public class PlayerRespawn : MonoBehaviour
     [Tooltip("Segundos de la explosion final antes de reiniciar el nivel.")]
     public float deathDelay = 0.8f;
 
+    [Header("Sonido")]
+    public AudioClip hurtSound;   // golpe.ogg
+
     int lives;
     Vector3 checkpoint;
     Rigidbody2D rb;
@@ -98,6 +101,8 @@ public class PlayerRespawn : MonoBehaviour
     {
         lives--;
         if (anim != null) anim.DamageFlash(); // parpadeo rojo
+        if (hurtSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(hurtSound);
 
         if (lives <= 0)
         {
