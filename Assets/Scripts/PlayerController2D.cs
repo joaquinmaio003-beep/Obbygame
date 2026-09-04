@@ -25,8 +25,6 @@ public class PlayerController2D : MonoBehaviour
     public float gravityUp = 38f;
     [Tooltip("Gravedad al caer (mayor = caida mas pesada/rapida).")]
     public float gravityDown = 42f;
-    [Tooltip("Gravedad extra al soltar el salto antes de tiempo (salto variable).")]
-    public float jumpCutMultiplier = 3f;
     [Tooltip("Velocidad de caida maxima (terminal).")]
     public float maxFallSpeed = 18f;
 
@@ -69,7 +67,6 @@ public class PlayerController2D : MonoBehaviour
     // --- estado interno ---
     Rigidbody2D rb;
     float moveInput;
-    bool jumpHeld;
     float prevUp;
     float coyoteCounter;
     float bufferCounter;
@@ -139,7 +136,6 @@ public class PlayerController2D : MonoBehaviour
         // saltar con Space (Jump) O con W / flecha arriba (Move up)
         bool jumpDown = (jumpAction != null && jumpAction.WasPressedThisFrame())
                         || (up > 0.5f && prevUp <= 0.5f);
-        jumpHeld = (jumpAction != null && jumpAction.IsPressed()) || up > 0.5f;
         if (jumpDown) bufferCounter = jumpBuffer;
         prevUp = up;
 
@@ -231,17 +227,11 @@ public class PlayerController2D : MonoBehaviour
             PlayJumpSound();
         }
 
-        // --- gravedad + salto variable ---
+        // --- gravedad (salto fijo, sin altura variable) ---
         if (vel.y > 0f)
-        {
             vel.y -= gravityUp * Time.fixedDeltaTime;
-            if (!jumpHeld) // soltaste antes -> salto corto
-                vel.y -= gravityUp * (jumpCutMultiplier - 1f) * Time.fixedDeltaTime;
-        }
         else
-        {
             vel.y -= gravityDown * Time.fixedDeltaTime;
-        }
 
         if (vel.y < -maxFallSpeed) vel.y = -maxFallSpeed;
 

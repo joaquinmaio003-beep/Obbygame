@@ -71,6 +71,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     bool isStunned;
     bool isRecovering;
     float attackCdTimer;
+    float flipCd;   // anti-jitter para no girar sin parar
 
     Anim current;
     int frame;
@@ -127,8 +128,13 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
             return;
         }
 
-        // patrulla
-        if (WallAhead() || !GroundAhead()) Flip();
+        // patrulla (girar en pared/borde con anti-jitter)
+        if (flipCd > 0f) flipCd -= Time.fixedDeltaTime;
+        if (flipCd <= 0f && (WallAhead() || !GroundAhead()))
+        {
+            Flip();
+            flipCd = 0.3f;
+        }
         rb.linearVelocity = new Vector2(dir * patrolSpeed, 0f);
     }
 
