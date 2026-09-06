@@ -40,9 +40,11 @@ public class PlayerRespawn : MonoBehaviour
 
     int lives;
     Vector3 checkpoint;
+    int checkpointOrder = int.MinValue; // para no retroceder a un checkpoint viejo
     Rigidbody2D rb;
     PlayerController2D controller;
     PlayerAnimator anim;
+    CameraFollow2D cam;
     bool dying;
     bool invulnerable;
 
@@ -55,6 +57,7 @@ public class PlayerRespawn : MonoBehaviour
         anim = GetComponent<PlayerAnimator>();
         checkpoint = startPoint != null ? startPoint.position : transform.position;
         lives = maxLives;
+        if (Camera.main != null) cam = Camera.main.GetComponent<CameraFollow2D>();
     }
 
     void Update()
@@ -63,9 +66,11 @@ public class PlayerRespawn : MonoBehaviour
             Respawn();
     }
 
-    /// <summary>Actualiza el punto de reaparicion (lo llama Checkpoint).</summary>
-    public void SetCheckpoint(Vector3 pos)
+    /// <summary>Actualiza el respawn solo si el checkpoint es mas avanzado (no retrocede).</summary>
+    public void SetCheckpoint(Vector3 pos, int order)
     {
+        if (order <= checkpointOrder) return; // checkpoint viejo -> no piso el progreso
+        checkpointOrder = order;
         checkpoint = pos;
     }
 
@@ -101,6 +106,7 @@ public class PlayerRespawn : MonoBehaviour
     {
         lives--;
         if (anim != null) anim.DamageFlash(); // parpadeo rojo
+        if (cam != null) cam.Shake();          // temblor de camara
         if (hurtSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(hurtSound);
 
@@ -120,6 +126,12 @@ public class PlayerRespawn : MonoBehaviour
         dying = true;
         rb.linearVelocity = Vector2.zero;
         transform.position = checkpoint;
+
+        // resetear el flip (que no reaparezca mirando al reves)
+        var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s;
+        // encajar la camara de una (sin barrer la pantalla)
+        if (cam != null) cam.SnapToTarget();
+
         dying = false;
 
         yield return InvulnRoutine();

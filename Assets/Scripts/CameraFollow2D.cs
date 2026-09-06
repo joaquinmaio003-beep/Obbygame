@@ -25,6 +25,8 @@ public class CameraFollow2D : MonoBehaviour
     public float maxY = 15f;
 
     Camera cam;
+    float shakeTime;
+    float shakeIntensity;
 
     void Awake()
     {
@@ -36,21 +38,52 @@ public class CameraFollow2D : MonoBehaviour
         if (target == null) return;
         if (cam == null) cam = GetComponent<Camera>();
 
-        Vector3 goal = new Vector3(target.position.x + offset.x,
-                                   target.position.y + offset.y,
-                                   transform.position.z);
-        Vector3 pos = Vector3.Lerp(transform.position, goal, smooth * Time.deltaTime);
+        Vector3 pos = Vector3.Lerp(transform.position, TargetPosition(), smooth * Time.deltaTime);
+        pos = ClampToBounds(pos);
 
+        // temblor (unscaledDeltaTime: anda aunque el juego este pausado)
+        if (shakeTime > 0f)
+        {
+            shakeTime -= Time.unscaledDeltaTime;
+            pos += (Vector3)(Random.insideUnitCircle * shakeIntensity);
+        }
+
+        transform.position = pos;
+    }
+
+    Vector3 TargetPosition()
+    {
+        return new Vector3(target.position.x + offset.x,
+                           target.position.y + offset.y,
+                           transform.position.z);
+    }
+
+    // aplica los limites del mapa a una posicion
+    Vector3 ClampToBounds(Vector3 pos)
+    {
         if (useBounds && cam != null && cam.orthographic)
         {
-            // mitad de lo que ve la camara, para frenar en el borde y no pasarlo
             float halfH = cam.orthographicSize;
             float halfW = halfH * cam.aspect;
             pos.x = ClampAxis(pos.x, minX + halfW, maxX - halfW, (minX + maxX) * 0.5f);
             pos.y = ClampAxis(pos.y, minY + halfH, maxY - halfH, (minY + maxY) * 0.5f);
         }
+        return pos;
+    }
 
-        transform.position = pos;
+    /// <summary>Encaja la camara de una en el objetivo (sin barrer). Llamalo al respawnear.</summary>
+    public void SnapToTarget()
+    {
+        if (target == null) return;
+        if (cam == null) cam = GetComponent<Camera>();
+        transform.position = ClampToBounds(TargetPosition());
+    }
+
+    /// <summary>Sacude la camara un ratito (muerte/golpe).</summary>
+    public void Shake(float duration = 0.25f, float intensity = 0.15f)
+    {
+        shakeTime = Mathf.Max(shakeTime, duration);
+        shakeIntensity = intensity;
     }
 
     // Limita el valor; si el mapa es mas chico que la vista, centra en ese eje.
