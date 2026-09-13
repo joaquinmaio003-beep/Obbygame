@@ -1,10 +1,16 @@
 fileFormatVersion: 2
-guid: d231e583a6b8729488645e99a839f530
+guid: 3801f7e3006885e4a8c937c602ca76fe
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -4302110113603737477
-    second: forest_bg_0
+      213: -5392350337068571146
+    second: 3_Fondo3Arboles_0
+  - first:
+      213: -3045700432477430257
+    second: 3_Fondo3Arboles_1
+  - first:
+      213: -3842398444215176359
+    second: 3_Fondo3Arboles_2
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +106,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: forest_bg_0
+      name: 3_Fondo3Arboles_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 370
-        height: 200
+        x: 2
+        y: 42
+        width: 38
+        height: 189
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +121,52 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: b78a80e25a5db44c0800000000000000
-      internalID: -4302110113603737477
+      spriteID: 6f5e19630f58a25b0800000000000000
+      internalID: -5392350337068571146
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 3_Fondo3Arboles_1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 43
+        width: 59
+        height: 169
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f0eddede79f7bb5d0800000000000000
+      internalID: -3045700432477430257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: 3_Fondo3Arboles_2
+      rect:
+        serializedVersion: 2
+        x: 207
+        y: 53
+        width: 60
+        height: 158
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9537a0f09fe0daac0800000000000000
+      internalID: -3842398444215176359
       vertices: []
       indices: 
       edges: []
@@ -135,7 +185,9 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      forest_bg_0: -4302110113603737477
+      3_Fondo3Arboles_0: -5392350337068571146
+      3_Fondo3Arboles_1: -3045700432477430257
+      3_Fondo3Arboles_2: -3842398444215176359
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

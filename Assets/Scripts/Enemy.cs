@@ -66,6 +66,12 @@ public class Enemy : MonoBehaviour, IStunnable
     [Tooltip("Objeto hijo con el '!' que se prende cuando te ve (opcional).")]
     public GameObject alertIcon;
 
+    [Header("Sonido")]
+    [Tooltip("Al disparar.")]
+    public AudioClip shootSound;
+    [Tooltip("Al recibir la piedra / quedar stuneado.")]
+    public AudioClip stunSound;
+
     // --- estado ---
     Rigidbody2D rb;
     SpriteRenderer sr;
@@ -137,9 +143,9 @@ public class Enemy : MonoBehaviour, IStunnable
 
         if (isShooting) { rb.linearVelocity = Vector2.zero; return; }
 
-        // patrulla: girar en pared o borde (con un pequeno cooldown anti-jitter)
+        // patrulla: girar en pared, borde, o escalon/pincho adelante (anti-jitter)
         if (flipCd > 0f) flipCd -= Time.fixedDeltaTime;
-        if (flipCd <= 0f && (WallAhead() || !GroundAhead()))
+        if (flipCd <= 0f && (WallAhead() || !GroundAhead() || StepUpAhead()))
         {
             Flip();
             flipCd = 0.25f;
@@ -181,6 +187,8 @@ public class Enemy : MonoBehaviour, IStunnable
             var go = Instantiate(projectilePrefab, spawn, Quaternion.identity);
             var proj = go.GetComponent<EnemyProjectile>();
             if (proj != null) proj.Launch(dir);
+            if (shootSound != null && AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(shootSound);
         }
 
         shootCdTimer = shootCooldown;
@@ -193,6 +201,8 @@ public class Enemy : MonoBehaviour, IStunnable
     public void HitByRock(Vector2 fromPos)
     {
         if (hitFX != null) hitFX.Flash();
+        if (stunSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(stunSound);
         float side = transform.position.x >= fromPos.x ? 1f : -1f;
         transform.position += new Vector3(side * rockKnockback, 0f, 0f);
         Stun();
@@ -269,6 +279,15 @@ public class Enemy : MonoBehaviour, IStunnable
         return Physics2D.Raycast(b.center, new Vector2(dir, 0f), b.extents.x + wallCheckMargin, groundLayer);
     }
 
+    // hay un escalon/pincho adelante MAS ALTO que los pies -> no treparlo, girar
+    bool StepUpAhead()
+    {
+        Bounds b = col.bounds;
+        Vector2 front = new Vector2(b.center.x + dir * (b.extents.x + wallCheckMargin), b.center.y);
+        RaycastHit2D hit = Physics2D.Raycast(front, Vector2.down, b.extents.y + 0.1f, groundLayer);
+        return hit.collider != null && hit.point.y > b.min.y + 0.15f;
+    }
+
     bool GroundAhead()
     {
         Bounds b = col.bounds;
@@ -280,8 +299,10 @@ public class Enemy : MonoBehaviour, IStunnable
     void SnapToGround()
     {
         Bounds b = col.bounds;
+        // alcance generoso hacia abajo: si quedo elevado (ej. paso por un pincho), vuelve al piso
+        float reach = b.extents.y + Mathf.Max(groundSnapDistance, 3f);
         RaycastHit2D hit = Physics2D.Raycast(new Vector2(b.center.x, b.center.y), Vector2.down,
-                                             b.extents.y + groundSnapDistance, groundLayer);
+                                             reach, groundLayer);
         if (hit.collider != null)
         {
             float pivotToFoot = transform.position.y - b.min.y; // pivote respecto a la base del collider

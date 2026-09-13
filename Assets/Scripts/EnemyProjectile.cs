@@ -47,8 +47,6 @@ public class EnemyProjectile : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log($"[Bala] toco: {other.name} (layer {LayerMask.LayerToName(other.gameObject.layer)}, trigger {other.isTrigger})");
-
         // pega en Obby (aunque su collider sea trigger o este en un hijo) -> le pega
         var respawn = other.GetComponentInParent<PlayerRespawn>();
         if (respawn != null)
