@@ -66,7 +66,9 @@ public class CameraFollow2D : MonoBehaviour
             float halfH = cam.orthographicSize;
             float halfW = halfH * cam.aspect;
             pos.x = ClampAxis(pos.x, minX + halfW, maxX - halfW, (minX + maxX) * 0.5f);
-            pos.y = ClampAxis(pos.y, minY + halfH, maxY - halfH, (minY + maxY) * 0.5f);
+            // Y: bloqueada para abajo (no muestra el vacio de abajo) pero LIBRE para arriba.
+            float floorY = minY + halfH;
+            if (pos.y < floorY) pos.y = floorY;
         }
         return pos;
     }

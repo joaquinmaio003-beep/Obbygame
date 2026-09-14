@@ -44,7 +44,8 @@ public class PlayerController2D : MonoBehaviour
 
     [Header("Deteccion de piso")]
     public Transform groundCheck;
-    public float groundCheckRadius = 0.18f;
+    [Tooltip("Tamano de la caja de deteccion en los pies. Ancha para no fallar en bordes/esquinas.")]
+    public Vector2 groundCheckSize = new Vector2(0.7f, 0.14f);
     public LayerMask groundLayer;
 
     [Header("Wall slide (deslizar por pared)")]
@@ -85,6 +86,7 @@ public class PlayerController2D : MonoBehaviour
 
     // wall slide / wall jump
     bool isWallSliding;
+    int wallContact; // lado de pared tocada en el aire (para la anim de wall slide)
     float wallJumpLockTimer;
     int lastWallSide;
     float controlLockTimer; // bloqueo total del control horizontal (knockback)
@@ -102,6 +104,8 @@ public class PlayerController2D : MonoBehaviour
     public Vector2 Velocity => rb != null ? rb.linearVelocity : Vector2.zero;
     public bool IsDashing => isDashing;
     public bool IsWallSliding => isWallSliding;
+    // Lado de la pared que Obby esta tocando en el aire (0 = ninguna). Lo usa el animator.
+    public int WallContact => wallContact;
     // 0 = recien usado, 1 = listo para dashear (para la barra de recarga)
     public float DashChargeNormalized =>
         dashCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(dashCdTimer / dashCooldown);
@@ -185,7 +189,7 @@ public class PlayerController2D : MonoBehaviour
     void FixedUpdate()
     {
         isGrounded = groundCheck != null &&
-                     Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+                     Physics2D.OverlapBox(groundCheck.position, groundCheckSize, 0f, groundLayer);
 
         Vector2 vel = rb.linearVelocity;
 
@@ -208,6 +212,7 @@ public class PlayerController2D : MonoBehaviour
             if (WallOnSide(1)) wallSide = 1;         // pared a la derecha
             else if (WallOnSide(-1)) wallSide = -1;  // pared a la izquierda
         }
+        wallContact = wallSide; // para la anim (tocar pared en el aire, sin depender de apretar)
         bool pressingIntoWall = wallSide != 0 && inputDir == wallSide;
 
         // --- horizontal ---
@@ -262,10 +267,14 @@ public class PlayerController2D : MonoBehaviour
     }
 
     // Raycast horizontal para ver si hay pared de ese lado (dir: -1 izq, +1 der).
+    // Los cajones empujables (PushableBox) NO cuentan como pared: no te pegas a ellos.
     bool WallOnSide(int dir)
     {
         LayerMask mask = wallLayer.value != 0 ? wallLayer : groundLayer;
-        return Physics2D.Raycast(rb.position, new Vector2(dir, 0f), wallCheckDistance, mask);
+        RaycastHit2D hit = Physics2D.Raycast(rb.position, new Vector2(dir, 0f), wallCheckDistance, mask);
+        if (hit.collider == null) return false;
+        if (hit.collider.GetComponentInParent<PushableBox>() != null) return false; // es un cajon, no pared
+        return true;
     }
 
     /// <summary>Empuja al jugador (knockback) y bloquea el control horizontal un instante.</summary>
@@ -297,7 +306,7 @@ public class PlayerController2D : MonoBehaviour
         if (groundCheck != null)
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+            Gizmos.DrawWireCube(groundCheck.position, groundCheckSize);
         }
 
         // rayos de deteccion de pared (izquierda y derecha)

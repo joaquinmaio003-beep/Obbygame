@@ -32,8 +32,10 @@ public class PlayerRespawn : MonoBehaviour
     public float knockbackLock = 0.2f;
 
     [Header("Game over")]
-    [Tooltip("Segundos de la explosion final antes de reiniciar el nivel.")]
+    [Tooltip("Segundos que se queda muerto (con la anim congelada) antes del fade.")]
     public float deathDelay = 0.8f;
+    [Tooltip("Duracion del fundido a negro / y de vuelta.")]
+    public float fadeDuration = 0.5f;
 
     [Header("Sonido")]
     [Tooltip("Al recibir un golpe (perder una vida).")]
@@ -161,19 +163,24 @@ public class PlayerRespawn : MonoBehaviour
         if (deathSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(deathSound);
 
-        yield return new WaitForSeconds(deathDelay);
+        yield return new WaitForSeconds(deathDelay); // se queda muerto un rato (anim congelada)
+
+        // fundido a negro
+        yield return ScreenFader.Instance.FadeOut(fadeDuration);
 
         var scene = SceneManager.GetActiveScene();
         if (scene.buildIndex >= 0)
         {
-            SceneManager.LoadScene(scene.buildIndex); // reinicio completo del nivel
+            // el ScreenFader hace el fade in solo al cargar la escena
+            SceneManager.LoadScene(scene.buildIndex);
         }
         else
         {
-            // la escena no esta en Build Settings: reset manual al inicio
+            // la escena no esta en Build Settings: reset manual + fade in a mano
             Debug.LogWarning("PlayerRespawn: agrega la escena a File > Build Settings > Add Open Scenes " +
                              "para que el game over reinicie bien el nivel.");
             ResetToStart();
+            yield return ScreenFader.Instance.FadeIn(fadeDuration);
         }
     }
 

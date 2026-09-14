@@ -53,10 +53,6 @@ public class Enemy : MonoBehaviour, IStunnable
     [Tooltip("Tiempo de la anim de disparo antes de soltar el tiro.")]
     public float shootWindup = 0.4f;
 
-    [Header("Contacto")]
-    [Tooltip("Si esta activo, tocar al enemigo mata a Obby (salvo cuando esta stuneado).")]
-    public bool hurtOnContact = true;
-
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
 
@@ -141,24 +137,21 @@ public class Enemy : MonoBehaviour, IStunnable
 
         if (isShooting) { rb.linearVelocity = Vector2.zero; return; }
 
-        // patrulla: girar en pared, borde, o escalon/pincho adelante (anti-jitter)
+        // patrulla: si adelante hay pared/borde/escalon -> FRENA y gira (no camina para afuera)
         if (flipCd > 0f) flipCd -= Time.fixedDeltaTime;
-        if (flipCd <= 0f && (WallAhead() || !GroundAhead() || StepUpAhead()))
+        if (WallAhead() || !GroundAhead() || StepUpAhead())
         {
-            Flip();
-            flipCd = 0.25f;
+            rb.linearVelocity = Vector2.zero;              // no avanza hacia el borde/pared
+            if (flipCd <= 0f) { Flip(); flipCd = 0.25f; }
         }
-
-        rb.linearVelocity = new Vector2(dir * moveSpeed, 0f);
+        else
+        {
+            rb.linearVelocity = new Vector2(dir * moveSpeed, 0f);
+        }
     }
 
     // dano al contacto: tocar al enemigo mata a Obby (salvo si esta stuneado)
-    void OnTriggerStay2D(Collider2D other)
-    {
-        if (!hurtOnContact || isStunned || isRecovering) return;
-        var respawn = other.GetComponentInParent<PlayerRespawn>();
-        if (respawn != null) respawn.Hurt(transform.position); // empuja lejos del enemigo
-    }
+    // El shooter NO lastima al tocarlo: solo hace dano su proyectil.
 
     bool PlayerInSight()
     {
@@ -262,7 +255,9 @@ public class Enemy : MonoBehaviour, IStunnable
     void FacePlayer()
     {
         if (player == null) return;
-        int want = player.position.x >= transform.position.x ? 1 : -1;
+        float dx = player.position.x - transform.position.x;
+        if (Mathf.Abs(dx) < 0.15f) return; // casi alineado -> no gira (evita spin)
+        int want = dx >= 0f ? 1 : -1;
         if (want != dir) { dir = want; ApplyFacing(); }
     }
 

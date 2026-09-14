@@ -45,10 +45,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     public float attackCooldown = 1.2f;
     [Tooltip("Tiempo de la anim antes de que el golpe pegue.")]
     public float attackWindup = 0.3f;
-
-    [Header("Contacto")]
-    [Tooltip("Tocar al guerrero tambien lastima a Obby.")]
-    public bool hurtOnContact = true;
+    [Tooltip("Si Obby esta mas alto que esto (ej: colgado de una pared), no lo persigue ni gira debajo.")]
+    public float maxReachHeight = 2.5f;
 
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
@@ -101,12 +99,12 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     {
         if (attackCdTimer > 0f) attackCdTimer -= Time.deltaTime;
 
-        // alerta: "!" cuando te ve (con linea de vision)
-        bool detecta = !isStunned && !isRecovering && InRange(detectRange) && CanSeePlayer();
+        // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar
+        bool detecta = !isStunned && !isRecovering && InRange(detectRange) && Reachable() && CanSeePlayer();
         if (alertIcon != null) alertIcon.SetActive(detecta);
 
         if (!isStunned && !isRecovering && !isAttacking && attackCdTimer <= 0f
-            && InRange(attackRange) && CanSeePlayer())
+            && InRange(attackRange) && Reachable() && CanSeePlayer())
             StartCoroutine(AttackRoutine());
 
         Anim target = isStunned ? stun
@@ -124,8 +122,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
 
-        // te ve (con linea de vision): te persigue, pero NO se trepa ni se cae
-        if (InRange(detectRange) && CanSeePlayer())
+        // te ve (con linea de vision) y podes alcanzarlo: te persigue, pero NO se trepa ni se cae.
+        // Si Obby esta colgado muy arriba de una pared, no lo persigue (no gira como loco debajo).
+        if (InRange(detectRange) && Reachable() && CanSeePlayer())
         {
             FacePlayer();
             bool bloqueado = WallAhead() || StepUpAhead() || !GroundAhead();
@@ -134,14 +133,17 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
             return;
         }
 
-        // patrulla: girar en pared, borde, o escalon/pincho adelante (anti-jitter)
+        // patrulla: si adelante hay pared/borde/escalon -> FRENA y gira (no camina para afuera)
         if (flipCd > 0f) flipCd -= Time.fixedDeltaTime;
-        if (flipCd <= 0f && (WallAhead() || !GroundAhead() || StepUpAhead()))
+        if (WallAhead() || !GroundAhead() || StepUpAhead())
         {
-            Flip();
-            flipCd = 0.3f;
+            rb.linearVelocity = Vector2.zero;              // no avanza hacia el borde/pared
+            if (flipCd <= 0f) { Flip(); flipCd = 0.3f; }
         }
-        rb.linearVelocity = new Vector2(dir * patrolSpeed, 0f);
+        else
+        {
+            rb.linearVelocity = new Vector2(dir * patrolSpeed, 0f);
+        }
     }
 
     // Obby dentro de un rango radial (saltar no lo saca del rango)
@@ -149,6 +151,13 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     {
         if (player == null) return false;
         return ((Vector2)player.position - (Vector2)col.bounds.center).sqrMagnitude <= range * range;
+    }
+
+    // Obby esta a una altura que el guerrero puede alcanzar (no colgado arriba de una pared)
+    bool Reachable()
+    {
+        if (player == null) return false;
+        return player.position.y - col.bounds.center.y <= maxReachHeight;
     }
 
     // linea de vision libre hasta Obby (una estructura en el medio lo tapa)
@@ -237,7 +246,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     // ---- contacto ----
     void OnTriggerStay2D(Collider2D other)
     {
-        if (!hurtOnContact || isStunned || isRecovering) return; // stuneado: no lastima, podes pasar
+        // solo lastima cuando esta pegando el espadazo (chocarlo sin que ataque no hace nada)
+        if (!isAttacking || isStunned || isRecovering) return;
         var respawn = other.GetComponentInParent<PlayerRespawn>();
         if (respawn != null) respawn.Hurt(transform.position);
     }
@@ -246,7 +256,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     void FacePlayer()
     {
         if (player == null) return;
-        int want = player.position.x >= transform.position.x ? 1 : -1;
+        float dx = player.position.x - transform.position.x;
+        if (Mathf.Abs(dx) < 0.15f) return; // casi alineado -> no gira (evita spin)
+        int want = dx >= 0f ? 1 : -1;
         if (want != dir) { dir = want; ApplyFacing(); }
     }
 
