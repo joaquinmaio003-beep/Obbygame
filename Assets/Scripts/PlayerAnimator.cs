@@ -104,6 +104,13 @@ public class PlayerAnimator : MonoBehaviour
 
     void Update()
     {
+        // muerto: reproduce la muerte una vez y se queda CONGELADO en el ultimo frame
+        if (isDead)
+        {
+            HoldDeath();
+            return;
+        }
+
         // el ataque (tirar piedra) lo dispara RockThrower via PlayAttack(),
         // solo cuando hay municion.
 
@@ -123,6 +130,23 @@ public class PlayerAnimator : MonoBehaviour
 
         // --- avanzar frames ---
         Advance();
+    }
+
+    // reproduce la muerte una vez y se queda en el ultimo frame (no vuelve a idle)
+    void HoldDeath()
+    {
+        if (death == null || death.frames == null || death.frames.Length == 0) return;
+        int last = death.frames.Length - 1;
+        if (frame >= last) { sr.sprite = death.frames[last]; return; } // congelado
+
+        frameTimer += Time.deltaTime;
+        float step = 1f / Mathf.Max(1f, death.fps);
+        while (frameTimer >= step && frame < last)
+        {
+            frameTimer -= step;
+            frame++;
+        }
+        sr.sprite = death.frames[frame];
     }
 
     // pinta a Obby de blanco mientras dashea y lo restaura al terminar

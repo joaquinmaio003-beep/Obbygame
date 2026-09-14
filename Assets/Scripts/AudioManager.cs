@@ -9,7 +9,17 @@ using UnityEngine;
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
-    public static AudioManager Instance { get; private set; }
+    static AudioManager _instance;
+    // Se crea solo si no existe (asi no depende de que lo pongas en la escena).
+    public static AudioManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+                _instance = new GameObject("AudioManager (auto)").AddComponent<AudioManager>();
+            return _instance;
+        }
+    }
 
     [Range(0f, 1f)] public float musicVolume = 0.6f;
     [Range(0f, 1f)] public float sfxVolume = 0.9f;
@@ -20,21 +30,31 @@ public class AudioManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
+        if (_instance != null && _instance != this) { Destroy(gameObject); return; }
+        _instance = this;
         DontDestroyOnLoad(gameObject);
+        EnsureSources();
+    }
 
-        musicSource = gameObject.AddComponent<AudioSource>();
-        musicSource.loop = true;
-        musicSource.playOnAwake = false;
-
-        sfxSource = gameObject.AddComponent<AudioSource>();
-        sfxSource.playOnAwake = false;
+    void EnsureSources()
+    {
+        if (musicSource == null)
+        {
+            musicSource = gameObject.AddComponent<AudioSource>();
+            musicSource.loop = true;
+            musicSource.playOnAwake = false;
+        }
+        if (sfxSource == null)
+        {
+            sfxSource = gameObject.AddComponent<AudioSource>();
+            sfxSource.playOnAwake = false;
+        }
     }
 
     /// <summary>Pone una musica en loop. Si ya suena esa, no la reinicia.</summary>
     public void PlayMusic(AudioClip clip)
     {
+        EnsureSources();
         if (clip == null || clip == currentMusic) return;
         currentMusic = clip;
         musicSource.clip = clip;
@@ -52,6 +72,7 @@ public class AudioManager : MonoBehaviour
     public void PlaySFX(AudioClip clip)
     {
         if (clip == null) return;
+        EnsureSources();
         sfxSource.PlayOneShot(clip, sfxVolume);
     }
 }

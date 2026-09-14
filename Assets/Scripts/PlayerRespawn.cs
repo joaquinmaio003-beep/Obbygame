@@ -36,7 +36,10 @@ public class PlayerRespawn : MonoBehaviour
     public float deathDelay = 0.8f;
 
     [Header("Sonido")]
+    [Tooltip("Al recibir un golpe (perder una vida).")]
     public AudioClip hurtSound;   // golpe.ogg
+    [Tooltip("Al morir (perder la ultima vida).")]
+    public AudioClip deathSound;
 
     int lives;
     Vector3 checkpoint;
@@ -106,15 +109,17 @@ public class PlayerRespawn : MonoBehaviour
     {
         lives--;
         if (anim != null) anim.DamageFlash(); // parpadeo rojo
-        if (cam != null) cam.Shake();          // temblor de camara
-        if (hurtSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(hurtSound);
 
         if (lives <= 0)
         {
-            StartCoroutine(GameOverRoutine());
+            StartCoroutine(GameOverRoutine()); // el sonido de muerte suena ahi
             return;
         }
+
+        // golpe normal (todavia le quedan vidas)
+        if (cam != null) cam.Shake();
+        if (hurtSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(hurtSound);
 
         if (teleport) StartCoroutine(TeleportRoutine());
         else StartCoroutine(InvulnRoutine());
@@ -152,6 +157,9 @@ public class PlayerRespawn : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         if (controller != null) controller.enabled = false;
         if (anim != null) anim.PlayDeath();
+        if (cam != null) cam.Shake(0.4f, 0.25f); // temblor mas fuerte en la muerte
+        if (deathSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(deathSound);
 
         yield return new WaitForSeconds(deathDelay);
 

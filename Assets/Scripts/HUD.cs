@@ -13,11 +13,17 @@ public class HUD : MonoBehaviour
     [Header("Referencias del jugador")]
     public PlayerRespawn player;          // de donde saca las vidas
     public PlayerController2D controller;  // de donde saca la recarga del dash
+    public RockThrower rockThrower;        // de donde saca las piedras
 
     [Header("Vidas")]
     public TMP_Text livesText;
     [Tooltip("Texto antes del numero de vidas (ej: 'x' -> x3).")]
     public string livesPrefix = "x";
+
+    [Header("Piedras")]
+    public TMP_Text rocksText;
+    [Tooltip("Texto antes del numero de piedras (ej: 'x' -> x5).")]
+    public string rocksPrefix = "x";
 
     [Header("Barra del dash")]
     [Tooltip("Image con Image Type = Filled (se llena mientras recarga).")]
@@ -31,6 +37,9 @@ public class HUD : MonoBehaviour
     {
         if (livesText != null && player != null)
             livesText.text = livesPrefix + Mathf.Max(0, player.Lives);
+
+        if (rocksText != null && rockThrower != null)
+            rocksText.text = rocksPrefix + rockThrower.currentRocks;
 
         if (dashBar != null && controller != null)
         {

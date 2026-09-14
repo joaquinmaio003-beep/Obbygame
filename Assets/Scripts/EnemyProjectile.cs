@@ -33,17 +33,20 @@ public class EnemyProjectile : MonoBehaviour
         GetComponent<Collider2D>().isTrigger = true; // forzar trigger (si no, atraviesa sin pegar)
     }
 
-    /// <summary>Lo lanza en una direccion (1 derecha, -1 izquierda).</summary>
-    public void Launch(int direction)
+    /// <summary>Lo lanza en cualquier direccion (apunta al jugador, puede ser diagonal).</summary>
+    public void Launch(Vector2 direction)
     {
-        int d = direction >= 0 ? 1 : -1;
-        dir = d;
-        rb.linearVelocity = new Vector2(d * speed, 0f);
-        var s = transform.localScale;
-        s.x = Mathf.Abs(s.x) * d; // que mire hacia donde va
-        transform.localScale = s;
+        Vector2 d = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector2.right;
+        dir = d.x >= 0f ? 1 : -1;
+        rb.linearVelocity = d * speed;
+        // orientar el sprite hacia donde vuela
+        float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.Euler(0f, 0f, ang);
         Destroy(gameObject, life);
     }
+
+    /// <summary>Version horizontal simple (1 derecha, -1 izquierda).</summary>
+    public void Launch(int direction) => Launch(new Vector2(direction >= 0 ? 1 : -1, 0f));
 
     void OnTriggerEnter2D(Collider2D other)
     {

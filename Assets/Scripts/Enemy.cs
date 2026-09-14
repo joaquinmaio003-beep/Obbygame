@@ -45,10 +45,10 @@ public class Enemy : MonoBehaviour, IStunnable
     public Transform firePoint;
     [Tooltip("Offset del tiro si no hay FirePoint (subi la Y para que no dispare tan abajo). X se invierte segun a donde mira.")]
     public Vector2 fireOffset = new Vector2(0.4f, 0.4f);
-    [Tooltip("Distancia a la que detecta a Obby.")]
+    [Tooltip("Distancia (radial) a la que detecta a Obby. Saltar no te saca del rango.")]
     public float shootRange = 7f;
-    [Tooltip("Diferencia de altura maxima para verlo.")]
-    public float shootHeight = 2.5f;
+    [Tooltip("Capas que bloquean la vision (paredes/estructuras). Vacio = usa Ground Layer.")]
+    public LayerMask sightBlockers;
     public float shootCooldown = 1.5f;
     [Tooltip("Tiempo de la anim de disparo antes de soltar el tiro.")]
     public float shootWindup = 0.4f;
@@ -59,8 +59,6 @@ public class Enemy : MonoBehaviour, IStunnable
 
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
-    [Tooltip("Cuanto lo empuja la piedra al pegarle (poco).")]
-    public float rockKnockback = 0.3f;
 
     [Header("Alerta")]
     [Tooltip("Objeto hijo con el '!' que se prende cuando te ve (opcional).")]
@@ -165,9 +163,14 @@ public class Enemy : MonoBehaviour, IStunnable
     bool PlayerInSight()
     {
         if (player == null) return false;
-        float dx = Mathf.Abs(player.position.x - transform.position.x);
-        float dy = Mathf.Abs(player.position.y - transform.position.y);
-        return dx <= shootRange && dy <= shootHeight;
+        Vector2 eye = col.bounds.center;
+        Vector2 to = (Vector2)player.position - eye;
+        if (to.sqrMagnitude > shootRange * shootRange) return false; // fuera de rango (circular)
+
+        // linea de vision: si hay una estructura en el medio, no lo ve
+        LayerMask blockers = sightBlockers.value != 0 ? sightBlockers : groundLayer;
+        if (Physics2D.Raycast(eye, to.normalized, to.magnitude, blockers)) return false;
+        return true;
     }
 
     IEnumerator ShootRoutine()
@@ -186,7 +189,13 @@ public class Enemy : MonoBehaviour, IStunnable
                 : transform.position + new Vector3(fireOffset.x * dir, fireOffset.y, 0f);
             var go = Instantiate(projectilePrefab, spawn, Quaternion.identity);
             var proj = go.GetComponent<EnemyProjectile>();
-            if (proj != null) proj.Launch(dir);
+            if (proj != null)
+            {
+                // apunta al jugador: horizontal si esta al mismo nivel, diagonal si salto
+                Vector2 aim = player != null ? ((Vector2)player.position - (Vector2)spawn)
+                                             : new Vector2(dir, 0f);
+                proj.Launch(aim);
+            }
             if (shootSound != null && AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(shootSound);
         }
@@ -203,9 +212,7 @@ public class Enemy : MonoBehaviour, IStunnable
         if (hitFX != null) hitFX.Flash();
         if (stunSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(stunSound);
-        float side = transform.position.x >= fromPos.x ? 1f : -1f;
-        transform.position += new Vector3(side * rockKnockback, 0f, 0f);
-        Stun();
+        Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)
     }
 
     // ---- eliminado (le cayo un pincho encima): simplemente desaparece ----

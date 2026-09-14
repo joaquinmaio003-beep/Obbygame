@@ -36,12 +36,12 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     public float groundSnapDistance = 0.6f;
 
     [Header("Deteccion / ataque")]
-    [Tooltip("Distancia a la que detecta a Obby y lo persigue.")]
+    [Tooltip("Distancia (radial) a la que detecta a Obby. Saltar no te saca del rango.")]
     public float detectRange = 6f;
     [Tooltip("Distancia a la que lanza el espadazo.")]
     public float attackRange = 1.3f;
-    [Tooltip("Diferencia de altura maxima para verlo/atacarlo.")]
-    public float height = 1.5f;
+    [Tooltip("Capas que bloquean la vision (paredes/estructuras). Vacio = usa Ground Layer.")]
+    public LayerMask sightBlockers;
     public float attackCooldown = 1.2f;
     [Tooltip("Tiempo de la anim antes de que el golpe pegue.")]
     public float attackWindup = 0.3f;
@@ -52,8 +52,6 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
-    [Tooltip("Cuanto lo empuja la piedra al pegarle (poco).")]
-    public float rockKnockback = 0.3f;
 
     [Header("Alerta")]
     [Tooltip("Objeto hijo con el '!' que se prende cuando te ve (opcional).")]
@@ -103,11 +101,12 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     {
         if (attackCdTimer > 0f) attackCdTimer -= Time.deltaTime;
 
-        // alerta: "!" cuando te ve
-        if (alertIcon != null)
-            alertIcon.SetActive(!isStunned && !isRecovering && InRange(detectRange));
+        // alerta: "!" cuando te ve (con linea de vision)
+        bool detecta = !isStunned && !isRecovering && InRange(detectRange) && CanSeePlayer();
+        if (alertIcon != null) alertIcon.SetActive(detecta);
 
-        if (!isStunned && !isRecovering && !isAttacking && attackCdTimer <= 0f && InRange(attackRange))
+        if (!isStunned && !isRecovering && !isAttacking && attackCdTimer <= 0f
+            && InRange(attackRange) && CanSeePlayer())
             StartCoroutine(AttackRoutine());
 
         Anim target = isStunned ? stun
@@ -125,8 +124,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
 
-        // te ve: te persigue, pero NO se trepa a obstaculos ni se cae persiguiendo
-        if (InRange(detectRange))
+        // te ve (con linea de vision): te persigue, pero NO se trepa ni se cae
+        if (InRange(detectRange) && CanSeePlayer())
         {
             FacePlayer();
             bool bloqueado = WallAhead() || StepUpAhead() || !GroundAhead();
@@ -145,13 +144,21 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         rb.linearVelocity = new Vector2(dir * patrolSpeed, 0f);
     }
 
-    // Obby dentro de un rango horizontal y a altura parecida
+    // Obby dentro de un rango radial (saltar no lo saca del rango)
     bool InRange(float range)
     {
         if (player == null) return false;
-        float dx = Mathf.Abs(player.position.x - transform.position.x);
-        float dy = Mathf.Abs(player.position.y - transform.position.y);
-        return dx <= range && dy <= height;
+        return ((Vector2)player.position - (Vector2)col.bounds.center).sqrMagnitude <= range * range;
+    }
+
+    // linea de vision libre hasta Obby (una estructura en el medio lo tapa)
+    bool CanSeePlayer()
+    {
+        if (player == null) return false;
+        Vector2 eye = col.bounds.center;
+        Vector2 to = (Vector2)player.position - eye;
+        LayerMask blockers = sightBlockers.value != 0 ? sightBlockers : groundLayer;
+        return !Physics2D.Raycast(eye, to.normalized, to.magnitude, blockers);
     }
 
     IEnumerator AttackRoutine()
@@ -189,9 +196,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         if (hitFX != null) hitFX.Flash();
         if (stunSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(stunSound);
-        float side = transform.position.x >= fromPos.x ? 1f : -1f;
-        transform.position += new Vector3(side * rockKnockback, 0f, 0f);
-        Stun();
+        Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)
     }
 
     // ---- eliminado (le cayo un pincho encima): simplemente desaparece ----

@@ -23,6 +23,10 @@ public class RockThrower : MonoBehaviour
     [Tooltip("Offset del tiro si no hay firePoint (X se invierte segun a donde mira).")]
     public Vector2 spawnOffset = new Vector2(0.5f, 0.3f);
 
+    [Header("Sonido")]
+    [Tooltip("Al tirar una piedra.")]
+    public AudioClip throwSound;
+
     PlayerController2D controller;
     PlayerAnimator animator;
     InputAction attackAction;
@@ -73,6 +77,8 @@ public class RockThrower : MonoBehaviour
         var go = Instantiate(rockPrefab, pos, Quaternion.identity);
         var rock = go.GetComponent<PlayerRock>();
         if (rock != null) rock.Launch(dir);
+        if (throwSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(throwSound);
     }
 
     // ---- lo llama RockPile ----

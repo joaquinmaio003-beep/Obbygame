@@ -30,6 +30,12 @@ public class FallingSpike : MonoBehaviour
     [Tooltip("Al clavarse queda solido (no trigger) y en el Ground Layer, para que Obby lo use (pararse, obstaculo).")]
     public bool solidWhenLanded = true;
 
+    [Header("Sonido")]
+    [Tooltip("Al empezar a temblar (aviso antes de caer).")]
+    public AudioClip warnSound;
+    [Tooltip("Al clavarse en el piso.")]
+    public AudioClip impactSound;
+
     Rigidbody2D rb;
     Collider2D col;
     Transform player;
@@ -75,6 +81,8 @@ public class FallingSpike : MonoBehaviour
     IEnumerator DropRoutine()
     {
         triggered = true;
+        if (warnSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(warnSound);
 
         // aviso: tiembla en el lugar
         float t = 0f;
@@ -127,6 +135,8 @@ public class FallingSpike : MonoBehaviour
     void Land()
     {
         falling = false; // ya clavado: deja de hacer dano
+        if (impactSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(impactSound);
         rb.linearVelocity = Vector2.zero;
         rb.bodyType = RigidbodyType2D.Kinematic;
 

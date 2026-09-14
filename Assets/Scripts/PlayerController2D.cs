@@ -63,6 +63,10 @@ public class PlayerController2D : MonoBehaviour
 
     [Header("Sonido")]
     public AudioClip jumpSound;   // salto.ogg
+    [Tooltip("Sonido de paso al caminar en el piso.")]
+    public AudioClip footstepSound;
+    [Tooltip("Segundos entre pasos.")]
+    public float stepInterval = 0.3f;
 
     // --- estado interno ---
     Rigidbody2D rb;
@@ -84,6 +88,7 @@ public class PlayerController2D : MonoBehaviour
     float wallJumpLockTimer;
     int lastWallSide;
     float controlLockTimer; // bloqueo total del control horizontal (knockback)
+    float stepTimer;        // para el sonido de pasos
 
     // Input System (generado por acciones)
     InputAction moveAction;
@@ -162,6 +167,19 @@ public class PlayerController2D : MonoBehaviour
         if (bufferCounter > 0f) bufferCounter -= Time.deltaTime;
         if (isGrounded) coyoteCounter = coyoteTime;
         else if (coyoteCounter > 0f) coyoteCounter -= Time.deltaTime;
+
+        // pasos: suena cada stepInterval mientras camina en el piso
+        if (footstepSound != null && isGrounded && !isDashing &&
+            Mathf.Abs(rb.linearVelocity.x) > 0.5f)
+        {
+            stepTimer -= Time.deltaTime;
+            if (stepTimer <= 0f)
+            {
+                AudioManager.Instance.PlaySFX(footstepSound);
+                stepTimer = stepInterval;
+            }
+        }
+        else stepTimer = 0f; // al frenar/saltar, resetea para que el proximo paso suene enseguida
     }
 
     void FixedUpdate()
