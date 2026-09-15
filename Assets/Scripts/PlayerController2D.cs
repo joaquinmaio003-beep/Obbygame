@@ -62,6 +62,13 @@ public class PlayerController2D : MonoBehaviour
     [Tooltip("Tiempo sin control horizontal tras el wall jump (para que el empuje se sienta).")]
     public float wallJumpLock = 0.12f;
 
+    [Header("Stamina de agarre (para no escalar una pared eterna)")]
+    [Tooltip("Segundos que Obby puede colgarse/deslizar de paredes. Se gasta al colgarse y en cada wall jump; " +
+             "se recarga TODA al tocar el piso. Sin stamina no puede agarrarse y cae.")]
+    public float wallGripMax = 0.75f;
+    [Tooltip("Cuanta stamina gasta cada wall jump. Ponelo igual a Wall Grip Max para permitir SOLO UN salto de pared antes de tocar piso.")]
+    public float wallJumpGripCost = 0.5f;
+
     [Header("Sonido")]
     public AudioClip jumpSound;   // salto.ogg
     [Tooltip("Sonido de paso al caminar en el piso.")]
@@ -71,6 +78,7 @@ public class PlayerController2D : MonoBehaviour
 
     // --- estado interno ---
     Rigidbody2D rb;
+    Collider2D col;
     float moveInput;
     float prevUp;
     float coyoteCounter;
@@ -86,7 +94,9 @@ public class PlayerController2D : MonoBehaviour
 
     // wall slide / wall jump
     bool isWallSliding;
+    bool wasWallSliding; // estaba colgado el frame anterior (para detectar cuando se le acaba la stamina)
     int wallContact; // lado de pared tocada en el aire (para la anim de wall slide)
+    float wallGrip;  // stamina de agarre actual
     float wallJumpLockTimer;
     int lastWallSide;
     float controlLockTimer; // bloqueo total del control horizontal (knockback)
@@ -106,6 +116,8 @@ public class PlayerController2D : MonoBehaviour
     public bool IsWallSliding => isWallSliding;
     // Lado de la pared que Obby esta tocando en el aire (0 = ninguna). Lo usa el animator.
     public int WallContact => wallContact;
+    // Stamina de agarre 0..1 (por si queres una barrita en el HUD).
+    public float WallGripNormalized => wallGripMax <= 0f ? 1f : Mathf.Clamp01(wallGrip / wallGripMax);
     // 0 = recien usado, 1 = listo para dashear (para la barra de recarga)
     public float DashChargeNormalized =>
         dashCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(dashCdTimer / dashCooldown);
@@ -114,6 +126,8 @@ public class PlayerController2D : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        col = GetComponent<Collider2D>();
+        wallGrip = wallGripMax;
         rb.gravityScale = 0f;            // manejamos gravedad a mano
         rb.freezeRotation = true;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
@@ -188,8 +202,7 @@ public class PlayerController2D : MonoBehaviour
 
     void FixedUpdate()
     {
-        isGrounded = groundCheck != null &&
-                     Physics2D.OverlapBox(groundCheck.position, groundCheckSize, 0f, groundLayer);
+        isGrounded = GroundCheck();
 
         Vector2 vel = rb.linearVelocity;
 
@@ -206,14 +219,19 @@ public class PlayerController2D : MonoBehaviour
 
         // --- deteccion de pared a AMBOS lados (para wall slide y wall jump) ---
         int inputDir = Mathf.Abs(moveInput) > 0.01f ? (moveInput > 0 ? 1 : -1) : 0;
-        int wallSide = 0;
+        int rawWallSide = 0;
         if (!isGrounded)
         {
-            if (WallOnSide(1)) wallSide = 1;         // pared a la derecha
-            else if (WallOnSide(-1)) wallSide = -1;  // pared a la izquierda
+            if (WallOnSide(1)) rawWallSide = 1;         // pared a la derecha
+            else if (WallOnSide(-1)) rawWallSide = -1;  // pared a la izquierda
         }
+
+        // stamina de agarre: se recarga toda al tocar el piso; sin stamina no puede agarrarse
+        if (isGrounded) wallGrip = wallGripMax;
+        int wallSide = (wallGrip > 0f) ? rawWallSide : 0;
+
         wallContact = wallSide; // para la anim (tocar pared en el aire, sin depender de apretar)
-        bool pressingIntoWall = wallSide != 0 && inputDir == wallSide;
+        bool holdingAwayFromWall = wallSide != 0 && inputDir == -wallSide; // apretando para el lado opuesto -> se suelta
 
         // --- horizontal ---
         // tras un wall jump el salto es LIBRE: solo se bloquea volver a empujar
@@ -246,6 +264,7 @@ public class PlayerController2D : MonoBehaviour
             vel.x = -wallSide * wallJumpX;   // y empuja para el lado opuesto a la pared
             wallJumpLockTimer = wallJumpLock;
             lastWallSide = wallSide;
+            wallGrip = Mathf.Max(0f, wallGrip - wallJumpGripCost); // el wall jump gasta stamina
             bufferCounter = 0f;
             PlayJumpSound();
         }
@@ -258,23 +277,75 @@ public class PlayerController2D : MonoBehaviour
 
         if (vel.y < -maxFallSpeed) vel.y = -maxFallSpeed;
 
-        // --- wall slide: cayendo y empujando contra la pared -> baja despacio ---
-        isWallSliding = pressingIntoWall && vel.y < 0f;
-        if (isWallSliding && vel.y < -wallSlideSpeed)
-            vel.y = -wallSlideSpeed;
+        // --- wall slide: tocando la pared y cayendo -> se cuelga y baja despacio.
+        // Se suelta si apretas para el lado opuesto a la pared.
+        isWallSliding = wallSide != 0 && vel.y < 0f && !holdingAwayFromWall;
+        if (isWallSliding)
+        {
+            if (vel.y < -wallSlideSpeed) vel.y = -wallSlideSpeed;
+            wallGrip = Mathf.Max(0f, wallGrip - Time.fixedDeltaTime); // colgarse gasta stamina
+        }
+        // si se le acabo la stamina justo estando colgado (no fue por saltar): se despega y CAE RAPIDO
+        else if (wasWallSliding && !isGrounded && wallGrip <= 0f && vel.y < 0f)
+        {
+            vel.y = -maxFallSpeed; // caida directa al piso, sin quedarse bajando lento
+        }
+        wasWallSliding = isWallSliding;
 
         rb.linearVelocity = vel;
     }
 
-    // Raycast horizontal para ver si hay pared de ese lado (dir: -1 izq, +1 der).
-    // Los cajones empujables (PushableBox) NO cuentan como pared: no te pegas a ellos.
+    // Piso: 3 rayos hacia ABAJO (izq/centro/der), pero SIEMPRE dentro del cuerpo de Obby
+    // (borde del collider con un margen), asi nunca se meten en una pared pegada al costado
+    // y confunden pared con piso. groundCheckSize.y = largo de los rayos (que tan abajo mira).
+    bool GroundCheck()
+    {
+        float len = Mathf.Max(0.02f, groundCheckSize.y);
+        float originY = groundCheck != null ? groundCheck.position.y
+                       : (col != null ? col.bounds.min.y : rb.position.y);
+
+        float inset = 0.03f;
+        float leftX, rightX, midX;
+        if (col != null)
+        {
+            leftX = col.bounds.min.x + inset;   // apenas adentro del borde izquierdo
+            rightX = col.bounds.max.x - inset;  // apenas adentro del borde derecho
+            midX = col.bounds.center.x;
+        }
+        else
+        {
+            float halfW = groundCheckSize.x * 0.5f;
+            leftX = rb.position.x - halfW; rightX = rb.position.x + halfW; midX = rb.position.x;
+        }
+
+        foreach (float x in new[] { leftX, midX, rightX })
+            if (Physics2D.Raycast(new Vector2(x, originY), Vector2.down, len, groundLayer)) return true;
+        return false;
+    }
+
+    // Pared a ese lado (dir: -1 izq, +1 der). Tira 3 rayos desde el BORDE del collider
+    // (arriba/medio/abajo), no desde el centro, asi engancha durante todo el deslizamiento
+    // y no solo cuando Obby queda calzado en una esquina.
+    // Los cajones empujables (PushableBox) NO cuentan como pared.
     bool WallOnSide(int dir)
     {
         LayerMask mask = wallLayer.value != 0 ? wallLayer : groundLayer;
-        RaycastHit2D hit = Physics2D.Raycast(rb.position, new Vector2(dir, 0f), wallCheckDistance, mask);
-        if (hit.collider == null) return false;
-        if (hit.collider.GetComponentInParent<PushableBox>() != null) return false; // es un cajon, no pared
-        return true;
+
+        Bounds b = col != null ? col.bounds : new Bounds(rb.position, Vector3.one * 0.5f);
+        float edgeX = dir > 0 ? b.max.x : b.min.x;         // borde de Obby de ese lado
+        float inset = 0.02f;                                // arranca apenas adentro del borde
+        Vector2 baseO = new Vector2(edgeX - dir * inset, b.center.y);
+        float yTop = b.extents.y * 0.8f;                    // rayos arriba, centro y abajo
+
+        for (int i = -1; i <= 1; i++)
+        {
+            Vector2 o = baseO + new Vector2(0f, i * yTop);
+            RaycastHit2D hit = Physics2D.Raycast(o, new Vector2(dir, 0f), wallCheckDistance, mask);
+            if (hit.collider == null) continue;
+            if (hit.collider.GetComponentInParent<PushableBox>() != null) continue; // cajon, no pared
+            return true;
+        }
+        return false;
     }
 
     /// <summary>Empuja al jugador (knockback) y bloquea el control horizontal un instante.</summary>
@@ -303,16 +374,39 @@ public class PlayerController2D : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        if (groundCheck != null)
+        Gizmos.color = Color.green;
+        Collider2D gcol = GetComponent<Collider2D>();
+        float glen = Mathf.Max(0.02f, groundCheckSize.y);
+        float goriginY = groundCheck != null ? groundCheck.position.y
+                        : (gcol != null ? gcol.bounds.min.y : transform.position.y);
+        if (gcol != null)
         {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireCube(groundCheck.position, groundCheckSize);
+            float inset = 0.03f;
+            float[] xs = { gcol.bounds.min.x + inset, gcol.bounds.center.x, gcol.bounds.max.x - inset };
+            foreach (float x in xs)
+                Gizmos.DrawLine(new Vector3(x, goriginY, 0f), new Vector3(x, goriginY - glen, 0f));
+        }
+        else if (groundCheck != null)
+        {
+            Gizmos.DrawLine(groundCheck.position, groundCheck.position + Vector3.down * glen);
         }
 
-        // rayos de deteccion de pared (izquierda y derecha)
+        // rayos de deteccion de pared: desde el borde del collider, arriba/medio/abajo
         Gizmos.color = Color.cyan;
-        Vector3 c = transform.position;
-        Gizmos.DrawLine(c, c + Vector3.right * wallCheckDistance);
-        Gizmos.DrawLine(c, c + Vector3.left * wallCheckDistance);
+        Collider2D gc = GetComponent<Collider2D>();
+        if (gc != null)
+        {
+            Bounds b = gc.bounds;
+            float yTop = b.extents.y * 0.8f;
+            for (int dir = -1; dir <= 1; dir += 2)
+            {
+                float edgeX = dir > 0 ? b.max.x : b.min.x;
+                for (int i = -1; i <= 1; i++)
+                {
+                    Vector3 o = new Vector3(edgeX, b.center.y + i * yTop, 0f);
+                    Gizmos.DrawLine(o, o + new Vector3(dir * wallCheckDistance, 0f, 0f));
+                }
+            }
+        }
     }
 }

@@ -204,10 +204,10 @@ public class PlayerAnimator : MonoBehaviour
             return;
         }
 
-        // deslizando por una pared: pose de wall slide.
-        // Con tocar la pared en el aire y estar cayendo alcanza (no hace falta
-        // mantener apretada la direccion), asi la anim no parpadea a "caida".
-        if (!player.IsGrounded && player.WallContact != 0 && player.Velocity.y < 0.01f &&
+        // pegado a la pared: pose de wall slide mientras TOQUE la pared en el aire y le quede
+        // agarre (WallContact ya viene gateado por la stamina). Sirve tanto subiendo como
+        // cayendo, asi no parpadea al chocar la pared y sigue pegado durante toda la caida.
+        if (!player.IsGrounded && player.WallContact != 0 &&
             wallslide != null && wallslide.frames != null && wallslide.frames.Length > 0)
         {
             SwitchLoop(wallslide, State.WallSlide);

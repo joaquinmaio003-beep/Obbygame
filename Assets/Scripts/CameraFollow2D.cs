@@ -12,16 +12,21 @@ public class CameraFollow2D : MonoBehaviour
     public float smooth = 8f;
     public Vector2 offset = new Vector2(0f, 1.5f);
 
-    [Header("Limites del mapa")]
-    [Tooltip("Si esta activo, la camara no se sale de este rectangulo.")]
+    [Header("Fondo (para no mostrar el fondo de Unity)")]
+    [Tooltip("SpriteRenderer del fondo/parallax. Si lo asignas, la camara se limita a la ALTURA " +
+             "de ese fondo (no se sale por arriba ni por abajo). El parallax ya cubre el horizontal.")]
+    public SpriteRenderer background;
+
+    [Header("Limites del mapa (X)")]
+    [Tooltip("Si esta activo, la camara no se pasa de estos bordes horizontales.")]
     public bool useBounds = true;
     [Tooltip("Borde izquierdo del nivel (X).")]
     public float minX = -20f;
     [Tooltip("Borde derecho del nivel (X).")]
     public float maxX = 20f;
-    [Tooltip("Borde de abajo del nivel (Y).")]
+    [Tooltip("Borde de abajo del nivel (Y). Solo se usa si NO asignaste un fondo arriba.")]
     public float minY = -5f;
-    [Tooltip("Borde de arriba del nivel (Y).")]
+    [Tooltip("Borde de arriba del nivel (Y). Solo se usa si NO asignaste un fondo arriba.")]
     public float maxY = 15f;
 
     Camera cam;
@@ -61,15 +66,29 @@ public class CameraFollow2D : MonoBehaviour
     // aplica los limites del mapa a una posicion
     Vector3 ClampToBounds(Vector3 pos)
     {
-        if (useBounds && cam != null && cam.orthographic)
-        {
-            float halfH = cam.orthographicSize;
-            float halfW = halfH * cam.aspect;
+        if (cam == null || !cam.orthographic) return pos;
+
+        float halfH = cam.orthographicSize;
+        float halfW = halfH * cam.aspect;
+
+        // limite horizontal (solo si Use Bounds)
+        if (useBounds)
             pos.x = ClampAxis(pos.x, minX + halfW, maxX - halfW, (minX + maxX) * 0.5f);
-            // Y: bloqueada para abajo (no muestra el vacio de abajo) pero LIBRE para arriba.
+
+        // limite vertical:
+        if (background != null)
+        {
+            // la camara no se sale de la ALTURA del fondo (arriba ni abajo) -> nunca se ve el fondo de Unity
+            Bounds bb = background.bounds;
+            pos.y = ClampAxis(pos.y, bb.min.y + halfH, bb.max.y - halfH, bb.center.y);
+        }
+        else
+        {
+            // sin fondo asignado: bloquea abajo con minY, arriba libre
             float floorY = minY + halfH;
             if (pos.y < floorY) pos.y = floorY;
         }
+
         return pos;
     }
 

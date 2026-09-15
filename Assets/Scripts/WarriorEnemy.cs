@@ -87,6 +87,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         hitFX = GetComponent<EnemyHitFX>();
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.freezeRotation = true;
+        if (col != null) col.isTrigger = true; // trigger: no empuja fisicamente (ej: cajas), pero detecta contacto
 
         var p = FindFirstObjectByType<PlayerController2D>();
         if (p != null) { player = p.transform; playerHealth = p.GetComponent<PlayerRespawn>(); }

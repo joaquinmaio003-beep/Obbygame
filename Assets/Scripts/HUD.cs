@@ -33,6 +33,16 @@ public class HUD : MonoBehaviour
     [Tooltip("Color de la barra cuando el dash esta listo.")]
     public Color readyColor = new Color(0.3f, 0.9f, 1f);
 
+    [Header("Barra de agarre (wall grip)")]
+    [Tooltip("Image con Image Type = Filled (muestra cuanto agarre de pared le queda).")]
+    public Image gripBar;
+    [Tooltip("Color cuando tiene agarre.")]
+    public Color gripColor = new Color(0.6f, 0.9f, 0.4f);
+    [Tooltip("Color cuando el agarre esta casi/vacio.")]
+    public Color gripEmptyColor = new Color(0.9f, 0.4f, 0.3f);
+    [Tooltip("Ocultar la barra cuando el agarre esta lleno (solo se ve al usarlo).")]
+    public bool hideGripWhenFull = true;
+
     void Update()
     {
         if (livesText != null && player != null)
@@ -45,6 +55,16 @@ public class HUD : MonoBehaviour
         {
             dashBar.fillAmount = controller.DashChargeNormalized;
             dashBar.color = controller.DashReady ? readyColor : chargingColor;
+        }
+
+        if (gripBar != null && controller != null)
+        {
+            float g = controller.WallGripNormalized;
+            gripBar.fillAmount = g;
+            gripBar.color = Color.Lerp(gripEmptyColor, gripColor, g); // rojo cuando se acaba, verde cuando esta lleno
+            // solo se muestra cuando la esta usando (no lleno), si esta activada la opcion
+            bool show = !hideGripWhenFull || g < 0.999f;
+            if (gripBar.enabled != show) gripBar.enabled = show;
         }
     }
 }

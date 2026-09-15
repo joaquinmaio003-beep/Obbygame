@@ -21,7 +21,7 @@ public class PlayerRock : MonoBehaviour
 
     void Reset()
     {
-        GetComponent<Collider2D>().isTrigger = true;
+        foreach (var c in GetComponents<Collider2D>()) c.isTrigger = true;
     }
 
     void Awake()
@@ -31,7 +31,8 @@ public class PlayerRock : MonoBehaviour
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.gravityScale = 0f;
         rb.freezeRotation = true;
-        GetComponent<Collider2D>().isTrigger = true; // forzar trigger
+        // TODOS los colliders a trigger: asi la piedra no empuja fisicamente nada (ej: cajas)
+        foreach (var c in GetComponents<Collider2D>()) c.isTrigger = true;
     }
 
     /// <summary>La lanza en una direccion (1 derecha, -1 izquierda).</summary>

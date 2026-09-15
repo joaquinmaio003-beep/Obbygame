@@ -20,7 +20,7 @@ public class EnemyProjectile : MonoBehaviour
 
     void Reset()
     {
-        GetComponent<Collider2D>().isTrigger = true;
+        foreach (var c in GetComponents<Collider2D>()) c.isTrigger = true;
     }
 
     void Awake()
@@ -30,7 +30,8 @@ public class EnemyProjectile : MonoBehaviour
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.gravityScale = 0f;
         rb.freezeRotation = true;
-        GetComponent<Collider2D>().isTrigger = true; // forzar trigger (si no, atraviesa sin pegar)
+        // TODOS los colliders a trigger: pega pero no empuja fisicamente nada (ej: cajas)
+        foreach (var c in GetComponents<Collider2D>()) c.isTrigger = true;
     }
 
     /// <summary>Lo lanza en cualquier direccion (apunta al jugador, puede ser diagonal).</summary>
