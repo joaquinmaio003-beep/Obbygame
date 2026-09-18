@@ -82,7 +82,7 @@ public class PlayerRespawn : MonoBehaviour
     /// <summary>Golpe sin fuente: empuja hacia atras del facing.</summary>
     public void Hurt() { Hurt(transform.position); }
 
-    /// <summary>Golpe de enemigo/bala: flash + knockback + pierde vida + invulnerable, SIN teleport.</summary>
+    /// <summary>Golpe de enemigo/bala: flash + knockback + pierde vida + invulnerable, SIN teleport (seguis donde estas).</summary>
     public void Hurt(Vector2 fromPos)
     {
         if (dying || invulnerable) return;
@@ -114,7 +114,7 @@ public class PlayerRespawn : MonoBehaviour
 
         if (lives <= 0)
         {
-            StartCoroutine(GameOverRoutine()); // el sonido de muerte suena ahi
+            StartCoroutine(GameOverRoutine()); // perder las 3 vidas -> reinicia el nivel
             return;
         }
 
@@ -127,20 +127,20 @@ public class PlayerRespawn : MonoBehaviour
         else StartCoroutine(InvulnRoutine());
     }
 
-    // caida/lava: reaparece en el checkpoint + invulnerable un rato
+    // caida/lava: reaparece en el checkpoint + invulnerable un rato.
+    // Ademas re-arma las plataformas rompibles (si no, la que rompiste no estaria y no podrias avanzar).
     IEnumerator TeleportRoutine()
     {
         dying = true;
         rb.linearVelocity = Vector2.zero;
         transform.position = checkpoint;
 
-        // resetear el flip (que no reaparezca mirando al reves)
-        var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s;
-        // encajar la camara de una (sin barrer la pantalla)
+        var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s; // no mirar al reves
         if (cam != null) cam.SnapToTarget();
 
-        dying = false;
+        BreakablePlatform.ResetAll(); // las plataformas rotas vuelven al reaparecer en el checkpoint
 
+        dying = false;
         yield return InvulnRoutine();
     }
 
@@ -165,8 +165,8 @@ public class PlayerRespawn : MonoBehaviour
 
         yield return new WaitForSeconds(deathDelay); // se queda muerto un rato (anim congelada)
 
-        // fundido a negro
-        yield return ScreenFader.Instance.FadeOut(fadeDuration);
+        if (ScreenFader.Instance != null)
+            yield return ScreenFader.Instance.FadeOut(fadeDuration);
 
         var scene = SceneManager.GetActiveScene();
         if (scene.buildIndex >= 0)
@@ -176,11 +176,10 @@ public class PlayerRespawn : MonoBehaviour
         }
         else
         {
-            // la escena no esta en Build Settings: reset manual + fade in a mano
             Debug.LogWarning("PlayerRespawn: agrega la escena a File > Build Settings > Add Open Scenes " +
                              "para que el game over reinicie bien el nivel.");
             ResetToStart();
-            yield return ScreenFader.Instance.FadeIn(fadeDuration);
+            if (ScreenFader.Instance != null) yield return ScreenFader.Instance.FadeIn(fadeDuration);
         }
     }
 
@@ -191,9 +190,12 @@ public class PlayerRespawn : MonoBehaviour
         Vector3 start = startPoint != null ? startPoint.position : checkpoint;
         checkpoint = start;
         transform.position = start;
+        var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s;
         rb.linearVelocity = Vector2.zero;
+        if (cam != null) cam.SnapToTarget();
         if (controller != null) controller.enabled = true;
         if (anim != null) anim.Revive();
+        BreakablePlatform.ResetAll();
         dying = false;
         invulnerable = false;
     }

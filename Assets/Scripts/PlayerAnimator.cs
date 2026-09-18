@@ -204,6 +204,14 @@ public class PlayerAnimator : MonoBehaviour
             return;
         }
 
+        // dasheando: siempre la animacion de caminar/correr para adelante (aunque este en el aire)
+        if (player.IsDashing)
+        {
+            SwitchLoop(walk, State.Walk);
+            idleTimer = 0f;
+            return;
+        }
+
         // pegado a la pared: pose de wall slide mientras TOQUE la pared en el aire y le quede
         // agarre (WallContact ya viene gateado por la stamina). Sirve tanto subiendo como
         // cayendo, asi no parpadea al chocar la pared y sigue pegado durante toda la caida.

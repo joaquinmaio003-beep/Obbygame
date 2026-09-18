@@ -79,7 +79,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 1
   m_Sprite: {fileID: 21300000, guid: 1da9a5de4d8578c429ca6e418ebdf63e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -221,7 +221,7 @@ MonoBehaviour:
     m_Bits: 0
   attackCooldown: 1.2
   attackWindup: 0.3
-  hurtOnContact: 1
+  maxReachHeight: 2.5
   defaultStunTime: 5
   alertIcon: {fileID: 6067468036668971248}
   attackSound: {fileID: 8300000, guid: 479282a2127dbac48906cb73ee9e35fa, type: 3}

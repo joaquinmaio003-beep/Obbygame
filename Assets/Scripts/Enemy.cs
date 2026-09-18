@@ -36,6 +36,10 @@ public class Enemy : MonoBehaviour, IStunnable
     public float ledgeCheckDistance = 0.5f;
     [Tooltip("Pega el enemigo al piso (que no quede flotando). Rango de busqueda hacia abajo.")]
     public float groundSnapDistance = 0.6f;
+    [Tooltip("Subida maxima que tolera adelante (escalon/pendiente). Mas alto que esto = pared -> gira.")]
+    public float maxStepHeight = 0.4f;
+    [Tooltip("Bajada maxima adelante antes de considerarlo precipicio (para poder bajar colinas). Mas hondo = gira.")]
+    public float maxDropHeight = 2f;
 
     [Header("Disparo")]
     public bool canShoot = true;
@@ -93,7 +97,7 @@ public class Enemy : MonoBehaviour, IStunnable
         hitFX = GetComponent<EnemyHitFX>();
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.freezeRotation = true;
-        if (col != null) col.isTrigger = true; // trigger: no empuja fisicamente (ej: cajas), pero detecta contacto
+        foreach (var c in GetComponentsInChildren<Collider2D>(true)) c.isTrigger = true; // trigger (incluye hijos): no empuja nada (ej: cajas)
 
         var p = FindFirstObjectByType<PlayerController2D>();
         if (p != null) player = p.transform;
@@ -138,9 +142,9 @@ public class Enemy : MonoBehaviour, IStunnable
 
         if (isShooting) { rb.linearVelocity = Vector2.zero; return; }
 
-        // patrulla: si adelante hay pared/borde/escalon -> FRENA y gira (no camina para afuera)
+        // patrulla: si adelante hay pared/precipicio/escalon alto -> FRENA y gira (pero SI baja colinas)
         if (flipCd > 0f) flipCd -= Time.fixedDeltaTime;
-        if (WallAhead() || !GroundAhead() || StepUpAhead())
+        if (!CanAdvance())
         {
             rb.linearVelocity = Vector2.zero;              // no avanza hacia el borde/pared
             if (flipCd <= 0f) { Flip(); flipCd = 0.25f; }
@@ -276,26 +280,65 @@ public class Enemy : MonoBehaviour, IStunnable
     }
 
     // deteccion relativa al tamano real (bounds) -> funciona a cualquier escala
-    bool WallAhead()
+    // Buffers y filtro reutilizables (no reservan memoria por frame).
+    static readonly RaycastHit2D[] s_hitBuf = new RaycastHit2D[8];
+    static readonly Collider2D[] s_colBuf = new Collider2D[8];
+    ContactFilter2D GroundFilter()
     {
-        Bounds b = col.bounds;
-        return Physics2D.Raycast(b.center, new Vector2(dir, 0f), b.extents.x + wallCheckMargin, groundLayer);
+        var f = new ContactFilter2D();
+        f.useTriggers = Physics2D.queriesHitTriggers;
+        f.SetLayerMask(groundLayer);
+        return f;
     }
 
-    // hay un escalon/pincho adelante MAS ALTO que los pies -> no treparlo, girar
-    bool StepUpAhead()
+    // Raycast contra el piso pero IGNORANDO los cajones empujables (PushableBox); devuelve el hit MAS CERCANO.
+    // Asi el enemigo no se trepa ni se queda parado arriba de una caja.
+    RaycastHit2D GroundRayNoBox(Vector2 origin, Vector2 dir, float dist)
     {
-        Bounds b = col.bounds;
-        Vector2 front = new Vector2(b.center.x + dir * (b.extents.x + wallCheckMargin), b.center.y);
-        RaycastHit2D hit = Physics2D.Raycast(front, Vector2.down, b.extents.y + 0.1f, groundLayer);
-        return hit.collider != null && hit.point.y > b.min.y + 0.15f;
+        int n = Physics2D.Raycast(origin, dir, GroundFilter(), s_hitBuf, dist);
+        RaycastHit2D best = default; float bestD = float.MaxValue;
+        for (int i = 0; i < n; i++)
+        {
+            var h = s_hitBuf[i];
+            if (h.collider == null) continue;
+            if (h.collider.GetComponentInParent<PushableBox>() != null) continue; // es una caja, no piso
+            if (h.distance < bestD) { bestD = h.distance; best = h; }
+        }
+        return best;
     }
 
-    bool GroundAhead()
+    // ¿El enemigo esta metido DENTRO de una caja? (para poder salir en vez de quedar trabado)
+    bool OverlappingBox()
+    {
+        int n = Physics2D.OverlapBox(col.bounds.center, col.bounds.size, 0f, GroundFilter(), s_colBuf);
+        for (int i = 0; i < n; i++)
+            if (s_colBuf[i] != null && s_colBuf[i].GetComponentInParent<PushableBox>() != null) return true;
+        return false;
+    }
+
+    // ¿Puede seguir caminando hacia 'dir'? Detecta pared/escalon alto y precipicio,
+    // PERO deja bajar y subir pendientes (colinas). La caja cuenta como obstaculo (no la atraviesa),
+    // salvo que el enemigo ya este metido adentro de una caja -> la ignora para poder salir.
+    bool CanAdvance()
     {
         Bounds b = col.bounds;
-        Vector2 front = new Vector2(b.center.x + dir * (b.extents.x + wallCheckMargin), b.min.y + 0.02f);
-        return Physics2D.Raycast(front, Vector2.down, ledgeCheckDistance, groundLayer);
+        float ahead = b.extents.x + wallCheckMargin;
+        bool insideBox = OverlappingBox();
+        Vector2 wdir = new Vector2(dir, 0f);
+
+        // pared vertical alta justo adelante (por encima de un escalon tolerable) -> girar
+        Vector2 wallEye = new Vector2(b.center.x, b.min.y + maxStepHeight + 0.05f);
+        bool wall = insideBox ? GroundRayNoBox(wallEye, wdir, ahead + 0.05f).collider != null
+                              : Physics2D.Raycast(wallEye, wdir, ahead + 0.05f, groundLayer).collider != null;
+        if (wall) return false;
+
+        // buscar el piso adelante: desde un poco arriba del pie hacia abajo.
+        // si hay piso dentro de [subida tolerable .. bajada tolerable] -> puede avanzar (pendiente incluida)
+        Vector2 probe = new Vector2(b.center.x + dir * (ahead + 0.05f), b.min.y + maxStepHeight);
+        float len = maxStepHeight + maxDropHeight;
+        RaycastHit2D hit = insideBox ? GroundRayNoBox(probe, Vector2.down, len)
+                                     : Physics2D.Raycast(probe, Vector2.down, len, groundLayer);
+        return hit.collider != null; // no hay piso dentro del alcance -> precipicio -> girar
     }
 
     // Pega el enemigo a la superficie del piso que tenga debajo.
@@ -304,8 +347,7 @@ public class Enemy : MonoBehaviour, IStunnable
         Bounds b = col.bounds;
         // alcance generoso hacia abajo: si quedo elevado (ej. paso por un pincho), vuelve al piso
         float reach = b.extents.y + Mathf.Max(groundSnapDistance, 3f);
-        RaycastHit2D hit = Physics2D.Raycast(new Vector2(b.center.x, b.center.y), Vector2.down,
-                                             reach, groundLayer);
+        RaycastHit2D hit = GroundRayNoBox(new Vector2(b.center.x, b.center.y), Vector2.down, reach);
         if (hit.collider != null)
         {
             float pivotToFoot = transform.position.y - b.min.y; // pivote respecto a la base del collider

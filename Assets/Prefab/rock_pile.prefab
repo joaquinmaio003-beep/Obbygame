@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 4892054362295774916}
   - component: {fileID: 6913121978943635950}
   - component: {fileID: 6947594272353894121}
+  - component: {fileID: 4261589827767747260}
   m_Layer: 0
   m_Name: rock_pile
   m_TagString: Untagged
@@ -77,7 +78,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 2
   m_Sprite: {fileID: 21300000, guid: d5b45d7609acd76438db16e539ed75ed, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -148,3 +149,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rocksPerPickup: 0
+--- !u!114 &4261589827767747260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7594689334041211969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00c3cb96018c6fe4d9f3fdbffb8b6f7f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  glowColor: {r: 1, g: 0.85, b: 0.35, a: 1}
+  outlineWidth: 0.06
+  pulseSpeed: 3
+  minAlpha: 0.35
+  maxAlpha: 1

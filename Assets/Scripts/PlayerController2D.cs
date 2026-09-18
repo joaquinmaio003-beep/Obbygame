@@ -168,18 +168,10 @@ public class PlayerController2D : MonoBehaviour
             dashAction != null && dashAction.WasPressedThisFrame())
             StartDash();
 
-        // giro visual
-        if (Mathf.Abs(moveInput) > 0.01f)
-        {
-            int dir = moveInput > 0 ? 1 : -1;
-            if (dir != facing)
-            {
-                facing = dir;
-                Vector3 s = transform.localScale;
-                s.x = Mathf.Abs(s.x) * facing;
-                transform.localScale = s;
-            }
-        }
+        // giro visual: sigue al input, PERO no mientras toca una pared en el aire
+        // (ahi manda el lado de la pared, para que la anim de pegado no salga al reves).
+        if (wallContact == 0 && Mathf.Abs(moveInput) > 0.01f)
+            SetFacing(moveInput > 0 ? 1 : -1);
 
         // contadores de asistencia
         if (bufferCounter > 0f) bufferCounter -= Time.deltaTime;
@@ -210,7 +202,10 @@ public class PlayerController2D : MonoBehaviour
         if (isDashing)
         {
             dashTimer -= Time.fixedDeltaTime;
-            vel.x = dashDir * dashSpeed;
+            // si hay una caja justo adelante, no la empuja con la fuerza del dash:
+            // limita la velocidad a la de caminar, asi el dash "no le hace nada extra" a la caja.
+            float dashVelX = dashDir * (BoxAhead(dashDir) ? Mathf.Min(dashSpeed, moveSpeed) : dashSpeed);
+            vel.x = dashVelX;
             vel.y = 0f; // dash horizontal limpio (sin caer)
             rb.linearVelocity = vel;
             if (dashTimer <= 0f) isDashing = false;
@@ -231,6 +226,8 @@ public class PlayerController2D : MonoBehaviour
         int wallSide = (wallGrip > 0f) ? rawWallSide : 0;
 
         wallContact = wallSide; // para la anim (tocar pared en el aire, sin depender de apretar)
+        // tocando pared en el aire -> Obby mira hacia la pared, asi la pose de pegado nunca sale al reves
+        if (wallSide != 0) SetFacing(wallSide);
         bool holdingAwayFromWall = wallSide != 0 && inputDir == -wallSide; // apretando para el lado opuesto -> se suelta
 
         // --- horizontal ---
@@ -318,15 +315,28 @@ public class PlayerController2D : MonoBehaviour
             leftX = rb.position.x - halfW; rightX = rb.position.x + halfW; midX = rb.position.x;
         }
 
-        foreach (float x in new[] { leftX, midX, rightX })
-            if (Physics2D.Raycast(new Vector2(x, originY), Vector2.down, len, groundLayer)) return true;
+        // 3 rayos, sin reservar arrays (Raycast simple devuelve struct, no genera basura)
+        if (Physics2D.Raycast(new Vector2(leftX, originY), Vector2.down, len, groundLayer)) return true;
+        if (Physics2D.Raycast(new Vector2(midX, originY), Vector2.down, len, groundLayer)) return true;
+        if (Physics2D.Raycast(new Vector2(rightX, originY), Vector2.down, len, groundLayer)) return true;
         return false;
+    }
+
+    // Buffer y filtro reutilizables para las consultas de fisica (no reservan memoria por frame).
+    static readonly RaycastHit2D[] s_hitBuf = new RaycastHit2D[8];
+    static ContactFilter2D LayerFilter(LayerMask mask)
+    {
+        var f = new ContactFilter2D();
+        f.useTriggers = Physics2D.queriesHitTriggers;
+        f.SetLayerMask(mask);
+        return f;
     }
 
     // Pared a ese lado (dir: -1 izq, +1 der). Tira 3 rayos desde el BORDE del collider
     // (arriba/medio/abajo), no desde el centro, asi engancha durante todo el deslizamiento
     // y no solo cuando Obby queda calzado en una esquina.
-    // Los cajones empujables (PushableBox) NO cuentan como pared.
+    // NO cuentan como pared: cajones empujables (PushableBox) ni pinchos (FallingSpike/SpikeHazard),
+    // asi no te podes colgar de ellos.
     bool WallOnSide(int dir)
     {
         LayerMask mask = wallLayer.value != 0 ? wallLayer : groundLayer;
@@ -337,15 +347,52 @@ public class PlayerController2D : MonoBehaviour
         Vector2 baseO = new Vector2(edgeX - dir * inset, b.center.y);
         float yTop = b.extents.y * 0.8f;                    // rayos arriba, centro y abajo
 
+        var filter = LayerFilter(mask);
         for (int i = -1; i <= 1; i++)
         {
             Vector2 o = baseO + new Vector2(0f, i * yTop);
-            RaycastHit2D hit = Physics2D.Raycast(o, new Vector2(dir, 0f), wallCheckDistance, mask);
-            if (hit.collider == null) continue;
-            if (hit.collider.GetComponentInParent<PushableBox>() != null) continue; // cajon, no pared
-            return true;
+            int n = Physics2D.Raycast(o, new Vector2(dir, 0f), filter, s_hitBuf, wallCheckDistance);
+            for (int j = 0; j < n; j++)
+            {
+                var hit = s_hitBuf[j];
+                if (hit.collider == null) continue;
+                if (!IsClingable(hit.collider)) continue;  // cajon o pincho -> no es pared, seguir mirando atras
+                return true;                                // pared de verdad
+            }
         }
         return false;
+    }
+
+    // Da vuelta el sprite hacia 'dir' (1 der, -1 izq).
+    void SetFacing(int dir)
+    {
+        if (dir == 0 || dir == facing) return;
+        facing = dir;
+        Vector3 s = transform.localScale;
+        s.x = Mathf.Abs(s.x) * facing;
+        transform.localScale = s;
+    }
+
+    // ¿Hay una caja empujable justo adelante (para no empujarla de mas con el dash)?
+    bool BoxAhead(int d)
+    {
+        if (col == null) return false;
+        Bounds b = col.bounds;
+        float edgeX = d > 0 ? b.max.x : b.min.x;
+        Vector2 origin = new Vector2(edgeX, b.center.y);
+        int n = Physics2D.Raycast(origin, new Vector2(d, 0f), LayerFilter(Physics2D.DefaultRaycastLayers), s_hitBuf, 0.3f);
+        for (int j = 0; j < n; j++)
+            if (s_hitBuf[j].collider != null && s_hitBuf[j].collider.GetComponentInParent<PushableBox>() != null) return true;
+        return false;
+    }
+
+    // ¿A este collider te podes colgar (es pared de verdad)? No a cajones ni pinchos.
+    bool IsClingable(Collider2D c)
+    {
+        if (c.GetComponentInParent<PushableBox>() != null) return false;
+        if (c.GetComponentInParent<FallingSpike>() != null) return false;
+        if (c.GetComponentInParent<SpikeHazard>() != null) return false;
+        return true;
     }
 
     /// <summary>Empuja al jugador (knockback) y bloquea el control horizontal un instante.</summary>
