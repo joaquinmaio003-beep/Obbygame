@@ -27,6 +27,8 @@ public class RockThrower : MonoBehaviour
     [Tooltip("Al tirar una piedra.")]
     public AudioClip throwSound;
 
+    PlayerDustFX dustFX;
+
     PlayerController2D controller;
     PlayerAnimator animator;
     InputAction attackAction;
@@ -36,6 +38,7 @@ public class RockThrower : MonoBehaviour
     {
         controller = GetComponent<PlayerController2D>();
         animator = GetComponent<PlayerAnimator>();
+        dustFX = GetComponent<PlayerDustFX>();
     }
 
     void OnEnable()
@@ -77,6 +80,7 @@ public class RockThrower : MonoBehaviour
         var go = Instantiate(rockPrefab, pos, Quaternion.identity);
         var rock = go.GetComponent<PlayerRock>();
         if (rock != null) rock.Launch(dir);
+        if (dustFX != null) dustFX.ThrowPuff();   // bocanada de polvo al tirar
         if (throwSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(throwSound);
     }

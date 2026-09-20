@@ -23,10 +23,17 @@ public class AudioManager : MonoBehaviour
 
     [Range(0f, 1f)] public float musicVolume = 0.6f;
     [Range(0f, 1f)] public float sfxVolume = 0.9f;
+    [Range(0f, 0.3f)]
+    [Tooltip("Variacion de tono al azar en cada efecto. Hace que dos sonidos iguales " +
+             "disparados juntos (ej: dos enemigos aplastados) se escuchen como dos y no como uno.")]
+    public float sfxPitchVariation = 0.07f;
 
     AudioSource musicSource;
-    AudioSource sfxSource;
+    AudioSource[] sfxPool;     // varias voces: los efectos simultaneos no se pisan
+    int sfxIndex;
     AudioClip currentMusic;
+
+    const int SfxVoices = 8;
 
     void Awake()
     {
@@ -44,10 +51,15 @@ public class AudioManager : MonoBehaviour
             musicSource.loop = true;
             musicSource.playOnAwake = false;
         }
-        if (sfxSource == null)
+        if (sfxPool == null || sfxPool.Length == 0)
         {
-            sfxSource = gameObject.AddComponent<AudioSource>();
-            sfxSource.playOnAwake = false;
+            sfxPool = new AudioSource[SfxVoices];
+            for (int i = 0; i < SfxVoices; i++)
+            {
+                var src = gameObject.AddComponent<AudioSource>();
+                src.playOnAwake = false;
+                sfxPool[i] = src;
+            }
         }
     }
 
@@ -64,15 +76,21 @@ public class AudioManager : MonoBehaviour
 
     public void StopMusic()
     {
-        musicSource.Stop();
+        if (musicSource != null) musicSource.Stop();
         currentMusic = null;
     }
 
-    /// <summary>Reproduce un efecto una vez.</summary>
+    /// <summary>Reproduce un efecto una vez. Cada llamada usa una voz distinta, con un
+    /// toque de variacion de tono, asi dos efectos simultaneos se escuchan separados.</summary>
     public void PlaySFX(AudioClip clip)
     {
         if (clip == null) return;
         EnsureSources();
-        sfxSource.PlayOneShot(clip, sfxVolume);
+
+        var src = sfxPool[sfxIndex];
+        sfxIndex = (sfxIndex + 1) % sfxPool.Length;
+
+        src.pitch = 1f + Random.Range(-sfxPitchVariation, sfxPitchVariation);
+        src.PlayOneShot(clip, sfxVolume);
     }
 }

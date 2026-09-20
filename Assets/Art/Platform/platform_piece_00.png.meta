@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 6edc631d610324b4d9b6e76614223521
+guid: 4ee804bc96d87dd4681d2847964e557f
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -768790821518261991
-    second: roca_movida 1_0
+      213: 7739604640556941701
+    second: platform_piece_00_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: roca_movida 1_0
+      name: platform_piece_00_0
       rect:
         serializedVersion: 2
-        x: 13
-        y: 14
-        width: 39
-        height: 36
+        x: 0
+        y: 0
+        width: 19
+        height: 21
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 911c2d032d4b455f0800000000000000
-      internalID: -768790821518261991
+      spriteID: 5818c561a69986b60800000000000000
+      internalID: 7739604640556941701
       vertices: []
       indices: 
       edges: []
@@ -126,7 +126,7 @@ TextureImporter:
     physicsShape: []
     bones: []
     spriteID: 5e97eb03825dee720800000000000000
-    internalID: 1537655665
+    internalID: 0
     vertices: []
     indices: 
     edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      roca_movida 1_0: -768790821518261991
+      platform_piece_00_0: 7739604640556941701
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

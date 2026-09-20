@@ -4,10 +4,9 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Vidas + checkpoints de Obby (estilo Mario).
-/// - Hurt(): golpe de enemigo/bala -> flash rojo + pierde una vida + breve
-///   invulnerabilidad, PERO se queda donde esta (no teleporta).
-/// - Respawn(): caida al vacio o lava/pinchos -> teleporta al ultimo checkpoint
-///   (ahi si, porque no podes quedarte en el pozo) + pierde una vida.
+/// - Perder una vida (golpe de enemigo, bala, pincho o caida) -> vuelve al ULTIMO
+///   checkpoint tocado, y se reponen las plataformas rompibles y los montones de piedras.
+/// - Los checkpoints se activan con solo tocarlos (ver Checkpoint.cs).
 /// Al llegar a 0 vidas, reinicia el nivel. En el dash es invulnerable a golpes.
 /// Va en el mismo GameObject que el PlayerController2D.
 /// </summary>
@@ -82,22 +81,14 @@ public class PlayerRespawn : MonoBehaviour
     /// <summary>Golpe sin fuente: empuja hacia atras del facing.</summary>
     public void Hurt() { Hurt(transform.position); }
 
-    /// <summary>Golpe de enemigo/bala: flash + knockback + pierde vida + invulnerable, SIN teleport (seguis donde estas).</summary>
+    /// <summary>Golpe de enemigo/bala: pierde una vida y vuelve al ultimo checkpoint.</summary>
     public void Hurt(Vector2 fromPos)
     {
         if (dying || invulnerable) return;
         if (controller != null && controller.IsDashing) return; // en el dash esquiva ataques
 
-        // empuje hacia el lado opuesto a la fuente del golpe
-        float dx = transform.position.x - fromPos.x;
-        int side = Mathf.Abs(dx) > 0.01f ? (dx > 0f ? 1 : -1)
-                 : (controller != null ? -controller.Facing : 1);
-        if (controller != null)
-            controller.ApplyKnockback(new Vector2(side * knockbackX, knockbackY), knockbackLock);
-        else
-            rb.linearVelocity = new Vector2(side * knockbackX, knockbackY);
-
-        LoseLife(false);
+        // cualquier vida perdida te devuelve al ultimo checkpoint
+        LoseLife(true);
     }
 
     /// <summary>Caida/lava: teleporta al checkpoint + pierde una vida.</summary>
@@ -138,7 +129,9 @@ public class PlayerRespawn : MonoBehaviour
         var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s; // no mirar al reves
         if (cam != null) cam.SnapToTarget();
 
-        BreakablePlatform.ResetAll(); // las plataformas rotas vuelven al reaparecer en el checkpoint
+        // todo vuelve como estaba en ese tramo, asi el checkpoint siempre es superable
+        BreakablePlatform.ResetAll();  // plataformas rotas vuelven a estar
+        RockPile.ResetAll();           // montones de piedras repuestos
 
         dying = false;
         yield return InvulnRoutine();
@@ -195,7 +188,9 @@ public class PlayerRespawn : MonoBehaviour
         if (cam != null) cam.SnapToTarget();
         if (controller != null) controller.enabled = true;
         if (anim != null) anim.Revive();
+        checkpointOrder = int.MinValue;   // arranca de cero: vuelve al principio
         BreakablePlatform.ResetAll();
+        RockPile.ResetAll();
         dying = false;
         invulnerable = false;
     }

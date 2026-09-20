@@ -80,7 +80,6 @@ public class PlayerController2D : MonoBehaviour
     Rigidbody2D rb;
     Collider2D col;
     float moveInput;
-    float prevUp;
     float coyoteCounter;
     float bufferCounter;
     bool isGrounded;
@@ -94,6 +93,7 @@ public class PlayerController2D : MonoBehaviour
 
     // wall slide / wall jump
     bool isWallSliding;
+    bool isPushing;   // empujando una caja (para la anim de empujar)
     bool wasWallSliding; // estaba colgado el frame anterior (para detectar cuando se le acaba la stamina)
     int wallContact; // lado de pared tocada en el aire (para la anim de wall slide)
     float wallGrip;  // stamina de agarre actual
@@ -116,6 +116,8 @@ public class PlayerController2D : MonoBehaviour
     public bool IsWallSliding => isWallSliding;
     // Lado de la pared que Obby esta tocando en el aire (0 = ninguna). Lo usa el animator.
     public int WallContact => wallContact;
+    // True cuando esta en el piso empujando una caja que tiene justo adelante.
+    public bool IsPushing => isPushing;
     // Stamina de agarre 0..1 (por si queres una barrita en el HUD).
     public float WallGripNormalized => wallGripMax <= 0f ? 1f : Mathf.Clamp01(wallGrip / wallGripMax);
     // 0 = recien usado, 1 = listo para dashear (para la barra de recarga)
@@ -154,13 +156,11 @@ public class PlayerController2D : MonoBehaviour
         // --- lectura de input ---
         Vector2 mv = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
         moveInput = mv.x;
-        float up = mv.y;
 
-        // saltar con Space (Jump) O con W / flecha arriba (Move up)
-        bool jumpDown = (jumpAction != null && jumpAction.WasPressedThisFrame())
-                        || (up > 0.5f && prevUp <= 0.5f);
+        // saltar SOLO con la accion Jump (Espacio). Antes W/flecha arriba tambien saltaba y,
+        // al apretar los dos juntos, metia el salto (y el sonido) dos veces seguidas.
+        bool jumpDown = jumpAction != null && jumpAction.WasPressedThisFrame();
         if (jumpDown) bufferCounter = jumpBuffer;
-        prevUp = up;
 
         // dash (Shift): dispara si no estamos ya dasheando y paso el cooldown
         if (dashCdTimer > 0f) dashCdTimer -= Time.deltaTime;
@@ -243,6 +243,10 @@ public class PlayerController2D : MonoBehaviour
             float rate = Mathf.Abs(target) > 0.01f ? acceleration : deceleration;
             vel.x = Mathf.MoveTowards(vel.x, target, rate * Time.fixedDeltaTime);
         }
+
+        // empujando: en el piso, apretando hacia una caja que esta justo adelante
+        // empujar = pisando el SUELO (no arriba de la caja) y apretando contra una caja de al lado
+        isPushing = isGrounded && inputDir != 0 && !StandingOnBox() && BoxAhead(inputDir);
 
         // --- salto normal (coyote + buffer) ---
         if (bufferCounter > 0f && coyoteCounter > 0f)
@@ -379,13 +383,58 @@ public class PlayerController2D : MonoBehaviour
         if (col == null) return false;
         Bounds b = col.bounds;
         float edgeX = d > 0 ? b.max.x : b.min.x;
-        Vector2 origin = new Vector2(edgeX, b.center.y);
-        int n = Physics2D.Raycast(origin, new Vector2(d, 0f), LayerFilter(Physics2D.DefaultRaycastLayers), s_hitBuf, 0.3f);
-        for (int j = 0; j < n; j++)
-            if (s_hitBuf[j].collider != null && s_hitBuf[j].collider.GetComponentInParent<PushableBox>() != null) return true;
+        float inset = 0.06f;
+        // Tres alturas (pies, medio y casi la cabeza): asi detecta cajas bajas Y altas.
+        // Antes tiraba un solo rayo al centro y fallaba con cajas mas bajas que Obby.
+        if (BoxAtHeight(edgeX, b.min.y + inset, d, b.min.y)) return true;
+        if (BoxAtHeight(edgeX, b.center.y, d, b.min.y)) return true;
+        if (BoxAtHeight(edgeX, b.max.y - inset, d, b.min.y)) return true;
         return false;
     }
 
+    // Un rayo horizontal a cierta altura buscando una caja empujable.
+    // Ignora la caja sobre la que Obby esta PARADO (esa esta debajo de sus pies, no se empuja).
+    bool BoxAtHeight(float x, float y, int d, float feetY)
+    {
+        int n = Physics2D.Raycast(new Vector2(x, y), new Vector2(d, 0f),
+                                  LayerFilter(Physics2D.DefaultRaycastLayers), s_hitBuf, 0.3f);
+        for (int j = 0; j < n; j++)
+        {
+            var c = s_hitBuf[j].collider;
+            if (c == null) continue;
+            if (c.GetComponentInParent<PushableBox>() == null) continue;
+            if (c.bounds.max.y <= feetY + 0.05f) continue; // esta parado ENCIMA de esa caja
+            return true;
+        }
+        return false;
+    }
+
+
+    // ¿Obby esta parado ENCIMA de una caja empujable? (ahi no corresponde la pose de empujar)
+    bool StandingOnBox()
+    {
+        if (col == null) return false;
+        Bounds b = col.bounds;
+        float len = Mathf.Max(0.05f, groundCheckSize.y) + 0.1f;
+        float y = b.min.y + 0.02f;
+        float inset = 0.04f;
+        if (BoxBelowAt(b.min.x + inset, y, len)) return true;
+        if (BoxBelowAt(b.center.x, y, len)) return true;
+        if (BoxBelowAt(b.max.x - inset, y, len)) return true;
+        return false;
+    }
+
+    bool BoxBelowAt(float x, float y, float len)
+    {
+        int n = Physics2D.Raycast(new Vector2(x, y), Vector2.down,
+                                  LayerFilter(Physics2D.DefaultRaycastLayers), s_hitBuf, len);
+        for (int j = 0; j < n; j++)
+        {
+            var c = s_hitBuf[j].collider;
+            if (c != null && c.GetComponentInParent<PushableBox>() != null) return true;
+        }
+        return false;
+    }
     // ¿A este collider te podes colgar (es pared de verdad)? No a cajones ni pinchos.
     bool IsClingable(Collider2D c)
     {

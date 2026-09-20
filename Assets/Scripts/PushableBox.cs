@@ -35,6 +35,11 @@ public class PushableBox : MonoBehaviour
     [Tooltip("Resistencia al movimiento. 0 = cae sin frenarse. Subilo si patina mucho al empujarla.")]
     public float linearDrag = 0f;
 
+    [Header("Estabilidad")]
+    [Tooltip("Mientras Obby este parado encima, la caja no se desplaza de costado " +
+             "(caminar arriba no la arrastra). Solo se mueve empujandola desde el piso.")]
+    public bool lockWhileStoodOn = true;
+
     [Header("Alinear con la pendiente")]
     [Tooltip("Si esta activo, la caja se inclina para quedar paralela a la colina.")]
     public bool alignToSlope = true;
@@ -74,6 +79,40 @@ public class PushableBox : MonoBehaviour
             rb.angularVelocity = 0f; // ningun choque la hace girar (Obby no se trepa por un borde inclinado)
             AlignToSlope();
         }
+
+        // Si Obby esta PARADO ENCIMA, la caja no se desplaza de costado: caminar arriba
+        // no la arrastra. Solo se mueve empujandola desde el costado, pisando el piso.
+        if (lockWhileStoodOn && PlayerOnTop())
+        {
+            var v = rb.linearVelocity;
+            v.x = 0f;                 // se anula el arrastre; la caida (y) sigue normal
+            rb.linearVelocity = v;
+        }
+    }
+
+    // Buffer y filtro reutilizables (no reservan memoria por frame).
+    static readonly Collider2D[] s_topBuf = new Collider2D[8];
+
+    // ¿Hay alguien parado justo encima de la caja?
+    bool PlayerOnTop()
+    {
+        if (col == null) return false;
+        Bounds b = col.bounds;
+
+        var filter = new ContactFilter2D();
+        filter.NoFilter();
+        filter.useTriggers = false;   // Obby tiene collider solido
+
+        Vector2 centro = new Vector2(b.center.x, b.max.y + 0.12f);
+        Vector2 tam = new Vector2(b.size.x * 0.9f, 0.24f);
+
+        int n = Physics2D.OverlapBox(centro, tam, 0f, filter, s_topBuf);
+        for (int i = 0; i < n; i++)
+        {
+            if (s_topBuf[i] == null) continue;
+            if (s_topBuf[i].GetComponentInParent<PlayerController2D>() != null) return true;
+        }
+        return false;
     }
 
     // Raycast hacia abajo para leer la inclinacion del piso y rotar la caja para

@@ -27,6 +27,7 @@ public class PlayerAnimator : MonoBehaviour
     public SpriteAnim walk;      // walk_00..03
     public SpriteAnim fall;      // fall_00  (pose en el aire / caida)
     public SpriteAnim wallslide; // wallslide_00  (deslizando por pared)
+    public SpriteAnim push;      // obby_push_00  (empujando una caja)
     public SpriteAnim attack;   // attack_00..02  (un tiro)
     public SpriteAnim death;    // death_00..03   (un tiro)
     public SpriteAnim wave;     // wave_00..02    (un tiro, secreta)
@@ -56,7 +57,7 @@ public class PlayerAnimator : MonoBehaviour
     bool flashing;
     bool damageFlashing;
 
-    enum State { Idle, Walk, Air, WallSlide, Attack, Death, Wave, Swim, Ship }
+    enum State { Idle, Walk, Air, WallSlide, Push, Attack, Death, Wave, Swim, Ship }
     State state = State.Idle;
     SpriteAnim current;
     int frame;
@@ -227,6 +228,14 @@ public class PlayerAnimator : MonoBehaviour
         if (!player.IsGrounded)
         {
             ShowAir();
+            idleTimer = 0f;
+            return;
+        }
+
+        // empujando una caja: pose de empujar (tiene prioridad sobre caminar)
+        if (player.IsPushing && push != null && push.frames != null && push.frames.Length > 0)
+        {
+            SwitchLoop(push, State.Push);
             idleTimer = 0f;
             return;
         }
