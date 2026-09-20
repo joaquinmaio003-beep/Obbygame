@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Enemigo guerrero (melee). Patrulla; cuando ve a Obby lo persigue, y al
-/// tenerlo cerca lanza un espadazo que le hace dano. Tambien lastima al tocarlo.
+/// tenerlo cerca lanza un espadazo que le hace dano SOLO en el instante del golpe.
 ///
 /// Setup: SpriteRenderer + Collider2D (Trigger) + Rigidbody2D (Kinematic solo) +
 /// este script. La deteccion de piso/pared usa el tamano real (bounds).
@@ -32,7 +32,6 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     public float chaseSpeed = 2.8f;
     public LayerMask groundLayer;
     public float wallCheckMargin = 0.08f;
-    public float ledgeCheckDistance = 0.5f;
     public float groundSnapDistance = 0.6f;
     [Tooltip("Subida maxima que tolera adelante (escalon/pendiente). Mas alto que esto = pared -> gira.")]
     public float maxStepHeight = 0.4f;
@@ -248,13 +247,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     void TestStun() { Stun(); }
 
     // ---- contacto ----
-    void OnTriggerStay2D(Collider2D other)
-    {
-        // solo lastima cuando esta pegando el espadazo (chocarlo sin que ataque no hace nada)
-        if (!isAttacking || isStunned || isRecovering) return;
-        var respawn = other.GetComponentInParent<PlayerRespawn>();
-        if (respawn != null) respawn.Hurt(transform.position);
-    }
+    // NO hay dano por contacto: el guerrero lastima UNICAMENTE en el instante del
+    // espadazo (ver AttackRoutine). Chocarlo o rozarle la espada no hace nada.
 
     // ---- facing / patrulla ----
     void FacePlayer()

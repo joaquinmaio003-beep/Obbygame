@@ -39,6 +39,8 @@ public class PlayerController2D : MonoBehaviour
     public float dashSpeed = 16f;
     [Tooltip("Cuanto dura el dash (seg).")]
     public float dashDuration = 0.15f;
+    [Tooltip("Invulnerabilidad extra al SALIR del dash (seg). Evita comerte el golpe justo al terminar el dash todavia encima del enemigo.")]
+    public float dashInvulnGrace = 0.12f;
     [Tooltip("Espera entre dashes (seg).")]
     public float dashCooldown = 0.6f;
 
@@ -89,6 +91,7 @@ public class PlayerController2D : MonoBehaviour
     bool isDashing;
     float dashTimer;
     float dashCdTimer;
+    float dashGraceTimer;   // invulnerabilidad que sigue un ratito despues del dash
     int dashDir = 1;
 
     // wall slide / wall jump
@@ -99,7 +102,6 @@ public class PlayerController2D : MonoBehaviour
     float wallGrip;  // stamina de agarre actual
     float wallJumpLockTimer;
     int lastWallSide;
-    float controlLockTimer; // bloqueo total del control horizontal (knockback)
     float stepTimer;        // para el sonido de pasos
 
     // Input System (generado por acciones)
@@ -113,6 +115,8 @@ public class PlayerController2D : MonoBehaviour
     public int Facing => facing;
     public Vector2 Velocity => rb != null ? rb.linearVelocity : Vector2.zero;
     public bool IsDashing => isDashing;
+    // Invulnerable: durante el dash Y un ratito despues (para esquivar al 100%).
+    public bool IsDashInvulnerable => isDashing || dashGraceTimer > 0f;
     public bool IsWallSliding => isWallSliding;
     // Lado de la pared que Obby esta tocando en el aire (0 = ninguna). Lo usa el animator.
     public int WallContact => wallContact;
@@ -164,6 +168,7 @@ public class PlayerController2D : MonoBehaviour
 
         // dash (Shift): dispara si no estamos ya dasheando y paso el cooldown
         if (dashCdTimer > 0f) dashCdTimer -= Time.deltaTime;
+        if (dashGraceTimer > 0f) dashGraceTimer -= Time.deltaTime;
         if (!isDashing && dashCdTimer <= 0f &&
             dashAction != null && dashAction.WasPressedThisFrame())
             StartDash();
@@ -208,7 +213,7 @@ public class PlayerController2D : MonoBehaviour
             vel.x = dashVelX;
             vel.y = 0f; // dash horizontal limpio (sin caer)
             rb.linearVelocity = vel;
-            if (dashTimer <= 0f) isDashing = false;
+            if (dashTimer <= 0f) { isDashing = false; dashGraceTimer = dashInvulnGrace; }
             return;
         }
 
@@ -234,9 +239,7 @@ public class PlayerController2D : MonoBehaviour
         // tras un wall jump el salto es LIBRE: solo se bloquea volver a empujar
         // contra la misma pared (para no re-pegarse); podes ir arriba o al otro lado.
         if (wallJumpLockTimer > 0f) wallJumpLockTimer -= Time.fixedDeltaTime;
-        if (controlLockTimer > 0f) controlLockTimer -= Time.fixedDeltaTime;
-        bool blockHoriz = controlLockTimer > 0f
-                          || (wallJumpLockTimer > 0f && lastWallSide != 0 && inputDir == lastWallSide);
+        bool blockHoriz = wallJumpLockTimer > 0f && lastWallSide != 0 && inputDir == lastWallSide;
         if (!blockHoriz)
         {
             float target = moveInput * moveSpeed;
@@ -442,15 +445,6 @@ public class PlayerController2D : MonoBehaviour
         if (c.GetComponentInParent<FallingSpike>() != null) return false;
         if (c.GetComponentInParent<SpikeHazard>() != null) return false;
         return true;
-    }
-
-    /// <summary>Empuja al jugador (knockback) y bloquea el control horizontal un instante.</summary>
-    public void ApplyKnockback(Vector2 velocity, float lockTime)
-    {
-        if (rb == null) rb = GetComponent<Rigidbody2D>();
-        rb.linearVelocity = velocity;
-        controlLockTimer = Mathf.Max(controlLockTimer, lockTime);
-        isDashing = false; // por las dudas, cortar el dash
     }
 
     void PlayJumpSound()

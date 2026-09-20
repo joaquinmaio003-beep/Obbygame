@@ -15,8 +15,6 @@ public class PlayerRock : MonoBehaviour
     public float speed = 12f;
     [Tooltip("Segundos hasta autodestruirse si no pega nada.")]
     public float life = 3f;
-    [Tooltip("Cuanto stunea al enemigo. 0 = usa el default del enemigo.")]
-    public float stunTime = 0f;
 
     [Header("Rebote")]
     [Tooltip("Cuantas veces rebota antes de romperse. 0 = se rompe al primer impacto.")]

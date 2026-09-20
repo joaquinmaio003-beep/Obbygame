@@ -19,11 +19,12 @@ public class BreakablePlatform : MonoBehaviour
     [Header("Rotura")]
     [Tooltip("Segundos desde que Obby la pisa hasta que se rompe (0 = al instante).")]
     public float breakDelay = 0.4f;
-    [Tooltip("Los enemigos tambien la rompen con su peso. OJO: dejalo DESTILDADO si hay enemigos " +
-             "patrullando encima, porque la romperian antes de que llegues y te perdes la escena.")]
-    public bool breakableByEnemies = false;
     [Tooltip("Al romperse, elimina a los enemigos que estaban parados encima (se caen y mueren).")]
     public bool defeatEnemiesOnBreak = true;
+    [Tooltip("Gravedad con la que se cae el enemigo al romperse la plataforma.")]
+    public float enemyFallGravity = 3f;
+    [Tooltip("Segundos hasta que el enemigo caido desaparece.")]
+    public float enemyFallTime = 2f;
     [Tooltip("Si es mayor que 0, la plataforma reaparece tras estos segundos. Si es 0 o menos, no vuelve.")]
     public float respawnDelay = 0f;
 
@@ -103,21 +104,17 @@ public class BreakablePlatform : MonoBehaviour
         SetBroken(false);
     }
 
+    // Solo escuchamos COLISIONES: Obby tiene collider solido. Los enemigos son Kinematic
+    // con collider TRIGGER, asi que no entran por aca ni pueden romper la plataforma.
     void OnCollisionEnter2D(Collision2D c) { CheckStomp(c.collider); }
     void OnCollisionStay2D(Collision2D c)  { CheckStomp(c.collider); }
-
-    // Los enemigos son Kinematic con collider TRIGGER, asi que NO generan colision.
-    // Por eso escuchamos tambien triggers: si no, un enemigo parado encima nunca la rompia.
-    void OnTriggerEnter2D(Collider2D other) { CheckStomp(other); }
-    void OnTriggerStay2D(Collider2D other)  { CheckStomp(other); }
 
     void CheckStomp(Collider2D other)
     {
         if (triggered) return;
 
-        bool esPlayer = other.GetComponentInParent<PlayerController2D>() != null;
-        bool esEnemigo = breakableByEnemies && other.GetComponentInParent<IStunnable>() != null;
-        if (!esPlayer && !esEnemigo) return;
+        // SOLO el player la rompe. Un enemigo parado encima no la activa nunca.
+        if (other.GetComponentInParent<PlayerController2D>() == null) return;
 
         // solo si viene desde ARRIBA: los pies estan a la altura del techo de la plataforma
         // (asi un golpe de costado o desde abajo no la rompe).
@@ -126,6 +123,7 @@ public class BreakablePlatform : MonoBehaviour
         triggered = true;
         StartCoroutine(BreakRoutine());
     }
+
 
     IEnumerator BreakRoutine()
     {
@@ -170,7 +168,6 @@ public class BreakablePlatform : MonoBehaviour
             SetBroken(false);
         }
     }
-
     // El momento en que se parte de verdad: deja de ser piso, suena y suelta los pedazos.
     void DoBreak()
     {
@@ -187,8 +184,9 @@ public class BreakablePlatform : MonoBehaviour
     // Buffer reutilizable (no reserva memoria por frame).
     static readonly Collider2D[] s_colBuf = new Collider2D[16];
 
-    // Elimina a los enemigos parados ENCIMA (se quedarian flotando, porque son kinematic
-    // y no caen por gravedad). Se llama ANTES de apagar el collider, para tener bounds validos.
+    // Tira abajo a los enemigos parados ENCIMA: en vez de borrarlos de golpe, les apaga la IA
+    // y les pone gravedad para que se VEA como se caen con la plataforma. Se destruyen al rato.
+    // Se llama ANTES de apagar el collider, para tener bounds validos.
     void DefeatEnemiesOnTop()
     {
         if (col == null) return;
@@ -207,7 +205,24 @@ public class BreakablePlatform : MonoBehaviour
         {
             if (s_colBuf[i] == null) continue;
             var enemigo = s_colBuf[i].GetComponentInParent<IStunnable>();
-            if (enemigo != null) enemigo.Defeat();
+            if (enemigo == null) continue;
+
+            // el script del enemigo (Enemy / WarriorEnemy) es un MonoBehaviour
+            var comp = enemigo as MonoBehaviour;
+            if (comp == null) { enemigo.Defeat(); continue; }   // por las dudas
+
+            comp.StopAllCoroutines();
+            comp.enabled = false;                    // apaga la IA: deja de pegarse al piso
+
+            var erb = comp.GetComponent<Rigidbody2D>();
+            if (erb != null)
+            {
+                erb.bodyType = RigidbodyType2D.Dynamic;   // ahora si lo agarra la gravedad
+                erb.gravityScale = enemyFallGravity;
+                erb.linearVelocity = new Vector2(0f, -0.5f);
+            }
+
+            Destroy(comp.gameObject, enemyFallTime);  // desaparece despues de caerse
         }
     }
     // Crea pedazos (a partir de los sprites cargados) que salen despedidos y caen, y se destruyen solos.
@@ -225,7 +240,8 @@ public class BreakablePlatform : MonoBehaviour
             var psr = go.AddComponent<SpriteRenderer>();
             if (pieceSprites != null && pieceSprites.Length > 0)
             {
-                psr.sprite = pieceSprites[Random.Range(0, pieceSprites.Length)];
+                // uno de CADA pedazo, en orden: no se repiten ni parecen de mas
+                psr.sprite = pieceSprites[i % pieceSprites.Length];
             }
             else if (sr != null)
             {

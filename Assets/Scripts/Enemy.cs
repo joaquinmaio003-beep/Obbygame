@@ -32,8 +32,6 @@ public class Enemy : MonoBehaviour, IStunnable
     public LayerMask groundLayer;
     [Tooltip("Margen extra para detectar pared, mas alla del cuerpo.")]
     public float wallCheckMargin = 0.08f;
-    [Tooltip("Cuanto mira hacia abajo para detectar el borde de la plataforma.")]
-    public float ledgeCheckDistance = 0.5f;
     [Tooltip("Pega el enemigo al piso (que no quede flotando). Rango de busqueda hacia abajo.")]
     public float groundSnapDistance = 0.6f;
     [Tooltip("Subida maxima que tolera adelante (escalon/pendiente). Mas alto que esto = pared -> gira.")]
@@ -399,10 +397,13 @@ public class Enemy : MonoBehaviour, IStunnable
         if (c != null)
         {
             Bounds b = c.bounds;
+            // los mismos rayos que usa CanAdvance()
+            float ahead = b.extents.x + wallCheckMargin;
             Gizmos.color = Color.red;
-            Gizmos.DrawLine(b.center, b.center + new Vector3(d * (b.extents.x + wallCheckMargin), 0f, 0f));
-            Vector3 front = new Vector3(b.center.x + d * (b.extents.x + wallCheckMargin), b.min.y + 0.02f, 0f);
-            Gizmos.DrawLine(front, front + Vector3.down * ledgeCheckDistance);
+            Vector3 ojo = new Vector3(b.center.x, b.min.y + maxStepHeight + 0.05f, 0f);
+            Gizmos.DrawLine(ojo, ojo + new Vector3(d * (ahead + 0.05f), 0f, 0f));            // pared alta
+            Vector3 front = new Vector3(b.center.x + d * (ahead + 0.05f), b.min.y + maxStepHeight, 0f);
+            Gizmos.DrawLine(front, front + Vector3.down * (maxStepHeight + maxDropHeight));  // piso / precipicio
         }
         Gizmos.color = new Color(1f, 0.9f, 0f, 0.25f);
         Gizmos.DrawWireSphere(transform.position, shootRange);

@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 402364556649491524}
   - component: {fileID: 886596461598794444}
   - component: {fileID: 9110362825897963517}
+  - component: {fileID: 7311220046655001001}
   m_Layer: 0
   m_Name: Enemy_Fire
   m_TagString: Untagged
@@ -345,3 +346,17 @@ MonoBehaviour:
   alertIcon: {fileID: 858745344342237420}
   shootSound: {fileID: 8300000, guid: b0f63e532fafbfe4189e4bdb2d037373, type: 3}
   stunSound: {fileID: 8300000, guid: db77372df5e459b4ea3f83317b3d266d, type: 3}
+--- !u!114 &7311220046655001001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8981864023422912609}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76297c21b2ce91344a6c9c8baf479758, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashTime: 0.1

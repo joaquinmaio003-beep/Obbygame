@@ -1,13 +1,13 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Vidas + checkpoints de Obby (estilo Mario).
-/// - Perder una vida (golpe de enemigo, bala, pincho o caida) -> vuelve al ULTIMO
-///   checkpoint tocado, y se reponen las plataformas rompibles y los montones de piedras.
+/// - Un GOLPE (enemigo, bala, pincho) -> pierde una vida pero sigue donde esta, con
+///   una breve invulnerabilidad. Caerse al vacio -> vuelve al checkpoint.
 /// - Los checkpoints se activan con solo tocarlos (ver Checkpoint.cs).
-/// Al llegar a 0 vidas, reinicia el nivel. En el dash es invulnerable a golpes.
+/// - Al perder las 3 vidas -> muere y revive en el ULTIMO checkpoint con vidas llenas,
+///   reponiendo plataformas rompibles y montones de piedras. En el dash es invulnerable.
 /// Va en el mismo GameObject que el PlayerController2D.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
@@ -24,11 +24,6 @@ public class PlayerRespawn : MonoBehaviour
     [Tooltip("Altura minima: si cae mas abajo que esto, vuelve al checkpoint.")]
     public float killY = -20f;
 
-    [Header("Knockback (al recibir un golpe)")]
-    public float knockbackX = 7f;
-    public float knockbackY = 6f;
-    [Tooltip("Segundos sin control tras el empuje.")]
-    public float knockbackLock = 0.2f;
 
     [Header("Game over")]
     [Tooltip("Segundos que se queda muerto (con la anim congelada) antes del fade.")]
@@ -82,16 +77,16 @@ public class PlayerRespawn : MonoBehaviour
     public void Hurt() { Hurt(transform.position); }
 
     /// <summary>Golpe de enemigo/bala: pierde una vida y vuelve al ultimo checkpoint.</summary>
+    /// <summary>Golpe de enemigo, bala o pincho: pierde una vida pero SIGUE donde esta.</summary>
     public void Hurt(Vector2 fromPos)
     {
         if (dying || invulnerable) return;
-        if (controller != null && controller.IsDashing) return; // en el dash esquiva ataques
+        if (controller != null && controller.IsDashInvulnerable) return; // en el dash (y un instante despues) esquiva todo
 
-        // cualquier vida perdida te devuelve al ultimo checkpoint
-        LoseLife(true);
+        LoseLife(false);   // un golpe NO te manda al checkpoint
     }
 
-    /// <summary>Caida/lava: teleporta al checkpoint + pierde una vida.</summary>
+    /// <summary>Caida al vacio: pierde una vida y vuelve al checkpoint (no podes quedarte en el pozo).</summary>
     public void Respawn()
     {
         if (dying || invulnerable) return;
@@ -105,34 +100,25 @@ public class PlayerRespawn : MonoBehaviour
 
         if (lives <= 0)
         {
-            StartCoroutine(GameOverRoutine()); // perder las 3 vidas -> reinicia el nivel
+            StartCoroutine(DeathRoutine()); // sin vidas -> muere y vuelve al checkpoint
             return;
         }
 
-        // golpe normal (todavia le quedan vidas)
+        // todavia le quedan vidas
         if (cam != null) cam.Shake();
         if (hurtSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(hurtSound);
 
-        if (teleport) StartCoroutine(TeleportRoutine());
-        else StartCoroutine(InvulnRoutine());
+        if (teleport) StartCoroutine(TeleportRoutine()); // se cayo al vacio
+        else StartCoroutine(InvulnRoutine());            // golpe: sigue donde esta
     }
 
-    // caida/lava: reaparece en el checkpoint + invulnerable un rato.
-    // Ademas re-arma las plataformas rompibles (si no, la que rompiste no estaria y no podrias avanzar).
+    // Caida al vacio: reaparece en el checkpoint + invulnerable un rato.
+    // Repone el tramo (plataformas y piedras) para que siempre sea superable.
     IEnumerator TeleportRoutine()
     {
         dying = true;
-        rb.linearVelocity = Vector2.zero;
-        transform.position = checkpoint;
-
-        var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s; // no mirar al reves
-        if (cam != null) cam.SnapToTarget();
-
-        // todo vuelve como estaba en ese tramo, asi el checkpoint siempre es superable
-        BreakablePlatform.ResetAll();  // plataformas rotas vuelven a estar
-        RockPile.ResetAll();           // montones de piedras repuestos
-
+        VolverAlCheckpoint();
         dying = false;
         yield return InvulnRoutine();
     }
@@ -145,8 +131,9 @@ public class PlayerRespawn : MonoBehaviour
         invulnerable = false;
     }
 
-    // ultima vida: explosion y reinicia el nivel desde el arranque
-    IEnumerator GameOverRoutine()
+    // Perdio las 3 vidas: muere, fundido a negro y revive en el ULTIMO checkpoint
+    // con las vidas llenas (no se reinicia el nivel entero).
+    IEnumerator DeathRoutine()
     {
         dying = true;
         rb.linearVelocity = Vector2.zero;
@@ -161,37 +148,29 @@ public class PlayerRespawn : MonoBehaviour
         if (ScreenFader.Instance != null)
             yield return ScreenFader.Instance.FadeOut(fadeDuration);
 
-        var scene = SceneManager.GetActiveScene();
-        if (scene.buildIndex >= 0)
-        {
-            // el ScreenFader hace el fade in solo al cargar la escena
-            SceneManager.LoadScene(scene.buildIndex);
-        }
-        else
-        {
-            Debug.LogWarning("PlayerRespawn: agrega la escena a File > Build Settings > Add Open Scenes " +
-                             "para que el game over reinicie bien el nivel.");
-            ResetToStart();
-            if (ScreenFader.Instance != null) yield return ScreenFader.Instance.FadeIn(fadeDuration);
-        }
-    }
-
-    // reset manual (fallback si la escena no esta en Build Settings)
-    void ResetToStart()
-    {
+        // revive en el checkpoint, con las vidas de nuevo al maximo
         lives = maxLives;
-        Vector3 start = startPoint != null ? startPoint.position : checkpoint;
-        checkpoint = start;
-        transform.position = start;
-        var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s;
-        rb.linearVelocity = Vector2.zero;
-        if (cam != null) cam.SnapToTarget();
         if (controller != null) controller.enabled = true;
         if (anim != null) anim.Revive();
-        checkpointOrder = int.MinValue;   // arranca de cero: vuelve al principio
-        BreakablePlatform.ResetAll();
-        RockPile.ResetAll();
+        VolverAlCheckpoint();
+
+        if (ScreenFader.Instance != null)
+            yield return ScreenFader.Instance.FadeIn(fadeDuration);
+
         dying = false;
-        invulnerable = false;
+        yield return InvulnRoutine();
+    }
+
+    // Deja a Obby en el ultimo checkpoint y repone el tramo.
+    void VolverAlCheckpoint()
+    {
+        rb.linearVelocity = Vector2.zero;
+        transform.position = checkpoint;
+
+        var s = transform.localScale; s.x = Mathf.Abs(s.x); transform.localScale = s; // no mirar al reves
+        if (cam != null) cam.SnapToTarget();
+
+        BreakablePlatform.ResetAll();  // plataformas rotas vuelven a estar
+        RockPile.ResetAll();           // montones de piedras repuestos
     }
 }

@@ -80,13 +80,22 @@ public class PushableBox : MonoBehaviour
             AlignToSlope();
         }
 
-        // Si Obby esta PARADO ENCIMA, la caja no se desplaza de costado: caminar arriba
-        // no la arrastra. Solo se mueve empujandola desde el costado, pisando el piso.
-        if (lockWhileStoodOn && PlayerOnTop())
+        // Si Obby esta PARADO ENCIMA, se BLOQUEA el eje X de la caja: caminar arriba no la
+        // arrastra. No alcanza con poner la velocidad en cero, porque despues corre el solver
+        // y la friccion de los pies la vuelve a empujar en el mismo paso de fisica.
+        if (lockWhileStoodOn)
         {
-            var v = rb.linearVelocity;
-            v.x = 0f;                 // se anula el arrastre; la caida (y) sigue normal
-            rb.linearVelocity = v;
+            if (PlayerOnTop())
+            {
+                rb.constraints |= RigidbodyConstraints2D.FreezePositionX;
+                var v = rb.linearVelocity;
+                v.x = 0f;                 // corta el arrastre que ya traia; la caida (y) sigue normal
+                rb.linearVelocity = v;
+            }
+            else
+            {
+                rb.constraints &= ~RigidbodyConstraints2D.FreezePositionX; // se bajo: vuelve a ser empujable
+            }
         }
     }
 
