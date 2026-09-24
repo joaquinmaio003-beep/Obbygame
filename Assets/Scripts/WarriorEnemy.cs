@@ -37,6 +37,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     public float maxStepHeight = 0.4f;
     [Tooltip("Bajada maxima adelante antes de considerarlo precipicio (para poder bajar colinas). Mas hondo = gira.")]
     public float maxDropHeight = 2f;
+    [Tooltip("Inclinacion maxima que puede subir caminando (grados). Mas empinada que esto = pared -> gira.")]
+    [Range(20f, 80f)] public float maxSlopeAngle = 55f;
 
     [Header("Deteccion / ataque")]
     [Tooltip("Distancia (radial) a la que detecta a Obby. Saltar no te saca del rango.")]
@@ -291,6 +293,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         {
             var h = s_hitBuf[i];
             if (h.collider == null) continue;
+            if (h.distance <= 0.0001f) continue;   // el rayo arranco DENTRO del collider: Unity
+                                                   // devuelve el propio origen como punto y el
+                                                   // snap lo mandaba volando para arriba
             if (h.collider.GetComponentInParent<PushableBox>() != null) continue; // es una caja, no piso
             if (h.distance < bestD) { bestD = h.distance; best = h; }
         }
@@ -318,9 +323,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
         // pared vertical alta justo adelante (por encima de un escalon tolerable) -> girar
         Vector2 wallEye = new Vector2(b.center.x, b.min.y + maxStepHeight + 0.05f);
-        bool wall = insideBox ? GroundRayNoBox(wallEye, wdir, ahead + 0.05f).collider != null
-                              : Physics2D.Raycast(wallEye, wdir, ahead + 0.05f, groundLayer).collider != null;
-        if (wall) return false;
+        if (ParedAdelante(wallEye, wdir, ahead + 0.05f, insideBox)) return false;
 
         // buscar el piso adelante: desde un poco arriba del pie hacia abajo.
         // si hay piso dentro de [subida tolerable .. bajada tolerable] -> puede avanzar (pendiente incluida)
@@ -333,15 +336,60 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
     void SnapToGround()
     {
+        if (!SuperficieDebajo(out float superficieY)) return;
+        float pivotToFoot = transform.position.y - col.bounds.min.y; // pivote respecto a la base del collider
+        transform.position = new Vector3(transform.position.x, superficieY + pivotToFoot, transform.position.z);
+    }
+
+    // Superficie lo bastante horizontal como para caminarla (normal mirando para arriba).
+    bool EsPendienteCaminable(RaycastHit2D h)
+    {
+        return h.normal.y >= Mathf.Cos(maxSlopeAngle * Mathf.Deg2Rad);
+    }
+
+    // Hay una PARED de verdad adelante? Una COLINA no cuenta: si la superficie esta
+    // inclinada menos que maxSlopeAngle la sube caminando en vez de darse vuelta.
+    bool ParedAdelante(Vector2 origen, Vector2 dirv, float dist, bool ignorarCaja)
+    {
+        int n = Physics2D.Raycast(origen, dirv, GroundFilter(), s_hitBuf, dist);
+        for (int i = 0; i < n; i++)
+        {
+            var h = s_hitBuf[i];
+            if (h.collider == null) continue;
+            bool esCaja = h.collider.GetComponentInParent<PushableBox>() != null;
+            if (ignorarCaja && esCaja) continue;                 // ya esta adentro: lo deja salir
+            if (!esCaja && EsPendienteCaminable(h)) continue;    // es una cuesta, no una pared
+            return true;
+        }
+        return false;
+    }
+
+    // Busca el piso bajo el cuerpo con TRES rayos (talon, centro y punta) y se queda con la
+    // superficie mas ALTA. Con un solo rayo al centro, en una colina el cuerpo queda medio
+    // hundido (subiendo) o medio flotando en el aire (bajando) en vez de seguir la pendiente.
+    bool SuperficieDebajo(out float superficieY)
+    {
         Bounds b = col.bounds;
         // alcance generoso hacia abajo: si quedo elevado (ej. paso por un pincho), vuelve al piso
         float reach = b.extents.y + Mathf.Max(groundSnapDistance, 3f);
-        RaycastHit2D hit = GroundRayNoBox(new Vector2(b.center.x, b.center.y), Vector2.down, reach);
-        if (hit.collider != null)
+        // cuanto puede SUBIR de un saque: mas que esto es un escalon/pared, no una cuesta
+        float subidaMax = maxStepHeight + b.extents.x * Mathf.Tan(maxSlopeAngle * Mathf.Deg2Rad);
+        float offset = b.extents.x - Mathf.Min(0.05f, b.extents.x * 0.5f);
+        superficieY = 0f; bool hay = false;
+
+        // Tres rayos (centro, punta y talon) y se apoya en la superficie MAS ALTA, como
+        // apoyaria una caja de verdad. Asi nunca queda enterrado en la colina: si se guiaba
+        // por la punta del pie, bajando se hundia un poco cada frame hasta que el rayo salia
+        // desde adentro del piso y se trababa sin poder bajar.
+        for (int i = 0; i < 3; i++)
         {
-            float pivotToFoot = transform.position.y - b.min.y;
-            transform.position = new Vector3(transform.position.x, hit.point.y + pivotToFoot, transform.position.z);
+            float x = b.center.x + ((i == 0) ? 0f : ((i == 1) ? offset : -offset));
+            RaycastHit2D h = GroundRayNoBox(new Vector2(x, b.center.y), Vector2.down, reach);
+            if (h.collider == null) continue;
+            if (h.point.y > b.min.y + subidaMax) continue;   // escalon alto: no se teletransporta arriba
+            if (!hay || h.point.y > superficieY) { superficieY = h.point.y; hay = true; }
         }
+        return hay;
     }
 
     // ---- animacion ----

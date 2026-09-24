@@ -27,6 +27,8 @@ public class PlayerController2D : MonoBehaviour
     public float gravityDown = 42f;
     [Tooltip("Velocidad de caida maxima (terminal).")]
     public float maxFallSpeed = 18f;
+    [Tooltip("Fuercita hacia abajo que lo mantiene pegado al piso. Baja = no se resbala en pendientes.")]
+    public float groundStickSpeed = 2f;
 
     [Header("Asistencias")]
     [Tooltip("Tiempo tras dejar el piso en el que todavia podes saltar (coyote time).")]
@@ -281,6 +283,11 @@ public class PlayerController2D : MonoBehaviour
 
         if (vel.y < -maxFallSpeed) vel.y = -maxFallSpeed;
 
+        // Apoyado en el piso no dejamos que la gravedad se acumule: si no, Obby termina
+        // con toda la velocidad de caida apretando contra el suelo y, en una PENDIENTE,
+        // ese empuje se convierte en deslizamiento (se resbala cuesta abajo).
+        if (isGrounded && vel.y < 0f) vel.y = -groundStickSpeed;
+
         // --- wall slide: tocando la pared y cayendo -> se cuelga y baja despacio.
         // Se suelta si apretas para el lado opuesto a la pared.
         isWallSliding = wallSide != 0 && vel.y < 0f && !holdingAwayFromWall;
@@ -364,6 +371,10 @@ public class PlayerController2D : MonoBehaviour
                 var hit = s_hitBuf[j];
                 if (hit.collider == null) continue;
                 if (!IsClingable(hit.collider)) continue;  // cajon o pincho -> no es pared, seguir mirando atras
+                if (hit.distance <= 0.0001f) continue;     // rayo nacido adentro de un collider: dato basura
+                if (Mathf.Abs(hit.normal.y) > 0.4f) continue;  // superficie tumbada = colina/piso, NO una pared:
+                                                               // bajando una cuesta la loma de atras contaba como
+                                                               // pared y le daba vuelta la cara a Obby
                 return true;                                // pared de verdad
             }
         }

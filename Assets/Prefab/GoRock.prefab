@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 309008183997213634}
   - component: {fileID: 4574400472108054716}
   - component: {fileID: 4237164345588530460}
+  - component: {fileID: 3822865282356994940}
   m_Layer: 3
   m_Name: GoRock
   m_TagString: Untagged
@@ -214,3 +215,25 @@ PolygonCollider2D:
       - {x: 1.8117446, y: 0.6130866}
       - {x: 1.3166072, y: 1.1299037}
   m_UseDelaunayMesh: 0
+--- !u!114 &3822865282356994940
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1989240867045251346}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac4e75ef16014374384fd4b9fee9c4d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnPieces: 1
+  pieceSprites: []
+  pieceCount: 6
+  pieceForce: 4.5
+  pieceSideSpread: 1.6
+  pieceSpin: 260
+  pieceGravity: 3
+  pieceLifetime: 1.5
+  pieceScale: 0.4
+  breakSound: {fileID: 0}

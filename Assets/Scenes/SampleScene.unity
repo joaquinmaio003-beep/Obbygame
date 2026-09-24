@@ -1308,7 +1308,11 @@ MonoBehaviour:
     - {fileID: 21300000, guid: d352303f20675e147bd41053fc49b28f, type: 3}
     fps: 8
   stun:
-    frames: []
+    frames:
+    - {fileID: 21300000, guid: 6c7a294b604773a4da44823e00296731, type: 3}
+    - {fileID: 21300000, guid: 8792a4e078ed06343a261bfee5a8c39f, type: 3}
+    - {fileID: 21300000, guid: 7644eef1a63e62d4aa2a95bc3c80c726, type: 3}
+    - {fileID: 21300000, guid: 9731119248de4f44799ce4fa3b3e139d, type: 3}
     fps: 8
   stunRecover:
     frames: []
@@ -1329,9 +1333,12 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   attackCooldown: 1.2
-  attackWindup: 0.3
+  attackWindup: 0.15
   breakRange: 0.6
   stunZoneFromHeight: 0.6
+  attackUpReach: 0.6
+  attackActiveTime: 0.18
+  chaseDropHeight: 6
   maxReachHeight: 2.5
   defaultStunTime: 2.5
   alertIcon: {fileID: 226316990}

@@ -43,12 +43,14 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     public float maxStepHeight = 0.4f;
     [Tooltip("Bajada maxima adelante antes de considerarlo precipicio (para poder bajar colinas). Mas hondo = gira.")]
     public float maxDropHeight = 2f;
+    [Tooltip("Inclinacion maxima que puede subir caminando (grados). Mas empinada que esto = pared -> gira.")]
+    [Range(20f, 80f)] public float maxSlopeAngle = 55f;
 
     [Header("Deteccion / ataque")]
     [Tooltip("Distancia (radial) a la que detecta a Obby. Saltar no te saca del rango.")]
     public float detectRange = 6f;
-    [Tooltip("Distancia a la que lanza el espadazo.")]
-    public float attackRange = 1.3f;
+    [Tooltip("Cuanto llega el golpe hacia ADELANTE, desde el borde del cuerpo. Bajo = tenes que estar pegado.")]
+    public float attackRange = 0.45f;
     [Tooltip("Capas que bloquean la vision (paredes/estructuras). Vacio = usa Ground Layer.")]
     public LayerMask sightBlockers;
     public float attackCooldown = 1.2f;
@@ -62,6 +64,18 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     public float stunZoneFromHeight = 0.6f;
     [Tooltip("Cuanto llega el golpe hacia ARRIBA, para pegarle al que salta encima.")]
     public float attackUpReach = 0.6f;
+    [Tooltip("Cuanto tiempo queda ACTIVO el golpe (seg). Con un solo instante lo esquivas caminando.")]
+    public float attackActiveTime = 0.18f;
+    [Tooltip("Bajada maxima que se anima a bajar CUANDO TE PERSIGUE (mas alta que la de patrulla, para que se tire a buscarte).")]
+    public float chaseDropHeight = 6f;
+
+    [Header("Caida")]
+    [Tooltip("Gravedad al caerse de una plataforma (mas alto = mas pesado).")]
+    public float fallGravity = 30f;
+    [Tooltip("Velocidad maxima de caida.")]
+    public float maxFallSpeed = 18f;
+    [Tooltip("Sonido al aterrizar (opcional).")]
+    public AudioClip landSound;
 
     [Tooltip("Si Obby esta mas alto que esto (ej: colgado de una pared), no lo persigue ni gira debajo.")]
     public float maxReachHeight = 2.5f;
@@ -92,6 +106,9 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     bool isRecovering;
     float attackCdTimer;
     float flipCd;   // anti-jitter para no girar sin parar
+    bool persiguiendo;  // true mientras te esta cazando (baja de las plataformas)
+    bool enElAire;      // cayendo (no hay piso debajo)
+    float fallVel;      // velocidad de caida acumulada
 
     Anim current;
     int frame;
@@ -123,8 +140,8 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         if (alertIcon != null) alertIcon.SetActive(detecta);
 
         // ataca a Obby si lo tiene cerca, O parte lo que tenga adelante para seguir avanzando
-        bool puedeAtacar = !isStunned && !isRecovering && !isAttacking && attackCdTimer <= 0f;
-        if (puedeAtacar && ((InRange(attackRange) && Reachable() && CanSeePlayer()) || RompibleAdelante() != null))
+        bool puedeAtacar = !isStunned && !isRecovering && !isAttacking && !enElAire && attackCdTimer <= 0f;
+        if (puedeAtacar && (PlayerEnCajaDeGolpe() || RompibleAdelante() != null))
             StartCoroutine(AttackRoutine());
 
         Anim target = isStunned ? stun
@@ -142,12 +159,20 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
 
+        // cayendo: no gira ni frena en el aire, sigue derecho hasta tocar piso
+        if (enElAire)
+        {
+            rb.linearVelocity = new Vector2(dir * (persiguiendo ? chaseSpeed : patrolSpeed) * 0.6f, 0f);
+            return;
+        }
+
         // te ve (con linea de vision) y podes alcanzarlo: te persigue, pero NO se trepa ni se cae.
         // Si Obby esta colgado muy arriba de una pared, no lo persigue (no gira como loco debajo).
-        if (InRange(detectRange) && Reachable() && CanSeePlayer())
+        persiguiendo = InRange(detectRange) && Reachable() && CanSeePlayer();
+        if (persiguiendo)
         {
             FacePlayer();
-            if (InRange(attackRange) || !CanAdvance()) rb.linearVelocity = Vector2.zero; // se frena, te sigue encarando
+            if (PlayerEnCajaDeGolpe() || !CanAdvance()) rb.linearVelocity = Vector2.zero; // se frena, te sigue encarando
             else rb.linearVelocity = new Vector2(dir * chaseSpeed, 0f);
             return;
         }
@@ -216,9 +241,20 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
         yield return new WaitForSeconds(attackWindup);
 
-        // momento del golpe: caja de golpe REAL delante del enemigo. Cubre su cuerpo, un poco
-        // adelante y un poco hacia arriba, asi tambien le pega al que salta o esta en una esquina.
-        GolpearEnCaja();
+        // ventana ACTIVA del golpe: chequea durante varios frames, no en un solo instante.
+        // Con un instante solo lo esquivabas simplemente caminando.
+        float tAtaque = 0f;
+        bool pego = false;
+        while (tAtaque < attackActiveTime)
+        {
+            if (!pego && playerHealth != null && PlayerEnCajaDeGolpe())
+            {
+                playerHealth.Hurt(transform.position);
+                pego = true;
+            }
+            tAtaque += Time.deltaTime;
+            yield return null;
+        }
 
         // y parte lo que tenga adelante (arbol, pincho o la roca grande)
         RomperAdelante();
@@ -318,9 +354,11 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         return f;
     }
 
-    // Raycast contra el piso pero IGNORANDO los cajones empujables (PushableBox); devuelve el hit MAS CERCANO.
-    // Asi el guerrero no se trepa ni se queda parado arriba de una caja.
-    RaycastHit2D GroundRayNoBox(Vector2 origin, Vector2 dir, float dist)
+
+    // Piso "pisable": como GroundRayNoBox, pero una roca/rompible SI cuenta como piso
+    // cuando su superficie esta a la altura de los pies o mas abajo (o sea, cuando venis
+    // cayendo desde arriba). Si esta mas alta que los pies, la ignora y la rompe de frente.
+    RaycastHit2D GroundRayPisable(Vector2 origin, Vector2 dir, float dist, float feetY)
     {
         int n = Physics2D.Raycast(origin, dir, GroundFilter(), s_hitBuf, dist);
         RaycastHit2D best = default; float bestD = float.MaxValue;
@@ -328,8 +366,14 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         {
             var h = s_hitBuf[i];
             if (h.collider == null) continue;
-            if (h.collider.GetComponentInParent<PushableBox>() != null) continue;   // roca empujable: NO es piso
-            if (h.collider.GetComponentInParent<Destructible>() != null) continue;  // rompible: NO es piso (lo parte, no se le sube)
+            if (h.distance <= 0.0001f) continue;   // el rayo arranco DENTRO del collider: Unity
+                                                   // devuelve el propio origen como punto y el
+                                                   // snap lo mandaba volando para arriba
+
+            bool rompible = h.collider.GetComponentInParent<PushableBox>() != null
+                         || h.collider.GetComponentInParent<Destructible>() != null;
+            if (rompible && h.point.y > feetY + 0.1f) continue;   // esta a su altura: la parte, no se le sube
+
             if (h.distance < bestD) { bestD = h.distance; best = h; }
         }
         return best;
@@ -341,9 +385,12 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
     // Caja de golpe delante del enemigo: mas fiable que medir distancia, porque cubre
     // el alto del cuerpo + un extra arriba (para el que salta) y todo el frente.
-    void GolpearEnCaja()
+    // ¿Obby esta dentro de la caja de golpe? Cubre el cuerpo del enemigo, un poco hacia
+    // adelante (attackRange) y hacia arriba (attackUpReach), asi tambien alcanza al que
+    // salta o esta parado en una roca.
+    bool PlayerEnCajaDeGolpe()
     {
-        if (playerHealth == null || col == null) return;
+        if (col == null) return false;
         Bounds b = col.bounds;
 
         float ancho = b.size.x + attackRange;
@@ -360,10 +407,9 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         for (int i = 0; i < n; i++)
         {
             if (s_colBuf[i] == null) continue;
-            if (s_colBuf[i].GetComponentInParent<PlayerController2D>() == null) continue;
-            playerHealth.Hurt(transform.position);
-            return;
+            if (s_colBuf[i].GetComponentInParent<PlayerController2D>() != null) return true;
         }
+        return false;
     }
     // ---- romper obstaculos ----
 
@@ -418,6 +464,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
             if (c == null) continue;
             if (c.GetComponentInParent<Destructible>() != null) continue;   // lo rompe, no lo esquiva
             if (c.GetComponentInParent<PushableBox>() != null) continue;    // la roca grande tambien la parte
+            if (EsPendienteCaminable(s_hitBuf[i])) continue;                // es una cuesta: la sube caminando
             return true;
         }
         return false;
@@ -438,26 +485,71 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         // buscar el piso adelante: desde un poco arriba del pie hacia abajo.
         // si hay piso dentro de [subida tolerable .. bajada tolerable] -> puede avanzar (pendiente incluida)
         Vector2 probe = new Vector2(b.center.x + dir * (ahead + 0.05f), b.min.y + maxStepHeight);
-        float len = maxStepHeight + maxDropHeight;
-        // SIEMPRE ignorando rocas y rompibles: nunca se le sube encima, se les planta adelante
-        RaycastHit2D hit = GroundRayNoBox(probe, Vector2.down, len);
+        // persiguiendo se anima a bajar mucho mas (se tira a buscarte de las plataformas)
+        float len = maxStepHeight + (persiguiendo ? chaseDropHeight : maxDropHeight);
+        // la roca cuenta como piso solo si la tiene DEBAJO de los pies (cayo encima);
+        // si la tiene a su altura, la ignora como piso y la rompe de frente
+        RaycastHit2D hit = GroundRayPisable(probe, Vector2.down, len, b.min.y);
         return hit.collider != null; // no hay piso dentro del alcance -> precipicio -> girar
     }
 
+    // Apoyarse en el piso o CAER con gravedad de verdad.
+    // Antes se teletransportaba al piso de abajo (bajaba de golpe y quedaba feo);
+    // ahora, si no hay piso justo debajo, se cae acelerando como corresponde.
     void SnapToGround()
     {
-        Bounds b = col.bounds;
-        // alcance generoso hacia abajo: si quedo elevado (ej. paso por un pincho), vuelve al piso
-        float reach = b.extents.y + Mathf.Max(groundSnapDistance, 3f);
-        RaycastHit2D hit = GroundRayNoBox(new Vector2(b.center.x, b.center.y), Vector2.down, reach);
-        if (hit.collider != null)
+        if (SuperficieDebajo(out float superficieY))
         {
-            float pivotToFoot = transform.position.y - b.min.y;
-            transform.position = new Vector3(transform.position.x, hit.point.y + pivotToFoot, transform.position.z);
+            // apoyado: se pega al piso
+            if (enElAire && landSound != null && AudioManager.Instance != null)
+                AudioManager.Instance.PlaySFX(landSound);   // golpe al aterrizar
+            enElAire = false;
+            fallVel = 0f;
+            float pivotToFoot = transform.position.y - col.bounds.min.y;
+            transform.position = new Vector3(transform.position.x, superficieY + pivotToFoot, transform.position.z);
+            return;
         }
+
+        // nada abajo: se cae con gravedad (acelerando, no de una)
+        enElAire = true;
+        fallVel = Mathf.Min(fallVel + fallGravity * Time.fixedDeltaTime, maxFallSpeed);
+        transform.position += Vector3.down * (fallVel * Time.fixedDeltaTime);
     }
 
-    // ---- animacion ----
+    // Superficie lo bastante horizontal como para caminarla (normal mirando para arriba).
+    bool EsPendienteCaminable(RaycastHit2D h)
+    {
+        return h.normal.y >= Mathf.Cos(maxSlopeAngle * Mathf.Deg2Rad);
+    }
+
+    // Busca el piso bajo el cuerpo con TRES rayos (talon, centro y punta) y se queda con la
+    // superficie mas ALTA. Con un solo rayo al centro, en una colina el cuerpo queda medio
+    // hundido (subiendo) o medio flotando en el aire (bajando) en vez de seguir la pendiente.
+    bool SuperficieDebajo(out float superficieY)
+    {
+        Bounds b = col.bounds;
+        float reach = b.extents.y + Mathf.Max(groundSnapDistance, maxStepHeight);
+        // cuanto puede SUBIR de un saque: mas que esto es un escalon/pared, no una cuesta
+        float subidaMax = maxStepHeight + b.extents.x * Mathf.Tan(maxSlopeAngle * Mathf.Deg2Rad);
+        float offset = b.extents.x - Mathf.Min(0.05f, b.extents.x * 0.5f);
+        superficieY = 0f; bool hay = false;
+
+        // Tres rayos (centro, punta y talon) y se apoya en la superficie MAS ALTA, como
+        // apoyaria una caja de verdad. Asi nunca queda enterrado en la colina: si se guiaba
+        // por la punta del pie, bajando se hundia un poco cada frame hasta que el rayo salia
+        // desde adentro del piso y se trababa sin poder bajar.
+        for (int i = 0; i < 3; i++)
+        {
+            float x = b.center.x + ((i == 0) ? 0f : ((i == 1) ? offset : -offset));
+            // la roca cuenta como piso solo si la tiene DEBAJO de los pies (cayo encima)
+            RaycastHit2D h = GroundRayPisable(new Vector2(x, b.center.y), Vector2.down, reach, b.min.y);
+            if (h.collider == null) continue;
+            if (h.point.y > b.min.y + subidaMax) continue;   // escalon alto: no se teletransporta arriba
+            if (!hay || h.point.y > superficieY) { superficieY = h.point.y; hay = true; }
+        }
+        return hay;   // nada valido debajo -> se cae con gravedad
+    }
+
     void SetAnim(Anim a)
     {
         current = a; frame = 0; frameTimer = 0f;
