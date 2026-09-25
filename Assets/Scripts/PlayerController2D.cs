@@ -27,8 +27,6 @@ public class PlayerController2D : MonoBehaviour
     public float gravityDown = 42f;
     [Tooltip("Velocidad de caida maxima (terminal).")]
     public float maxFallSpeed = 18f;
-    [Tooltip("Fuercita hacia abajo que lo mantiene pegado al piso. Baja = no se resbala en pendientes.")]
-    public float groundStickSpeed = 2f;
 
     [Header("Asistencias")]
     [Tooltip("Tiempo tras dejar el piso en el que todavia podes saltar (coyote time).")]
@@ -140,6 +138,20 @@ public class PlayerController2D : MonoBehaviour
         rb.freezeRotation = true;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+
+        // SIN FRICCION: la velocidad de Obby la maneja este script, asi que el rozamiento solo
+        // estorba. En colinas empinadas convertia el empuje en rozamiento y lo frenaba (o lo
+        // dejaba clavado), y contra una pared en el aire lo podia dejar pegado.
+        // Si en el Inspector le pusiste un material propio, se respeta ese.
+        if (col != null && col.sharedMaterial == null && rb.sharedMaterial == null)
+        {
+            col.sharedMaterial = new PhysicsMaterial2D("Obby sin friccion")
+            {
+                friction = 0f,
+                bounciness = 0f,
+                frictionCombine = PhysicsMaterialCombine2D.Minimum   // contra cualquier piso: 0
+            };
+        }
     }
 
     void OnEnable()
@@ -250,8 +262,10 @@ public class PlayerController2D : MonoBehaviour
         }
 
         // empujando: en el piso, apretando hacia una caja que esta justo adelante
-        // empujar = pisando el SUELO (no arriba de la caja) y apretando contra una caja de al lado
-        isPushing = isGrounded && inputDir != 0 && !StandingOnBox() && BoxAhead(inputDir);
+        // empujar = pisando el SUELO (no arriba de la caja) y apretando contra una caja de al lado.
+        // BoxAhead va primero: casi nunca hay caja adelante y ahi corta, sin gastar los rayos de
+        // StandingOnBox (que pegan SIEMPRE en el piso) en cada paso de fisica mientras camina.
+        isPushing = isGrounded && inputDir != 0 && BoxAhead(inputDir) && !StandingOnBox();
 
         // --- salto normal (coyote + buffer) ---
         if (bufferCounter > 0f && coyoteCounter > 0f)
@@ -282,11 +296,6 @@ public class PlayerController2D : MonoBehaviour
             vel.y -= gravityDown * Time.fixedDeltaTime;
 
         if (vel.y < -maxFallSpeed) vel.y = -maxFallSpeed;
-
-        // Apoyado en el piso no dejamos que la gravedad se acumule: si no, Obby termina
-        // con toda la velocidad de caida apretando contra el suelo y, en una PENDIENTE,
-        // ese empuje se convierte en deslizamiento (se resbala cuesta abajo).
-        if (isGrounded && vel.y < 0f) vel.y = -groundStickSpeed;
 
         // --- wall slide: tocando la pared y cayendo -> se cuelga y baja despacio.
         // Se suelta si apretas para el lado opuesto a la pared.
@@ -469,8 +478,13 @@ public class PlayerController2D : MonoBehaviour
         isDashing = true;
         dashTimer = dashDuration;
         dashCdTimer = dashCooldown;
-        // dashea hacia donde apunta el input; si no hay, hacia donde mira
-        dashDir = Mathf.Abs(moveInput) > 0.01f ? (moveInput > 0 ? 1 : -1) : facing;
+        // dashea hacia donde apunta el input; si no hay, hacia donde mira.
+        // Colgado de una pared y sin tocar direccion: hacia AFUERA de la pared (antes se
+        // estrellaba contra la pared y el dash se desperdiciaba).
+        if (Mathf.Abs(moveInput) > 0.01f) dashDir = moveInput > 0 ? 1 : -1;
+        else if (wallContact != 0 && !isGrounded) dashDir = -wallContact;
+        else dashDir = facing;
+        SetFacing(dashDir);   // que mire hacia donde sale disparado
     }
 
     void OnDrawGizmosSelected()

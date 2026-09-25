@@ -113,12 +113,13 @@ public class BreakablePlatform : MonoBehaviour
     {
         if (triggered) return;
 
+        // solo si viene desde ARRIBA: los pies estan a la altura del techo de la plataforma
+        // (asi un golpe de costado o desde abajo no la rompe). Va primero porque es la
+        // comprobacion barata; esto corre en cada paso de fisica con lo que este apoyado.
+        if (other.bounds.min.y < col.bounds.max.y - 0.15f) return;
+
         // SOLO el player la rompe. Un enemigo parado encima no la activa nunca.
         if (other.GetComponentInParent<PlayerController2D>() == null) return;
-
-        // solo si viene desde ARRIBA: los pies estan a la altura del techo de la plataforma
-        // (asi un golpe de costado o desde abajo no la rompe).
-        if (other.bounds.min.y < col.bounds.max.y - 0.15f) return;
 
         triggered = true;
         StartCoroutine(BreakRoutine());
@@ -184,8 +185,8 @@ public class BreakablePlatform : MonoBehaviour
     // Buffer reutilizable (no reserva memoria por frame).
     static readonly Collider2D[] s_colBuf = new Collider2D[16];
 
-    // Tira abajo a los enemigos parados ENCIMA: en vez de borrarlos de golpe, les apaga la IA
-    // y les pone gravedad para que se VEA como se caen con la plataforma. Se destruyen al rato.
+    // Los enemigos parados ENCIMA se caen con la plataforma (atravesando todo) y desaparecen.
+    // Cada enemigo lo resuelve con CaerYMorir (se le apaga el "!" y ya no pega).
     // Se llama ANTES de apagar el collider, para tener bounds validos.
     void DefeatEnemiesOnTop()
     {
@@ -200,29 +201,13 @@ public class BreakablePlatform : MonoBehaviour
         Vector2 centro = new Vector2(b.center.x, b.max.y + 0.3f);
         Vector2 tam = new Vector2(b.size.x, 0.7f);
 
+        float gravedad = enemyFallGravity * Mathf.Abs(Physics2D.gravity.y);
         int n = Physics2D.OverlapBox(centro, tam, 0f, filter, s_colBuf);
         for (int i = 0; i < n; i++)
         {
             if (s_colBuf[i] == null) continue;
             var enemigo = s_colBuf[i].GetComponentInParent<IStunnable>();
-            if (enemigo == null) continue;
-
-            // el script del enemigo (Enemy / WarriorEnemy) es un MonoBehaviour
-            var comp = enemigo as MonoBehaviour;
-            if (comp == null) { enemigo.Defeat(); continue; }   // por las dudas
-
-            comp.StopAllCoroutines();
-            comp.enabled = false;                    // apaga la IA: deja de pegarse al piso
-
-            var erb = comp.GetComponent<Rigidbody2D>();
-            if (erb != null)
-            {
-                erb.bodyType = RigidbodyType2D.Dynamic;   // ahora si lo agarra la gravedad
-                erb.gravityScale = enemyFallGravity;
-                erb.linearVelocity = new Vector2(0f, -0.5f);
-            }
-
-            Destroy(comp.gameObject, enemyFallTime);  // desaparece despues de caerse
+            if (enemigo != null) enemigo.CaerYMorir(gravedad, enemyFallTime);
         }
     }
     // Crea pedazos (a partir de los sprites cargados) que salen despedidos y caen, y se destruyen solos.

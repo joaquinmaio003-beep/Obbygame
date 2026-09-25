@@ -81,18 +81,25 @@ public class ClockHandPlatform : MonoBehaviour
     // Marca que Obby esta parado ENCIMA (el onTimer se vacia solo si deja de tocarla).
     void Detectar(Collision2D col)
     {
-        var p = col.transform.GetComponentInParent<PlayerController2D>();
-        if (p == null) return;
+        // primero el chequeo barato, y el Rigidbody de Obby se busca una sola vez
+        // (antes hacia GetComponentInParent + GetComponent en cada paso de fisica)
         if (!EstaArriba(col)) return;
-        playerRb = p.GetComponent<Rigidbody2D>();
+        if (playerRb == null || col.rigidbody != playerRb)
+        {
+            var p = col.transform.GetComponentInParent<PlayerController2D>();
+            if (p == null) return;
+            playerRb = p.GetComponent<Rigidbody2D>();
+        }
         onTimer = 0.1f;
     }
 
     // Confirma que el contacto viene desde arriba (Obby esta parado encima).
+    // GetContact en vez de col.contacts: ese crea un array nuevo en cada llamada,
+    // y esto corre en cada paso de fisica mientras Obby esta arriba.
     bool EstaArriba(Collision2D col)
     {
-        foreach (var c in col.contacts)
-            if (c.normal.y < -0.5f) return true; // normal hacia abajo -> lo tocan desde arriba
+        for (int i = 0; i < col.contactCount; i++)
+            if (col.GetContact(i).normal.y < -0.5f) return true; // normal hacia abajo -> lo tocan desde arriba
         return false;
     }
 

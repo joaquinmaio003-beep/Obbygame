@@ -16,6 +16,8 @@ public class FallingSpike : MonoBehaviour
     [Header("Deteccion")]
     [Tooltip("Ancho de la zona debajo del pincho que dispara la caida.")]
     public float triggerRangeX = 0.8f;
+    [Tooltip("Hasta que profundidad debajo del pincho lo dispara Obby. Mas abajo (otro piso) no se entera.")]
+    public float maxTriggerDepth = 8f;
     [Tooltip("Layer del piso (para clavarse al aterrizar).")]
     public LayerMask groundLayer;
 
@@ -69,13 +71,19 @@ public class FallingSpike : MonoBehaviour
             StartCoroutine(DropRoutine());
     }
 
-    // Obby esta debajo del pincho y alineado horizontalmente
+    // Obby esta debajo del pincho, alineado, NO demasiado abajo y sin piso/techo en el medio.
+    // Antes bastaba con estar abajo a CUALQUIER profundidad: caia fuera de pantalla cuando
+    // pasabas por otro piso y la trampa se desperdiciaba (y quedaba como bloque donde cayo).
     bool PlayerUnder()
     {
         if (player == null) return false;
         float dx = Mathf.Abs(player.position.x - transform.position.x);
-        bool below = player.position.y < transform.position.y;
-        return dx <= triggerRangeX && below;
+        float dy = transform.position.y - player.position.y;   // cuanto mas abajo esta Obby
+        if (dx > triggerRangeX || dy <= 0f || dy > maxTriggerDepth) return false;
+
+        // desde la punta del pincho (asi no choca con el techo del que cuelga)
+        Vector2 punta = new Vector2(transform.position.x, col.bounds.min.y - 0.05f);
+        return !Physics2D.Linecast(punta, player.position, groundLayer);
     }
 
     IEnumerator DropRoutine()
@@ -175,7 +183,7 @@ public class FallingSpike : MonoBehaviour
         // zona de disparo (banda vertical debajo)
         Gizmos.color = new Color(1f, 0.3f, 0.3f, 0.4f);
         Vector3 c = Application.isPlaying ? startPos : transform.position;
-        Gizmos.DrawLine(c + Vector3.left * triggerRangeX, c + Vector3.left * triggerRangeX + Vector3.down * 8f);
-        Gizmos.DrawLine(c + Vector3.right * triggerRangeX, c + Vector3.right * triggerRangeX + Vector3.down * 8f);
+        Gizmos.DrawLine(c + Vector3.left * triggerRangeX, c + Vector3.left * triggerRangeX + Vector3.down * maxTriggerDepth);
+        Gizmos.DrawLine(c + Vector3.right * triggerRangeX, c + Vector3.right * triggerRangeX + Vector3.down * maxTriggerDepth);
     }
 }

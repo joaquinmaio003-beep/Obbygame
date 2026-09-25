@@ -130,7 +130,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9f4b9c0ea729044f9368df21ccf3779, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  runOverSpeed: 4.5
+  runOverSpeed: 3
   runOverSound: {fileID: 0}
   shakeOnCrush: 1
   crushShakeDuration: 0.2

@@ -43,13 +43,24 @@ public class HUD : MonoBehaviour
     [Tooltip("Ocultar la barra cuando el agarre esta lleno (solo se ve al usarlo).")]
     public bool hideGripWhenFull = true;
 
+    // ultimo valor mostrado: el texto solo se rearma cuando CAMBIA. Antes armaba dos
+    // strings nuevos en cada frame (basura constante para el GC).
+    int lastLives = int.MinValue;
+    int lastRocks = int.MinValue;
+
     void Update()
     {
         if (livesText != null && player != null)
-            livesText.text = livesPrefix + Mathf.Max(0, player.Lives);
+        {
+            int vidas = Mathf.Max(0, player.Lives);
+            if (vidas != lastLives) { lastLives = vidas; livesText.text = livesPrefix + vidas; }
+        }
 
         if (rocksText != null && rockThrower != null)
-            rocksText.text = rocksPrefix + rockThrower.currentRocks;
+        {
+            int piedras = rockThrower.currentRocks;
+            if (piedras != lastRocks) { lastRocks = piedras; rocksText.text = rocksPrefix + piedras; }
+        }
 
         if (dashBar != null && controller != null)
         {

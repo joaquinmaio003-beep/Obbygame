@@ -47,6 +47,7 @@ public class DustMotes : MonoBehaviour
     static Material sharedAdditive;
 
     SpriteRenderer[] motes;
+    Transform[] moteTr;   // cacheados: sr.transform es una llamada al motor por mota y por frame
     Vector2[] pos;      // posicion local dentro de la zona
     float[] speed;      // velocidad propia de cada mota
     float[] phase;      // desfase para titileo y vaiven
@@ -69,6 +70,7 @@ public class DustMotes : MonoBehaviour
 
         count = Mathf.Max(0, count);
         motes = new SpriteRenderer[count];
+        moteTr = new Transform[count];
         pos = new Vector2[count];
         speed = new float[count];
         phase = new float[count];
@@ -95,6 +97,7 @@ public class DustMotes : MonoBehaviour
             phase[i] = Random.value * 10f;
             sway[i] = Random.Range(0.5f, 1.5f);
             motes[i] = sr;
+            moteTr[i] = go.transform;
         }
     }
 
@@ -123,7 +126,7 @@ public class DustMotes : MonoBehaviour
             // vaiven de costado (no cambia pos, es solo visual)
             float t = (Time.time + phase[i]);
             float offsetX = Mathf.Sin(t * swaySpeed * Mathf.PI * 2f) * swayAmount * sway[i];
-            sr.transform.localPosition = new Vector3(pos[i].x + offsetX, pos[i].y, 0f);
+            moteTr[i].localPosition = new Vector3(pos[i].x + offsetX, pos[i].y, 0f);
 
             // titileo
             float tw = (Mathf.Sin(t * twinkleSpeed * Mathf.PI * 2f) + 1f) * 0.5f;

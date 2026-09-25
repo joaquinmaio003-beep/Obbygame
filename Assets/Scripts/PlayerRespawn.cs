@@ -24,6 +24,10 @@ public class PlayerRespawn : MonoBehaviour
     [Tooltip("Altura minima: si cae mas abajo que esto, vuelve al checkpoint.")]
     public float killY = -20f;
 
+    [Header("Enemigos")]
+    [Tooltip("Al volver a un checkpoint los enemigos muertos reaparecen y todos vuelven a su lugar (como en Mario). Apagado = los que mataste quedan muertos.")]
+    public bool respawnEnemies = false;
+
 
     [Header("Game over")]
     [Tooltip("Segundos que se queda muerto (con la anim congelada) antes del fade.")]
@@ -46,6 +50,8 @@ public class PlayerRespawn : MonoBehaviour
     CameraFollow2D cam;
     bool dying;
     bool invulnerable;
+    Coroutine invulnCo;   // el parpadeo en curso (uno solo a la vez)
+    static readonly WaitForSeconds s_parpadeo = new WaitForSeconds(0.08f);
 
     public int Lives => lives;
 
@@ -61,7 +67,9 @@ public class PlayerRespawn : MonoBehaviour
 
     void Update()
     {
-        if (!dying && !invulnerable && transform.position.y < killY)
+        // un pozo mata SIEMPRE, aunque este invulnerable por un golpe recien recibido
+        // (antes te dejaba ~1 segundo cayendo fuera de pantalla antes de reaparecer)
+        if (!dying && transform.position.y < killY)
             Respawn();
     }
 
@@ -89,7 +97,7 @@ public class PlayerRespawn : MonoBehaviour
     /// <summary>Caida al vacio: pierde una vida y vuelve al checkpoint (no podes quedarte en el pozo).</summary>
     public void Respawn()
     {
-        if (dying || invulnerable) return;
+        if (dying) return;   // la invulnerabilidad del golpe no salva de un pozo
         LoseLife(true);
     }
 
@@ -110,7 +118,7 @@ public class PlayerRespawn : MonoBehaviour
             AudioManager.Instance.PlaySFX(hurtSound);
 
         if (teleport) StartCoroutine(TeleportRoutine()); // se cayo al vacio
-        else StartCoroutine(InvulnRoutine());            // golpe: sigue donde esta
+        else EmpezarInvuln();                            // golpe: sigue donde esta
     }
 
     // Caida al vacio: reaparece en el checkpoint + invulnerable un rato.
@@ -120,15 +128,39 @@ public class PlayerRespawn : MonoBehaviour
         dying = true;
         VolverAlCheckpoint();
         dying = false;
-        yield return InvulnRoutine();
+        EmpezarInvuln();
+        yield break;
     }
 
-    // golpe normal: se queda donde esta, solo invulnerable un rato
+    // Invulnerable un rato, TITILANDO todo ese tiempo: asi se ve hasta cuando esta a salvo.
+    // (antes solo parpadeaba rojo medio segundo y la invulnerabilidad duraba mas del doble)
     IEnumerator InvulnRoutine()
     {
         invulnerable = true;
-        yield return new WaitForSeconds(invulnDuration);
+        bool visible = true;
+        for (float t = 0f; t < invulnDuration; t += 0.08f)
+        {
+            visible = !visible;
+            if (anim != null) anim.SetVisible(visible);
+            yield return s_parpadeo;
+        }
+        if (anim != null) anim.SetVisible(true);
         invulnerable = false;
+        invulnCo = null;
+    }
+
+    void EmpezarInvuln()
+    {
+        CortarInvuln();
+        invulnCo = StartCoroutine(InvulnRoutine());
+    }
+
+    // Corta un parpadeo en curso y deja a Obby visible.
+    void CortarInvuln()
+    {
+        if (invulnCo != null) { StopCoroutine(invulnCo); invulnCo = null; }
+        invulnerable = false;
+        if (anim != null) anim.SetVisible(true);
     }
 
     // Perdio las 3 vidas: muere, fundido a negro y revive en el ULTIMO checkpoint
@@ -136,6 +168,7 @@ public class PlayerRespawn : MonoBehaviour
     IEnumerator DeathRoutine()
     {
         dying = true;
+        CortarInvuln();   // si estaba titilando, que la muerte se vea entera
         rb.linearVelocity = Vector2.zero;
         if (controller != null) controller.enabled = false;
         if (anim != null) anim.PlayDeath();
@@ -158,7 +191,7 @@ public class PlayerRespawn : MonoBehaviour
             yield return ScreenFader.Instance.FadeIn(fadeDuration);
 
         dying = false;
-        yield return InvulnRoutine();
+        EmpezarInvuln();
     }
 
     // Deja a Obby en el ultimo checkpoint y repone el tramo.
@@ -172,5 +205,13 @@ public class PlayerRespawn : MonoBehaviour
 
         BreakablePlatform.ResetAll();  // plataformas rotas vuelven a estar
         RockPile.ResetAll();           // montones de piedras repuestos
+        Destructible.ResetAll();       // lo que rompio la sierra (la roca grande incluida)
+        PushableBox.ResetAll();        // rocas empujables en su lugar (si no, podias quedar trabado)
+        if (respawnEnemies)            // enemigos: solo si esta activado
+        {
+            Enemy.ResetAll();
+            WarriorEnemy.ResetAll();
+            EnemigoSierra.ResetAll();
+        }
     }
 }

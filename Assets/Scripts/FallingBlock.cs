@@ -45,9 +45,9 @@ public class FallingBlock : MonoBehaviour
         if (col.transform.GetComponent<PlayerController2D>() == null) return;
 
         // solo si el jugador lo pisa desde arriba
-        foreach (var c in col.contacts)
+        for (int i = 0; i < col.contactCount; i++)   // GetContact: sin crear un array por choque
         {
-            if (c.normal.y < -0.5f)
+            if (col.GetContact(i).normal.y < -0.5f)
             {
                 StartCoroutine(ShakeAndFall());
                 break;

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 /// <summary>
 /// Rayo de sol que entra entre los arboles. Usa mezcla ADITIVA (suma luz sobre el fondo)
@@ -11,6 +12,8 @@ using UnityEngine;
 /// - Sorting Layer / Order in Layer POR ENCIMA del fondo (y del piso si queres que le pegue
 ///   al suelo), pero por debajo del HUD.
 /// - Agregale este script.
+/// - (Opcional) Luz del piso: un hijo con Light 2D (Point) donde el rayo pega en el suelo.
+///   La encuentra sola y late junto con el rayo.
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public class LightShaft : MonoBehaviour
@@ -33,11 +36,16 @@ public class LightShaft : MonoBehaviour
     [Tooltip("Que tan rapido se balancea.")]
     public float swaySpeed = 0.25f;
 
+    [Header("Luz del piso")]
+    [Tooltip("Light 2D que ilumina el suelo donde pega el rayo; late junto con el. Vacio = la busca entre los hijos. La intensidad que le pongas es la que tiene con el rayo a medio latido.")]
+    public Light2D floorLight;
+
     static Material sharedAdditive;   // un solo material para todos los rayos
 
     SpriteRenderer sr;
     float baseZ;
     float seed;
+    float floorBase;   // intensidad de la luz del piso puesta en el Inspector
 
     void Awake()
     {
@@ -52,6 +60,9 @@ public class LightShaft : MonoBehaviour
 
         baseZ = transform.localEulerAngles.z;
         seed = Random.value * 10f;    // desfase para que cada rayo lata distinto
+
+        if (floorLight == null) floorLight = GetComponentInChildren<Light2D>();
+        if (floorLight != null) floorBase = floorLight.intensity;
     }
 
     void Update()
@@ -61,6 +72,14 @@ public class LightShaft : MonoBehaviour
         Color c = shaftColor;
         c.a = Mathf.Lerp(minIntensity, maxIntensity, t);
         sr.color = c;
+
+        // la luz del piso sube y baja en la MISMA proporcion que el rayo
+        // (a medio latido queda justo en la intensidad que tiene en el Inspector)
+        if (floorLight != null)
+        {
+            float medio = (minIntensity + maxIntensity) * 0.5f;
+            floorLight.intensity = medio > 0f ? floorBase * (c.a / medio) : floorBase;
+        }
 
         // balanceo apenas perceptible
         if (swayAngle > 0f)

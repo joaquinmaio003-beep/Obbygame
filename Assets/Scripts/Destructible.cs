@@ -39,6 +39,25 @@ public class Destructible : MonoBehaviour
 
     bool broken;
 
+    // Registro de todos (para rearmarlos al volver a un checkpoint).
+    static readonly System.Collections.Generic.List<Destructible> todos = new();
+
+    void Awake()     { todos.Add(this); }
+    void OnDestroy() { todos.Remove(this); }
+
+    /// <summary>Vuelve a armar todo lo que se rompio. Lo llama PlayerRespawn al volver a un checkpoint.</summary>
+    public static void ResetAll()
+    {
+        for (int i = 0; i < todos.Count; i++)
+            if (todos[i] != null && todos[i].broken) todos[i].Reparar();
+    }
+
+    void Reparar()
+    {
+        broken = false;
+        gameObject.SetActive(true);
+    }
+
     /// <summary>Lo rompe: suelta los pedazos, suena y desaparece.</summary>
     public void Break()
     {
@@ -49,7 +68,7 @@ public class Destructible : MonoBehaviour
             AudioManager.Instance.PlaySFX(breakSound);
 
         if (spawnPieces) SpawnPieces();   // ANTES de destruir, para tener los bounds validos
-        Destroy(gameObject);
+        gameObject.SetActive(false);   // se apaga (no se destruye) para poder volver en el checkpoint
     }
 
     // Pedazos que se abren hacia afuera y caen, y se destruyen solos.

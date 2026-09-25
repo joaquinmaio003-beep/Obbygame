@@ -35,13 +35,22 @@ public class SpriteOutlineGlow : MonoBehaviour
 
     SpriteRenderer sr;
     SpriteRenderer[] parts;
+    // material compartido por TODOS los contornos. Antes cada monton creaba el suyo,
+    // y con materiales distintos Unity no puede agruparlos en un mismo dibujado.
+    static Material s_mat;
+    // lo ultimo que se copio a los 8 pedazos del contorno
+    Sprite lastSprite;
+    bool lastEnabled = true;
 
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
 
-        var shader = Shader.Find("Obby/SpriteFlash");
-        Material mat = shader != null ? new Material(shader) : null; // silueta de color solido
+        if (s_mat == null)
+        {
+            var shader = Shader.Find("Obby/SpriteFlash");
+            if (shader != null) s_mat = new Material(shader); // silueta de color solido
+        }
 
         parts = new SpriteRenderer[Dirs.Length];
         for (int i = 0; i < Dirs.Length; i++)
@@ -55,10 +64,12 @@ public class SpriteOutlineGlow : MonoBehaviour
             o.sprite = sr.sprite;
             o.sortingLayerID = sr.sortingLayerID;
             o.sortingOrder = sr.sortingOrder - 1; // detras del sprite principal
-            if (mat != null) o.sharedMaterial = mat;
+            if (s_mat != null) o.sharedMaterial = s_mat;
             o.color = glowColor;
             parts[i] = o;
         }
+        lastSprite = sr.sprite;
+        lastEnabled = true;
     }
 
     void LateUpdate()
@@ -68,12 +79,19 @@ public class SpriteOutlineGlow : MonoBehaviour
         float a = Mathf.Lerp(minAlpha, maxAlpha, t);
         Color c = glowColor; c.a = a;
 
+        // sprite y visibilidad se copian solo cuando CAMBIAN (antes se reasignaban a los
+        // 8 pedazos en cada frame aunque fueran iguales)
+        bool cambioSprite = sr.sprite != lastSprite;
+        bool cambioVisible = sr.enabled != lastEnabled;
+        if (cambioSprite) lastSprite = sr.sprite;
+        if (cambioVisible) lastEnabled = sr.enabled;
+
         for (int i = 0; i < parts.Length; i++)
         {
             var o = parts[i];
             if (o == null) continue;
-            o.sprite = sr.sprite;   // sigue el sprite actual (por si cambia/anima)
-            o.enabled = sr.enabled;
+            if (cambioSprite) o.sprite = lastSprite;     // sigue el sprite actual (por si cambia/anima)
+            if (cambioVisible) o.enabled = lastEnabled;
             o.color = c;
         }
     }

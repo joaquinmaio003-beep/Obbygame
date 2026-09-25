@@ -40,6 +40,12 @@ public class Enemy : MonoBehaviour, IStunnable
     public float maxDropHeight = 2f;
     [Tooltip("Inclinacion maxima que puede subir caminando (grados). Mas empinada que esto = pared -> gira.")]
     [Range(20f, 80f)] public float maxSlopeAngle = 55f;
+    [Tooltip("Gravedad cuando se cae (ej: la roca lo empuja fuera de un borde).")]
+    public float fallGravity = 30f;
+    [Tooltip("Velocidad maxima de caida.")]
+    public float maxFallSpeed = 18f;
+    [Tooltip("Si cae mas abajo que esta altura (a un pozo), muere.")]
+    public float killY = -20f;
 
     [Header("Disparo")]
     public bool canShoot = true;
@@ -69,6 +75,10 @@ public class Enemy : MonoBehaviour, IStunnable
     public AudioClip shootSound;
     [Tooltip("Al recibir la piedra / quedar stuneado.")]
     public AudioClip stunSound;
+    [Tooltip("Sonido al morir (aplastado por la roca, un pincho, etc). Opcional.")]
+    public AudioClip deathSound;
+    [Tooltip("Lejos de Obby (mas que esto) se pausa: no piensa ni se mueve. Ahorra rendimiento y evita que se vaya caminando a donde no lo esperas. 0 = nunca se pausa.")]
+    public float sleepDistance = 25f;
 
     // --- estado ---
     Rigidbody2D rb;
@@ -77,12 +87,20 @@ public class Enemy : MonoBehaviour, IStunnable
     EnemyHitFX hitFX;
     Transform player;
     int dir = 1;              // 1 der, -1 izq (arte mira a la derecha por defecto)
+    bool enElAire;      // cayendo (no hay piso debajo)
+    float fallVel;      // velocidad de caida acumulada
     bool isStunned;
     bool isRecovering;        // levantandose (frames 04-05) tras el stun
     bool isShooting;
     bool isAlerted;           // vio a Obby: se detiene y dispara
     float shootCdTimer;
     float flipCd;
+    bool muerto;                  // se esta muriendo o ya murio (queda apagado)
+    Color colorBase = Color.white;
+    Collider2D[] colliders;
+    Vector3 posInicial, escalaInicial;
+    int dirInicial;
+    static readonly System.Collections.Generic.List<Enemy> todos = new();   // para reponerlos (ver ResetAll)
 
     // animacion
     Anim current;
@@ -104,17 +122,27 @@ public class Enemy : MonoBehaviour, IStunnable
 
         if (alertIcon != null) alertIcon.SetActive(false);
         SetAnim(idle);
+
+        colliders = GetComponentsInChildren<Collider2D>(true);
+        colorBase = sr.color;
+        posInicial = transform.position;
+        escalaInicial = transform.localScale;
+        dirInicial = dir;
+        todos.Add(this);
     }
 
     void Update()
     {
+        if (muerto) return;
+        if (Dormido()) { if (alertIcon != null && alertIcon.activeSelf) alertIcon.SetActive(false); return; }
+
         if (shootCdTimer > 0f) shootCdTimer -= Time.deltaTime;
 
         isAlerted = !isStunned && !isRecovering && PlayerInSight();
         if (alertIcon != null) alertIcon.SetActive(isAlerted);
 
         // parado apuntando: dispara repetido mientras te ve
-        if (isAlerted && !isShooting && canShoot && shootCdTimer <= 0f)
+        if (isAlerted && !isShooting && canShoot && shootCdTimer <= 0f && !enElAire)   // cayendo no dispara
             StartCoroutine(ShootRoutine());
 
         // animacion segun el estado
@@ -128,7 +156,13 @@ public class Enemy : MonoBehaviour, IStunnable
 
     void FixedUpdate()
     {
+        if (muerto) return;
+        if (Dormido()) { rb.linearVelocity = Vector2.zero; return; }
+
         SnapToGround(); // siempre pegado al piso (no flotando)
+
+        // en el aire (lo empujaron fuera de un borde): cae derecho, sin caminar ni darse vuelta
+        if (enElAire) { rb.linearVelocity = Vector2.zero; return; }
 
         if (isStunned || isRecovering) { rb.linearVelocity = Vector2.zero; return; }
 
@@ -213,16 +247,100 @@ public class Enemy : MonoBehaviour, IStunnable
         Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)
     }
 
-    // ---- eliminado (le cayo un pincho encima): simplemente desaparece ----
+    // ---- eliminado (roca, pincho): flash, se aplasta contra el piso, polvo y desaparece ----
     public void Defeat()
     {
-        Destroy(gameObject);
+        if (muerto) return;
+        Bounds b = col.bounds;   // antes de apagar los colliders (apagados dan bounds vacios)
+        EmpezarMuerte();
+        StartCoroutine(MuerteRoutine(b));
+    }
+
+    IEnumerator MuerteRoutine(Bounds b)
+    {
+        if (hitFX != null) hitFX.Flash();
+        if (deathSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(deathSound);
+        EnemigoFX.Polvo(b, sr, 6);
+        yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
+        yield return new WaitForSeconds(0.08f);
+        Desaparecer();
+    }
+
+    /// <summary>Se rompio la plataforma donde estaba: cae con ella atravesando todo y desaparece.</summary>
+    public void CaerYMorir(float gravedad, float tiempo)
+    {
+        if (muerto) return;
+        EmpezarMuerte();
+        StartCoroutine(CaidaRoutine(gravedad, tiempo));
+    }
+
+    IEnumerator CaidaRoutine(float gravedad, float tiempo)
+    {
+        yield return EnemigoFX.CaerAtravesando(transform, gravedad, maxFallSpeed, tiempo);
+        Desaparecer();
+    }
+
+    // Deja de hacer todo: no ataca, nadie lo puede tocar y se apaga el "!".
+    void EmpezarMuerte()
+    {
+        muerto = true;
+        StopAllCoroutines();
+        isShooting = false;
+        isStunned = false;
+        isRecovering = false;
+        rb.linearVelocity = Vector2.zero;
+        sr.color = colorBase;
+        if (alertIcon != null) alertIcon.SetActive(false);
+        foreach (var c in colliders) if (c != null) c.enabled = false;
+    }
+
+    // Se apaga en vez de destruirse: asi puede volver si PlayerRespawn repone a los enemigos.
+    void Desaparecer() { gameObject.SetActive(false); }
+
+    // ---- reaparecer (lo llama PlayerRespawn al volver a un checkpoint, si esta activado) ----
+    public static void ResetAll()
+    {
+        for (int i = 0; i < todos.Count; i++)
+            if (todos[i] != null) todos[i].Reaparecer();
+    }
+
+    void Reaparecer()
+    {
+        gameObject.SetActive(true);
+        StopAllCoroutines();
+        muerto = false;
+        isShooting = false;
+        isStunned = false;
+        isRecovering = false;
+        enElAire = false;
+        fallVel = 0f;
+        shootCdTimer = 0f;
+        flipCd = 0f;
+        transform.position = posInicial;
+        transform.localScale = escalaInicial;
+        dir = dirInicial;
+        rb.linearVelocity = Vector2.zero;
+        sr.color = colorBase;
+        foreach (var c in colliders) if (c != null) c.enabled = true;
+        if (alertIcon != null) alertIcon.SetActive(false);
+        SetAnim(idle);
+    }
+
+    void OnDestroy() { todos.Remove(this); }
+
+    // Lejos de Obby se pausa: no piensa ni se mueve (ver sleepDistance).
+    bool Dormido()
+    {
+        if (sleepDistance <= 0f || player == null) return false;
+        return ((Vector2)player.position - (Vector2)transform.position).sqrMagnitude > sleepDistance * sleepDistance;
     }
 
     public void Stun() { Stun(defaultStunTime); }
 
     public void Stun(float duration)
     {
+        if (muerto) return;
         StopAllCoroutines();
         isShooting = false;
         StartCoroutine(StunRoutine(duration));
@@ -342,12 +460,24 @@ public class Enemy : MonoBehaviour, IStunnable
         return hit.collider != null; // no hay piso dentro del alcance -> precipicio -> girar
     }
 
-    // Pega el enemigo a la superficie del piso que tenga debajo.
+    // Apoyarse en el piso o CAERSE con gravedad (ej: la roca lo empujo fuera de un borde).
+    // Antes no tenia caida: sin piso quedaba flotando en el aire y dandose vuelta.
     void SnapToGround()
     {
-        if (!SuperficieDebajo(out float superficieY)) return;
-        float pivotToFoot = transform.position.y - col.bounds.min.y; // pivote respecto a la base del collider
-        transform.position = new Vector3(transform.position.x, superficieY + pivotToFoot, transform.position.z);
+        if (SuperficieDebajo(out float superficieY))
+        {
+            enElAire = false;
+            fallVel = 0f;
+            float pivotToFoot = transform.position.y - col.bounds.min.y; // pivote respecto a la base del collider
+            transform.position = new Vector3(transform.position.x, superficieY + pivotToFoot, transform.position.z);
+            return;
+        }
+
+        // nada abajo: se cae acelerando, como la sierra
+        enElAire = true;
+        fallVel = Mathf.Min(fallVel + fallGravity * Time.fixedDeltaTime, maxFallSpeed);
+        transform.position += Vector3.down * (fallVel * Time.fixedDeltaTime);
+        if (transform.position.y < killY) { EmpezarMuerte(); Desaparecer(); }   // se fue al pozo (fuera de pantalla: sin efectos)
     }
 
     // Superficie lo bastante horizontal como para caminarla (normal mirando para arriba).
@@ -379,8 +509,8 @@ public class Enemy : MonoBehaviour, IStunnable
     bool SuperficieDebajo(out float superficieY)
     {
         Bounds b = col.bounds;
-        // alcance generoso hacia abajo: si quedo elevado (ej. paso por un pincho), vuelve al piso
-        float reach = b.extents.y + Mathf.Max(groundSnapDistance, 3f);
+        // alcance corto: si no hay piso cerca se CAE con gravedad (ver SnapToGround)
+        float reach = b.extents.y + Mathf.Max(groundSnapDistance, maxStepHeight);
         // cuanto puede SUBIR de un saque: mas que esto es un escalon/pared, no una cuesta
         float subidaMax = maxStepHeight + b.extents.x * Mathf.Tan(maxSlopeAngle * Mathf.Deg2Rad);
         float offset = b.extents.x - Mathf.Min(0.05f, b.extents.x * 0.5f);

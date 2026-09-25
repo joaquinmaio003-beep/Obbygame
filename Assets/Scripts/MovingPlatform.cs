@@ -90,8 +90,8 @@ public class MovingPlatform : MonoBehaviour
     // Confirma que el contacto viene desde arriba (el jugador esta parado encima).
     bool EstaArriba(Collision2D col)
     {
-        foreach (var c in col.contacts)
-            if (c.normal.y < -0.5f) return true; // normal apunta hacia abajo -> tocan desde arriba
+        for (int i = 0; i < col.contactCount; i++)   // GetContact: sin crear un array por choque
+            if (col.GetContact(i).normal.y < -0.5f) return true; // normal apunta hacia abajo -> tocan desde arriba
         return false;
     }
 

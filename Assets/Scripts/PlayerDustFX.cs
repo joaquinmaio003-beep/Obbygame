@@ -1,4 +1,4 @@
-using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -73,6 +73,8 @@ public class PlayerDustFX : MonoBehaviour
 
     void Update()
     {
+        AnimarNubes();   // las nubes que ya salieron se animan siempre, aunque abajo se corte antes
+
         if (player == null || dustSprite == null) return;
 
         bool grounded = player.IsGrounded;
@@ -152,46 +154,84 @@ public class PlayerDustFX : MonoBehaviour
         }
     }
 
+    // ---- pool de nubecitas ----
+    // Antes cada nube era un GameObject NUEVO con su propia corrutina, que se destruia al
+    // desvanecerse: corriendo o dasheando eran decenas de objetos creados y destruidos por
+    // segundo (basura para el GC = tirones). Ahora se reciclan siempre las mismas.
+    class Nube
+    {
+        public GameObject go;
+        public Transform tr;
+        public SpriteRenderer sr;
+        public Vector3 desde, deriva;
+        public float t, sizeMul;
+        public bool viva;
+    }
+    readonly List<Nube> nubes = new List<Nube>();
+    Transform poolRoot;
+
     // horizBias: cuanto se abre de costado (mas alto = mas horizontal).
     void Lanzar(Vector2 pos, int dir, float horizBias = 0.35f, float sizeMul = 1f)
     {
-        var go = new GameObject("Polvo");
-        go.transform.position = pos;
+        Nube n = NubeLibre();
+        n.desde = pos;
+        n.deriva = new Vector3(dir * horizBias, 1f, 0f).normalized * driftSpeed;
+        n.sizeMul = sizeMul;
+        n.t = 0f;
+        n.viva = true;
 
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = dustSprite;
-        sr.color = dustColor;
+        n.tr.position = pos;
+        n.tr.localScale = Vector3.one * (startSize * sizeMul);
+        n.sr.sprite = dustSprite;
+        n.sr.color = dustColor;
         if (playerSr != null)
         {
-            sr.sortingLayerID = playerSr.sortingLayerID;
-            sr.sortingOrder = playerSr.sortingOrder + sortingOrderOffset;
+            n.sr.sortingLayerID = playerSr.sortingLayerID;
+            n.sr.sortingOrder = playerSr.sortingOrder + sortingOrderOffset;
         }
-
-        StartCoroutine(Animar(go, sr, dir, horizBias, sizeMul));
+        n.go.SetActive(true);
     }
 
-    // Crece, se eleva/aleja y se desvanece.
-    IEnumerator Animar(GameObject go, SpriteRenderer sr, int dir, float horizBias, float sizeMul)
+    // Devuelve una nube apagada para reusar; si estan todas en uso, crea una mas.
+    Nube NubeLibre()
     {
-        float t = 0f;
-        Vector3 desde = go.transform.position;
-        Vector3 deriva = new Vector3(dir * horizBias, 1f, 0f).normalized * driftSpeed;
+        for (int i = 0; i < nubes.Count; i++)
+            if (!nubes[i].viva) return nubes[i];
+
+        if (poolRoot == null) poolRoot = new GameObject("Polvo (pool)").transform;
+        var go = new GameObject("Polvo");
+        go.transform.SetParent(poolRoot, false);
+        var n = new Nube { go = go, tr = go.transform, sr = go.AddComponent<SpriteRenderer>() };
+        if (NubePolvo.MaterialPolvo != null) n.sr.sharedMaterial = NubePolvo.MaterialPolvo;   // sin luz: blanco de verdad
+        nubes.Add(n);
+        return n;
+    }
+
+    // Crece, se eleva/aleja y se desvanece. Al terminar se apaga y queda libre para reusar.
+    void AnimarNubes()
+    {
         float alpha0 = dustColor.a;
-
-        while (t < lifetime)
+        for (int i = 0; i < nubes.Count; i++)
         {
-            t += Time.deltaTime;
-            float k = Mathf.Clamp01(t / lifetime);
+            var n = nubes[i];
+            if (!n.viva) continue;
 
-            go.transform.position = desde + deriva * (k * lifetime);
-            go.transform.localScale = Vector3.one * (Mathf.Lerp(startSize, endSize, k) * sizeMul);
+            n.t += Time.deltaTime;
+            float k = Mathf.Clamp01(n.t / lifetime);
+
+            n.tr.position = n.desde + n.deriva * (k * lifetime);
+            n.tr.localScale = Vector3.one * (Mathf.Lerp(startSize, endSize, k) * n.sizeMul);
 
             Color c = dustColor;
             c.a = Mathf.Lerp(alpha0, 0f, k);   // se apaga
-            sr.color = c;
+            n.sr.color = c;
 
-            yield return null;
+            if (n.t >= lifetime) { n.viva = false; n.go.SetActive(false); }
         }
-        Destroy(go);
+    }
+
+    void OnDestroy()
+    {
+        if (poolRoot != null) Destroy(poolRoot.gameObject);
     }
 }

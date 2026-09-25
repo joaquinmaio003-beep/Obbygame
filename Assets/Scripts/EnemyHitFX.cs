@@ -19,7 +19,7 @@ public class EnemyHitFX : MonoBehaviour
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
-        normalMat = sr.material;
+        normalMat = sr.sharedMaterial;   // sin clonar: .material le daba a CADA enemigo su propia copia (sin batching)
         var sh = Shader.Find("Obby/SpriteFlash");
         if (sh != null)
         {
@@ -37,8 +37,15 @@ public class EnemyHitFX : MonoBehaviour
 
     IEnumerator FlashRoutine()
     {
-        sr.material = flashMat;
+        sr.sharedMaterial = flashMat;
         yield return new WaitForSeconds(flashTime);
-        sr.material = normalMat;
+        sr.sharedMaterial = normalMat;
+    }
+
+    // el material del flash es propio de cada enemigo: se libera cuando el enemigo muere
+    // (si no, quedaba uno huerfano en memoria por cada bicho eliminado)
+    void OnDestroy()
+    {
+        if (flashMat != null) Destroy(flashMat);
     }
 }

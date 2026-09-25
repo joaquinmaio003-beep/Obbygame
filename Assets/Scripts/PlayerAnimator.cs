@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// Animador por codigo para el pollo. En vez de un Animator Controller de
@@ -46,6 +45,23 @@ public class PlayerAnimator : MonoBehaviour
     [Tooltip("Color del parpadeo al recibir dano.")]
     public Color damageColor = Color.red;
 
+    [Header("Estirar y aplastar")]
+    [Tooltip("Se estira al saltar y se aplasta al aterrizar. Es solo visual: no toca el collider.")]
+    public bool squashStretch = true;
+    [Tooltip("Escala al aterrizar (X mas ancho, Y mas bajo).")]
+    public Vector2 landSquash = new Vector2(1.25f, 0.75f);
+    [Tooltip("Escala al saltar (X mas finito, Y mas alto).")]
+    public Vector2 jumpStretch = new Vector2(0.8f, 1.2f);
+    [Tooltip("Que tan rapido vuelve a su forma normal.")]
+    public float squashRecover = 12f;
+    [Tooltip("Velocidad de caida minima para aplastarse al aterrizar (saltitos chicos no).")]
+    public float landSquashMinSpeed = 4f;
+
+    Transform visual;                  // hijo que dibuja a Obby (se deforma sin tocar la fisica)
+    Vector2 escalaVisual = Vector2.one;
+    bool pisoAntes = true;
+    float velCaida;
+
     // --- estado interno ---
     SpriteRenderer sr;
     PlayerController2D player;
@@ -72,15 +88,18 @@ public class PlayerAnimator : MonoBehaviour
     // saludando: se mantiene en loop hasta que el jugador hace algo
     bool isWaving;
 
-    InputAction attackAction;
-
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
+
+        // El dibujo pasa a un HIJO: asi se puede estirar y aplastar sin escalar el objeto
+        // principal (eso cambiaria el collider y el chequeo de piso, o sea la fisica de Obby).
+        visual = CrearVisual(sr);
+        sr = visual.GetComponent<SpriteRenderer>();
         player = GetComponent<PlayerController2D>();
 
         // material normal + material de flash blanco para el dash
-        normalMat = sr.material;
+        normalMat = sr.sharedMaterial;   // sin clonar el material del sprite
         var flashShader = Shader.Find("Obby/SpriteFlash");
         if (flashShader != null)
         {
@@ -93,18 +112,10 @@ public class PlayerAnimator : MonoBehaviour
         Play(idle, State.Idle, true);
     }
 
-    void OnEnable()
-    {
-        var asset = InputSystem.actions;
-        if (asset != null)
-        {
-            attackAction = asset.FindAction("Attack");
-            attackAction?.Enable();
-        }
-    }
-
     void Update()
     {
+        ActualizarEstiramiento();
+
         // muerto: reproduce la muerte una vez y se queda CONGELADO en el ultimo frame
         if (isDead)
         {
@@ -157,7 +168,7 @@ public class PlayerAnimator : MonoBehaviour
         bool wantFlash = player.IsDashing;
         if (wantFlash == flashing) return;
         flashing = wantFlash;
-        sr.material = wantFlash ? flashMat : normalMat;
+        sr.sharedMaterial = wantFlash ? flashMat : normalMat;
     }
 
     /// <summary>Parpadeo rojo al recibir dano (lo llama PlayerRespawn).</summary>
@@ -173,9 +184,9 @@ public class PlayerAnimator : MonoBehaviour
         damageFlashing = true;
         for (int i = 0; i < 3; i++)
         {
-            sr.material = damageMat;
+            sr.sharedMaterial = damageMat;
             yield return new WaitForSeconds(0.09f);
-            sr.material = normalMat;
+            sr.sharedMaterial = normalMat;
             yield return new WaitForSeconds(0.09f);
         }
         damageFlashing = false;
@@ -384,5 +395,62 @@ public class PlayerAnimator : MonoBehaviour
             oneShotPlaying = false;
             Play(idle, State.Idle, true);
         }
+    }
+
+    /// <summary>Muestra u oculta a Obby (lo usa el parpadeo de invulnerabilidad).</summary>
+    public void SetVisible(bool visible)
+    {
+        if (sr != null) sr.enabled = visible;
+    }
+
+    // Crea el hijo que dibuja a Obby, copiando todo del SpriteRenderer original (que se apaga).
+    Transform CrearVisual(SpriteRenderer raiz)
+    {
+        var go = new GameObject("Visual");
+        go.layer = gameObject.layer;
+        go.transform.SetParent(transform, false);
+
+        var v = go.AddComponent<SpriteRenderer>();
+        v.sprite = raiz.sprite;
+        v.color = raiz.color;
+        v.sharedMaterial = raiz.sharedMaterial;
+        v.flipX = raiz.flipX;
+        v.flipY = raiz.flipY;
+        v.sortingLayerID = raiz.sortingLayerID;
+        v.sortingOrder = raiz.sortingOrder;
+        v.maskInteraction = raiz.maskInteraction;
+        v.spriteSortPoint = raiz.spriteSortPoint;
+
+        raiz.enabled = false;   // el original ya no se dibuja (queda para quien lea su orden de dibujo)
+        return go.transform;
+    }
+
+    // Se estira al despegar y se aplasta al aterrizar, y vuelve solo a su forma.
+    void ActualizarEstiramiento()
+    {
+        if (visual == null) return;
+
+        if (!squashStretch || player == null || isDead)
+        {
+            escalaVisual = Vector2.one;
+        }
+        else
+        {
+            bool enPiso = player.IsGrounded;
+            float vy = player.Velocity.y;
+            if (!enPiso && vy < 0f) velCaida = -vy;   // a que velocidad viene cayendo
+
+            if (enPiso && !pisoAntes && velCaida >= landSquashMinSpeed) escalaVisual = landSquash;   // aterrizo
+            else if (!enPiso && pisoAntes && vy > 1f) escalaVisual = jumpStretch;                    // salto
+
+            if (enPiso) velCaida = 0f;
+            pisoAntes = enPiso;
+            escalaVisual = Vector2.Lerp(escalaVisual, Vector2.one, squashRecover * Time.deltaTime);
+        }
+
+        visual.localScale = new Vector3(escalaVisual.x, escalaVisual.y, 1f);
+        // los pies quedan en el mismo lugar (si no, al aplastarse quedaria flotando)
+        float pie = sr.sprite != null ? sr.sprite.bounds.min.y : 0f;
+        visual.localPosition = new Vector3(0f, pie * (1f - escalaVisual.y), 0f);
     }
 }

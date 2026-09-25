@@ -74,6 +74,8 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     public float fallGravity = 30f;
     [Tooltip("Velocidad maxima de caida.")]
     public float maxFallSpeed = 18f;
+    [Tooltip("Si cae mas abajo que esta altura (a un pozo), muere.")]
+    public float killY = -20f;
     [Tooltip("Sonido al aterrizar (opcional).")]
     public AudioClip landSound;
 
@@ -92,6 +94,12 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     public AudioClip attackSound;
     [Tooltip("Al recibir la piedra / quedar stuneado.")]
     public AudioClip stunSound;
+    [Tooltip("Sonido al morir (aplastado por la roca, un pincho, etc). Opcional.")]
+    public AudioClip deathSound;
+    [Tooltip("Lejos de Obby (mas que esto) se pausa: no piensa ni se mueve. Ahorra rendimiento y evita que se vaya caminando a donde no lo esperas. 0 = nunca se pausa.")]
+    public float sleepDistance = 25f;
+    [Tooltip("Color con el que titila durante el amague del golpe (aviso para que el jugador esquive).")]
+    public Color attackWarnColor = new Color(1f, 0.45f, 0.45f, 1f);
 
     // --- estado ---
     Rigidbody2D rb;
@@ -106,6 +114,12 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     bool isRecovering;
     float attackCdTimer;
     float flipCd;   // anti-jitter para no girar sin parar
+    bool muerto;                  // se esta muriendo o ya murio (queda apagado)
+    Color colorBase = Color.white;
+    Collider2D[] colliders;
+    Vector3 posInicial, escalaInicial;
+    int dirInicial;
+    static readonly System.Collections.Generic.List<EnemigoSierra> todos = new();   // para reponerlos (ver ResetAll)
     bool persiguiendo;  // true mientras te esta cazando (baja de las plataformas)
     bool enElAire;      // cayendo (no hay piso debajo)
     float fallVel;      // velocidad de caida acumulada
@@ -129,10 +143,20 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
         if (alertIcon != null) alertIcon.SetActive(false);
         SetAnim(idle);
+
+        colliders = GetComponentsInChildren<Collider2D>(true);
+        colorBase = sr.color;
+        posInicial = transform.position;
+        escalaInicial = transform.localScale;
+        dirInicial = dir;
+        todos.Add(this);
     }
 
     void Update()
     {
+        if (muerto) return;
+        if (Dormido()) { if (alertIcon != null && alertIcon.activeSelf) alertIcon.SetActive(false); return; }
+
         if (attackCdTimer > 0f) attackCdTimer -= Time.deltaTime;
 
         // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar
@@ -155,6 +179,9 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
     void FixedUpdate()
     {
+        if (muerto) return;
+        if (Dormido()) { rb.linearVelocity = Vector2.zero; return; }
+
         SnapToGround();
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
@@ -239,7 +266,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         if (attackSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(attackSound);
 
-        yield return new WaitForSeconds(attackWindup);
+        yield return EnemigoFX.Amague(sr, colorBase, attackWarnColor, attackWindup);   // titila: aviso para esquivar
 
         // ventana ACTIVA del golpe: chequea durante varios frames, no en un solo instante.
         // Con un instante solo lo esquivabas simplemente caminando.
@@ -284,10 +311,93 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         Stun(); // la piedra NUNCA lo mata, solo lo aturde
     }
 
-    // ---- eliminado (le cayo un pincho encima): simplemente desaparece ----
+    // ---- eliminado (roca, pincho): flash, se aplasta contra el piso, polvo y desaparece ----
     public void Defeat()
     {
-        Destroy(gameObject);
+        if (muerto) return;
+        Bounds b = col.bounds;   // antes de apagar los colliders (apagados dan bounds vacios)
+        EmpezarMuerte();
+        StartCoroutine(MuerteRoutine(b));
+    }
+
+    IEnumerator MuerteRoutine(Bounds b)
+    {
+        if (hitFX != null) hitFX.Flash();
+        if (deathSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(deathSound);
+        EnemigoFX.Polvo(b, sr, 6);
+        yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
+        yield return new WaitForSeconds(0.08f);
+        Desaparecer();
+    }
+
+    /// <summary>Se rompio la plataforma donde estaba: cae con ella atravesando todo y desaparece.</summary>
+    public void CaerYMorir(float gravedad, float tiempo)
+    {
+        if (muerto) return;
+        EmpezarMuerte();
+        StartCoroutine(CaidaRoutine(gravedad, tiempo));
+    }
+
+    IEnumerator CaidaRoutine(float gravedad, float tiempo)
+    {
+        yield return EnemigoFX.CaerAtravesando(transform, gravedad, maxFallSpeed, tiempo);
+        Desaparecer();
+    }
+
+    // Deja de hacer todo: no ataca, nadie lo puede tocar y se apaga el "!".
+    void EmpezarMuerte()
+    {
+        muerto = true;
+        StopAllCoroutines();
+        isAttacking = false;
+        isStunned = false;
+        isRecovering = false;
+        rb.linearVelocity = Vector2.zero;
+        sr.color = colorBase;
+        if (alertIcon != null) alertIcon.SetActive(false);
+        foreach (var c in colliders) if (c != null) c.enabled = false;
+    }
+
+    // Se apaga en vez de destruirse: asi puede volver si PlayerRespawn repone a los enemigos.
+    void Desaparecer() { gameObject.SetActive(false); }
+
+    // ---- reaparecer (lo llama PlayerRespawn al volver a un checkpoint, si esta activado) ----
+    public static void ResetAll()
+    {
+        for (int i = 0; i < todos.Count; i++)
+            if (todos[i] != null) todos[i].Reaparecer();
+    }
+
+    void Reaparecer()
+    {
+        gameObject.SetActive(true);
+        StopAllCoroutines();
+        muerto = false;
+        isAttacking = false;
+        isStunned = false;
+        isRecovering = false;
+        enElAire = false;
+        fallVel = 0f;
+        attackCdTimer = 0f;
+        flipCd = 0f;
+        transform.position = posInicial;
+        transform.localScale = escalaInicial;
+        dir = dirInicial;
+        rb.linearVelocity = Vector2.zero;
+        sr.color = colorBase;
+        foreach (var c in colliders) if (c != null) c.enabled = true;
+        if (alertIcon != null) alertIcon.SetActive(false);
+        SetAnim(idle);
+    }
+
+    void OnDestroy() { todos.Remove(this); }
+
+    // Lejos de Obby se pausa: no piensa ni se mueve (ver sleepDistance).
+    bool Dormido()
+    {
+        if (sleepDistance <= 0f || player == null) return false;
+        return ((Vector2)player.position - (Vector2)transform.position).sqrMagnitude > sleepDistance * sleepDistance;
     }
 
     // ---- stun ----
@@ -295,8 +405,10 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
     public void Stun(float duration)
     {
+        if (muerto) return;
         StopAllCoroutines();
         isAttacking = false;
+        sr.color = colorBase;   // por si lo agarro en medio del amague del golpe
         StartCoroutine(StunRoutine(duration));
     }
 
@@ -450,7 +562,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         var d = go.GetComponent<Destructible>();
         if (d != null) { d.Break(); return; }
 
-        Destroy(go);   // la roca empujable simplemente se parte
+        go.SetActive(false);   // la roca empujable se parte (se apaga para poder volver en el checkpoint)
     }
 
     // Pared de VERDAD adelante. Lo rompible NO cuenta como pared: en vez de girarse,
@@ -514,6 +626,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         enElAire = true;
         fallVel = Mathf.Min(fallVel + fallGravity * Time.fixedDeltaTime, maxFallSpeed);
         transform.position += Vector3.down * (fallVel * Time.fixedDeltaTime);
+        if (transform.position.y < killY) { EmpezarMuerte(); Desaparecer(); }   // se fue al pozo (fuera de pantalla: sin efectos)
     }
 
     // Superficie lo bastante horizontal como para caminarla (normal mirando para arriba).
