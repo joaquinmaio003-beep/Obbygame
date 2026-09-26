@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: eab9dcd668b0c6248b86ce2a614c9ed6
+guid: 48e83cd7d77b4084994a7f32b719e563
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7112458395338814165
-    second: Arbol_0
+      213: -1389860050349794336
+    second: Manzana_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Arbol_0
+      name: Manzana_0
       rect:
         serializedVersion: 2
-        x: 6
-        y: 4
-        width: 55
-        height: 79
+        x: 16
+        y: 16
+        width: 34
+        height: 32
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: b2dc51ad5c87b4d90800000000000000
-      internalID: -7112458395338814165
+      spriteID: 0ebd463e5a936bce0800000000000000
+      internalID: -1389860050349794336
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Arbol_0: -7112458395338814165
+      Manzana_0: -1389860050349794336
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

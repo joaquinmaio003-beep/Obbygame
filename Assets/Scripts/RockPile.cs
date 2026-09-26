@@ -18,7 +18,7 @@ public class RockPile : MonoBehaviour
 
     [Header("Cuando se agota")]
     [Tooltip("Se achica a medida que se va vaciando.")]
-    public bool shrinkAsItEmpties = true;
+    public bool shrinkAsItEmpties = false;
     [Range(0.2f, 1f)]
     [Tooltip("Que tan chico queda cuando esta por agotarse.")]
     public float minScale = 0.55f;

@@ -150,7 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   totalRocks: 15
   rocksPerPickup: 0
-  shrinkAsItEmpties: 1
+  shrinkAsItEmpties: 0
   minScale: 0.55
   pickupSound: {fileID: 0}
 --- !u!114 &4261589827767747260

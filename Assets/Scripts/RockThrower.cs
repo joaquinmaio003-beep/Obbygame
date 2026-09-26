@@ -33,6 +33,10 @@ public class RockThrower : MonoBehaviour
     PlayerAnimator animator;
     InputAction attackAction;
     float delayTimer = -1f;
+    int manzanas;          // de la municion que tiene, cuantas son manzanas (se tiran primero)
+    Sprite spriteManzana;  // como se ve la manzana (lo pasa la manzana al juntarla)
+    float tamanoManzana = 0.28f;   // tamano en unidades (el mismo que en el piso)
+    bool proximaEsManzana; // el tiro que esta por salir es una manzana
 
     void Awake()
     {
@@ -56,6 +60,9 @@ public class RockThrower : MonoBehaviour
         // apreto Attack y tengo piedras -> animacion + preparar tiro
         if (attackAction != null && attackAction.WasPressedThisFrame() && currentRocks > 0)
         {
+            // si tiene manzanas, tira primero esas
+            proximaEsManzana = manzanas > 0 && spriteManzana != null;
+            if (proximaEsManzana) manzanas--;
             currentRocks--;
             delayTimer = throwDelay;
             if (animator != null) animator.PlayAttack(); // solo anima si hay municion
@@ -78,6 +85,7 @@ public class RockThrower : MonoBehaviour
             : transform.position + new Vector3(spawnOffset.x * dir, spawnOffset.y, 0f);
 
         var go = Instantiate(rockPrefab, pos, Quaternion.identity);
+        if (proximaEsManzana) VestirDeManzana(go);
         var rock = go.GetComponent<PlayerRock>();
         if (rock != null) rock.Launch(dir);
         if (dustFX != null) dustFX.ThrowPuff();   // bocanada de polvo al tirar
@@ -94,5 +102,45 @@ public class RockThrower : MonoBehaviour
     public void Refill()
     {
         currentRocks = maxRocks;
+    }
+
+    /// <summary>Junta una manzana (la llama Manzana): cuenta como una piedra mas, pero sale volando como manzana.</summary>
+    public void AddApple(Sprite sprite, float tamano)
+    {
+        if (currentRocks >= maxRocks) return;
+        currentRocks++;
+        manzanas++;
+        if (sprite != null) spriteManzana = sprite;
+        if (tamano > 0f) tamanoManzana = tamano;
+    }
+
+    // El tiro es el mismo proyectil (vuela, stunea y rebota igual que la piedra), pero se DIBUJA
+    // como manzana, del mismo tamano que la manzana del piso.
+    void VestirDeManzana(GameObject tiro)
+    {
+        var srPiedra = tiro.GetComponent<SpriteRenderer>();
+        if (srPiedra == null || spriteManzana == null) return;
+
+        float lado = Manzana.LadoVisible(spriteManzana);
+        if (lado <= 0f) return;
+        float escalaPadre = Mathf.Max(0.0001f, Mathf.Abs(tiro.transform.lossyScale.y));
+        float escala = tamanoManzana / lado / escalaPadre;
+
+        // centrada donde esta el cuerpo de la piedra (su collider), no en el centro de la imagen
+        var colTiro = tiro.GetComponent<Collider2D>();
+        Vector2 centroLocal = colTiro != null ? colTiro.offset : Vector2.zero;
+        Bounds manzana = Manzana.BordesVisibles(spriteManzana);
+
+        var hijo = new GameObject("Manzana");
+        hijo.transform.SetParent(tiro.transform, false);
+        hijo.transform.localScale = Vector3.one * escala;
+        hijo.transform.localPosition = (Vector3)(centroLocal - (Vector2)manzana.center * escala);
+
+        var srM = hijo.AddComponent<SpriteRenderer>();
+        srM.sprite = spriteManzana;
+        srM.sortingLayerID = srPiedra.sortingLayerID;
+        srM.sortingOrder = srPiedra.sortingOrder;
+        srM.sharedMaterial = srPiedra.sharedMaterial;
+        srPiedra.enabled = false;   // la piedra no se dibuja
     }
 }

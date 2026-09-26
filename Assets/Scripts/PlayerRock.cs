@@ -3,7 +3,9 @@ using UnityEngine;
 /// <summary>
 /// Piedra que tira Obby. Stunea al enemigo que toca y, en vez de romperse de una,
 /// REBOTA un toque: si el rebote pega en otro enemigo, tambien lo stunea.
-/// Tras gastar los rebotes (o pasado su tiempo de vida) desaparece.
+/// Contra paredes, piso y cosas solidas tambien REBOTA (y desde ahi cae con gravedad), como
+/// una piedra de verdad: se puede hacer rebotar en una pared para pegarle a un enemigo.
+/// Se rompe al quedarse sin fuerza, tras varios rebotes o pasado su tiempo de vida.
 ///
 /// Setup del prefab: SpriteRenderer (rock_throw) + Collider2D (Trigger) +
 /// Rigidbody2D + este script.
@@ -24,12 +26,23 @@ public class PlayerRock : MonoBehaviour
     [Tooltip("Empujoncito hacia arriba en cada rebote, para que se note el saltito.")]
     public float bounceUp = 2f;
     [Tooltip("Gravedad que agarra despues del primer rebote (0 = sigue derecho sin caer).")]
-    public float gravityAfterBounce = 1.5f;
+    public float gravityAfterBounce = 2.5f;
+
+    [Header("Rebote contra paredes y piso")]
+    [Tooltip("Cuanta velocidad conserva al rebotar contra algo solido (0 = se frena en seco, 1 = pelota perfecta).")]
+    [Range(0f, 1f)] public float wallBounciness = 0.55f;
+    [Tooltip("Cuantas veces puede rebotar contra paredes/piso antes de romperse.")]
+    public int maxWallBounces = 4;
+    [Tooltip("Si despues de un rebote va mas lento que esto, se rompe (ya no tiene fuerza).")]
+    public float minBounceSpeed = 1.5f;
 
     Rigidbody2D rb;
     int bouncesLeft;
     float hitCooldown;      // evita procesar el mismo impacto muchos frames seguidos
     Collider2D lastHit;
+    Collider2D col;
+    int rebotesPared;
+    static readonly RaycastHit2D[] s_hits = new RaycastHit2D[8];
     // enemigos ya stuneados por ESTA piedra (para que no los re-stunee al volver)
     readonly System.Collections.Generic.List<IStunnable> yaGolpeados = new();
 
@@ -41,6 +54,7 @@ public class PlayerRock : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        col = GetComponent<Collider2D>();
         // dinamico sin gravedad: vuela derecho y detecta triggers contra todo
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.gravityScale = 0f;
@@ -68,15 +82,15 @@ public class PlayerRock : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        // no re-procesar el mismo impacto en frames seguidos
-        if (hitCooldown > 0f && other == lastHit) return;
-
         // IGNORA a Obby por completo: la piedra que vuelve lo atraviesa, no le pega ni rebota en el
         if (other.GetComponentInParent<PlayerController2D>() != null) return;
 
         var enemy = other.GetComponentInParent<IStunnable>();
         if (enemy != null)
         {
+            // no re-procesar el mismo impacto en frames seguidos
+            if (hitCooldown > 0f && other == lastHit) return;
+
             // a cada enemigo lo stunea UNA sola vez por piedra (evita el ping-pong infinito)
             if (!yaGolpeados.Contains(enemy))
             {
@@ -95,8 +109,57 @@ public class PlayerRock : MonoBehaviour
 
         if (other.isTrigger) return; // ignora otros triggers (checkpoints, etc.)
 
-        // piso, pared u objeto solido -> se rompe ahi mismo
-        Destroy(gameObject);
+        // piso, pared u objeto solido -> REBOTA como una piedra de verdad
+        ChocarSolido();
+    }
+
+    // Choque contra algo solido (pared, piso, la roca grande...): rebota en vez de desaparecer.
+    // La piedra es trigger (asi no empuja la roca grande ni choca con Obby), por eso el rebote
+    // se calcula aca: se vuelve al lugar de antes de este paso y se avanza con la forma de la
+    // piedra hasta tocar la superficie, que da el punto y la normal exactos del choque.
+    void ChocarSolido()
+    {
+        Vector2 v = rb.linearVelocity;
+        float rapidez = v.magnitude;
+        if (rapidez < 0.01f || col == null) { Destroy(gameObject); return; }
+        Vector2 dirv = v / rapidez;
+
+        Bounds b = col.bounds;
+        float radio = Mathf.Min(b.extents.x, b.extents.y);
+        Vector2 centro = b.center;
+        Vector2 offset = centro - rb.position;           // del pivote al centro del collider
+        float atras = rapidez * Time.fixedDeltaTime + radio;
+
+        var filtro = new ContactFilter2D();
+        filtro.NoFilter();
+        filtro.useTriggers = false;                       // enemigos, checkpoints, etc. no cuentan
+        int n = Physics2D.CircleCast(centro - dirv * atras, radio, dirv, filtro, s_hits, atras + radio + 0.05f);
+
+        RaycastHit2D mejor = default;
+        float mejorD = float.MaxValue;
+        for (int i = 0; i < n; i++)
+        {
+            var h = s_hits[i];
+            if (h.collider == null || h.distance <= 0f) continue;
+            if (h.collider.GetComponentInParent<PlayerController2D>() != null) continue;   // Obby no cuenta
+            if (h.distance < mejorD) { mejorD = h.distance; mejor = h; }
+        }
+
+        Vector2 normal, nuevoCentro;
+        if (mejor.collider != null) { normal = mejor.normal; nuevoCentro = mejor.centroid + normal * 0.02f; }
+        else { normal = -dirv; nuevoCentro = centro - dirv * radio; }   // no encontro la cara: vuelve por donde vino
+
+        rebotesPared++;
+        Vector2 rebote = Vector2.Reflect(v, normal) * wallBounciness;
+        if (rebotesPared > maxWallBounces || rebote.magnitude < minBounceSpeed)
+        {
+            Destroy(gameObject);   // ya no tiene fuerza para seguir rebotando: se rompe
+            return;
+        }
+
+        rb.position = nuevoCentro - offset;
+        rb.linearVelocity = rebote;
+        rb.gravityScale = gravityAfterBounce;             // desde el primer rebote cae como una piedra
     }
 
     // Rebote contra un enemigo: como una pelota contra una pared, VUELVE para atras.
