@@ -24,8 +24,8 @@ public class SpriteOutlineGlow : MonoBehaviour
     [Tooltip("Velocidad del parpadeo suave.")]
     public float pulseSpeed = 3f;
     [Tooltip("Intensidad minima y maxima del latido (0..1).")]
-    public float minAlpha = 0.35f;
-    public float maxAlpha = 1f;
+    public float minAlpha = 0.15f;
+    public float maxAlpha = 0.45f;
 
     static readonly Vector2[] Dirs =
     {

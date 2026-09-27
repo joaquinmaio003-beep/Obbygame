@@ -168,5 +168,5 @@ MonoBehaviour:
   glowColor: {r: 1, g: 1, b: 1, a: 1}
   outlineWidth: 0.02
   pulseSpeed: 3
-  minAlpha: 0.35
-  maxAlpha: 1
+  minAlpha: 0.15
+  maxAlpha: 0.45
