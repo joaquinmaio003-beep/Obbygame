@@ -4,7 +4,9 @@ using UnityEngine;
 /// <summary>
 /// Taladro que apunta para abajo. Obby se puede parar arriba, en la tapa (es una plataforma).
 /// Cada tanto (5 segundos) prende fuego por arriba y BAJA: si Obby esta parado encima mientras
-/// hay fuego, se quema y pierde una vida. Abajo se apaga, vuelve solo a su lugar y empieza de nuevo.
+/// hay fuego, se quema y pierde una vida. Mientras baja, la PUNTA tambien lastima al que toque.
+/// El fuego y la punta MATAN a los enemigos que agarren.
+/// Abajo se apaga, vuelve solo a su lugar y empieza de nuevo.
 ///
 /// Setup:
 /// - GameObject con SpriteRenderer (taladro_00) + BoxCollider2D + este script
@@ -44,14 +46,21 @@ public class Taladro : MonoBehaviour
     [Tooltip("Sonido al prender el fuego (opcional).")]
     public AudioClip fireSound;
 
+    [Header("Punta")]
+    [Tooltip("Centro de la zona de la punta que lastima al bajar (relativo al taladro; se escala con el objeto).")]
+    public Vector2 tipOffset = new Vector2(-0.0625f, -0.47f);
+    [Tooltip("Tamano de la zona de la punta que lastima al bajar.")]
+    public Vector2 tipSize = new Vector2(0.7f, 0.75f);
+
     Rigidbody2D rb;
     SpriteRenderer sr;
     BoxCollider2D col;
     Vector2 inicio;
     bool fuego;          // hay fuego arriba: quema
+    bool bajando;        // mientras baja, la punta lastima
     float animT;
     int cuadro = -1;
-    static readonly Collider2D[] s_buf = new Collider2D[8];
+    static readonly Collider2D[] s_buf = new Collider2D[16];
 
     void Awake()
     {
@@ -94,7 +103,9 @@ public class Taladro : MonoBehaviour
             PonerFuego(true);
             if (fireSound != null && AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(fireSound);
+            bajando = true;
             yield return Mover(inicio + Vector2.down * dropDistance, dropSpeed);
+            bajando = false;
 
             // 3) abajo se apaga un toque
             PonerFuego(false);
@@ -138,27 +149,44 @@ public class Taladro : MonoBehaviour
     void FixedUpdate()
     {
         if (fuego) Quemar();
+        if (bajando) PuntaPega();
     }
 
-    // Si Obby esta encima (dentro del fuego) mientras hay fuego, se quema: pierde una vida.
-    // Despues del golpe queda invulnerable un rato (lo maneja PlayerRespawn), asi no pierde
-    // todas las vidas de una.
+    // Zona del fuego, arriba de la tapa (mientras hay fuego).
     void Quemar()
     {
         Bounds b = col.bounds;
         float alto = burnHeight * Mathf.Abs(transform.lossyScale.y);
-        Vector2 centro = new Vector2(b.center.x, b.max.y + alto * 0.5f);
-        Vector2 tam = new Vector2(b.size.x, alto);
+        Golpear(new Vector2(b.center.x, b.max.y + alto * 0.5f), new Vector2(b.size.x, alto));
+    }
 
+    // Zona de la punta (mientras baja).
+    void PuntaPega()
+    {
+        Vector3 escala = transform.lossyScale;
+        Golpear(transform.TransformPoint(tipOffset),
+                new Vector2(tipSize.x * Mathf.Abs(escala.x), tipSize.y * Mathf.Abs(escala.y)));
+    }
+
+    // Todo lo que este en esa zona: Obby pierde una vida (una sola vez; despues queda
+    // invulnerable un rato, lo maneja PlayerRespawn) y los enemigos mueren.
+    void Golpear(Vector2 centro, Vector2 tam)
+    {
         var filtro = new ContactFilter2D();
-        filtro.NoFilter();
-        filtro.useTriggers = false;
+        filtro.NoFilter();   // incluye triggers: los enemigos tienen el collider en trigger
         int n = Physics2D.OverlapBox(centro, tam, 0f, filtro, s_buf);
+        bool obbyGolpeado = false;
         for (int i = 0; i < n; i++)
         {
-            if (s_buf[i] == null) continue;
-            var resp = s_buf[i].GetComponentInParent<PlayerRespawn>();
-            if (resp != null) { resp.Hurt(transform.position); return; }
+            var c = s_buf[i];
+            if (c == null) continue;
+            if (!obbyGolpeado)
+            {
+                var resp = c.GetComponentInParent<PlayerRespawn>();
+                if (resp != null) { resp.Hurt(transform.position); obbyGolpeado = true; continue; }
+            }
+            var enemigo = c.GetComponentInParent<IStunnable>();
+            if (enemigo != null) enemigo.Defeat();
         }
     }
 
@@ -176,5 +204,11 @@ public class Taladro : MonoBehaviour
         float alto = burnHeight * Mathf.Abs(transform.lossyScale.y);
         Gizmos.color = new Color(1f, 0.4f, 0.1f, 0.8f);
         Gizmos.DrawWireCube(new Vector3(b.center.x, b.max.y + alto * 0.5f, 0f), new Vector3(b.size.x, alto, 0f));
+
+        // zona de la punta que lastima al bajar
+        Vector3 e = transform.lossyScale;
+        Gizmos.color = new Color(1f, 0.1f, 0.1f, 0.8f);
+        Gizmos.DrawWireCube(transform.TransformPoint(tipOffset),
+                            new Vector3(tipSize.x * Mathf.Abs(e.x), tipSize.y * Mathf.Abs(e.y), 0f));
     }
 }

@@ -1769,7 +1769,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   fallGravity: 25
-  pickupSound: {fileID: 0}
+  pickupSound: {fileID: 8300000, guid: 8774714941e21e343ba5ff1b3d1766e1, type: 3}
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
@@ -4559,7 +4559,7 @@ MonoBehaviour:
   wallGripMax: 0.75
   wallJumpGripCost: 0.5
   jumpSound: {fileID: 8300000, guid: af1fcff2c68520f45ac4002056ff4732, type: 3}
-  footstepSound: {fileID: 0}
+  footstepSound: {fileID: 8300000, guid: 35187877bf992fb428e85cb4e895e93c, type: 3}
   stepInterval: 0.3
 --- !u!50 &1576281938
 Rigidbody2D:
@@ -4682,7 +4682,7 @@ MonoBehaviour:
   respawnEnemies: 0
   deathDelay: 0.8
   fadeDuration: 0.5
-  hurtSound: {fileID: 0}
+  hurtSound: {fileID: 8300000, guid: 8180ed9e46be2144b915b4e391cd2616, type: 3}
   deathSound: {fileID: 8300000, guid: 93c7bd80dd758414f92c4900d9492de2, type: 3}
 --- !u!114 &1576281941
 MonoBehaviour:

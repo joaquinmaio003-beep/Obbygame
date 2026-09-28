@@ -231,13 +231,13 @@ MonoBehaviour:
   fallGravity: 30
   maxFallSpeed: 18
   killY: -20
-  landSound: {fileID: 0}
+  landSound: {fileID: 8300000, guid: 76696489623d2bc4c8caa5a727068378, type: 3}
   maxReachHeight: 2.5
   defaultStunTime: 2.5
   alertIcon: {fileID: 6401636237392189546}
-  attackSound: {fileID: 0}
-  stunSound: {fileID: 0}
-  deathSound: {fileID: 0}
+  attackSound: {fileID: 8300000, guid: 4f744536f51a93d4fa78b014e44ebd2e, type: 3}
+  stunSound: {fileID: 8300000, guid: 0d98ffef407111d4fa7851a9000d858c, type: 3}
+  deathSound: {fileID: 8300000, guid: 435dbc249c28af64782bc9f086f78777, type: 3}
   sleepDistance: 25
   attackWarnColor: {r: 1, g: 0.45, b: 0.45, a: 1}
 --- !u!114 &7451662822883132338

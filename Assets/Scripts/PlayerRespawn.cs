@@ -1,13 +1,15 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Vidas + checkpoints de Obby (estilo Mario).
 /// - Un GOLPE (enemigo, bala, pincho) -> pierde una vida pero sigue donde esta, con
 ///   una breve invulnerabilidad. Caerse al vacio -> vuelve al checkpoint.
 /// - Los checkpoints se activan con solo tocarlos (ver Checkpoint.cs).
-/// - Al perder las 3 vidas -> muere y revive en el ULTIMO checkpoint con vidas llenas,
-///   reponiendo plataformas rompibles y montones de piedras. En el dash es invulnerable.
+/// - Al perder las 3 vidas -> muere y el nivel ARRANCA DE NUEVO desde el principio.
+///   Volver al checkpoint (reponiendo plataformas, piedras y rocas) es solo al caerse.
+///   En el dash es invulnerable.
 /// Va en el mismo GameObject que el PlayerController2D.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
@@ -163,8 +165,9 @@ public class PlayerRespawn : MonoBehaviour
         if (anim != null) anim.SetVisible(true);
     }
 
-    // Perdio las 3 vidas: muere, fundido a negro y revive en el ULTIMO checkpoint
-    // con las vidas llenas (no se reinicia el nivel entero).
+    // Perdio las 3 vidas: muere, fundido a negro y el nivel ARRANCA DE NUEVO desde el principio
+    // (todo como al entrar: enemigos, rocas, checkpoints). Volver al ultimo checkpoint es solo
+    // cuando se cae a un pozo teniendo vidas de sobra.
     IEnumerator DeathRoutine()
     {
         dying = true;
@@ -181,7 +184,17 @@ public class PlayerRespawn : MonoBehaviour
         if (ScreenFader.Instance != null)
             yield return ScreenFader.Instance.FadeOut(fadeDuration);
 
-        // revive en el checkpoint, con las vidas de nuevo al maximo
+        // reinicia el nivel entero; el ScreenFader hace solo el fundido de vuelta al cargar
+        int nivel = SceneManager.GetActiveScene().buildIndex;
+        if (nivel >= 0)
+        {
+            SceneManager.LoadScene(nivel);
+            yield break;
+        }
+
+        // la escena no esta en la lista de escenas (no se puede recargar): por las dudas,
+        // revive en el ultimo checkpoint con las vidas llenas, como antes
+        Debug.LogWarning("PlayerRespawn: la escena no esta en File > Build Profiles > Scene List; no se puede reiniciar el nivel.");
         lives = maxLives;
         if (controller != null) controller.enabled = true;
         if (anim != null) anim.Revive();

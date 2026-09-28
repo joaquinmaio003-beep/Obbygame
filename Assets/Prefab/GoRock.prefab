@@ -131,7 +131,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   runOverSpeed: 3
-  runOverSound: {fileID: 0}
+  runOverSound: {fileID: 8300000, guid: 5ea84d3f2cedc944db34a0ef76f44419, type: 3}
   shakeOnCrush: 1
   crushShakeDuration: 0.2
   crushShakeIntensity: 0.2
@@ -236,4 +236,4 @@ MonoBehaviour:
   pieceGravity: 3
   pieceLifetime: 1.5
   pieceScale: 0.4
-  breakSound: {fileID: 0}
+  breakSound: {fileID: 8300000, guid: f0d357d69b671be408861ae3eb21e341, type: 3}

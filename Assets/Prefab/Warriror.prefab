@@ -227,6 +227,7 @@ MonoBehaviour:
   alertIcon: {fileID: 6067468036668971248}
   attackSound: {fileID: 8300000, guid: 479282a2127dbac48906cb73ee9e35fa, type: 3}
   stunSound: {fileID: 8300000, guid: db77372df5e459b4ea3f83317b3d266d, type: 3}
+  deathSound: {fileID: 8300000, guid: 5fa84670c53330a45b2eec0907100abc, type: 3}
 --- !u!1 &6067468036668971248
 GameObject:
   m_ObjectHideFlags: 0

@@ -183,4 +183,4 @@ MonoBehaviour:
   spawnPoint: {fileID: 6397891595667464668}
   flag: {fileID: 0}
   activeColor: {r: 0, g: 1, b: 0, a: 1}
-  activateSound: {fileID: 0}
+  activateSound: {fileID: 8300000, guid: 8838c3d466f86554d9054ab2ace76952, type: 3}

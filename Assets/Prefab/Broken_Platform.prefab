@@ -129,8 +129,8 @@ MonoBehaviour:
   pieceGravity: 3
   pieceLifetime: 1.5
   pieceScale: 0.4
-  crackSound: {fileID: 0}
-  breakSound: {fileID: 0}
+  crackSound: {fileID: 8300000, guid: 135dfacb82a5a7c43a2e7ec488da8b56, type: 3}
+  breakSound: {fileID: 8300000, guid: 8b4e807842f702e4c8b6ce58b270622f, type: 3}
 --- !u!61 &7749114614305719392
 BoxCollider2D:
   m_ObjectHideFlags: 0
