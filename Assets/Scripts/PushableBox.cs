@@ -262,8 +262,13 @@ public class PushableBox : MonoBehaviour
         }
         if (normal == Vector2.zero) return; // en el aire / no encontro piso -> deja la rotacion como esta
 
-        float targetAngle = Vector2.SignedAngle(Vector2.up, normal); // grados para alinear "arriba" con la normal
-        if (Mathf.Abs(targetAngle) > maxSlopeAngle) return;          // pendiente demasiado empinada -> no la sigue
+        float pendiente = Vector2.SignedAngle(Vector2.up, normal);   // cuanto esta inclinado el piso
+        if (Mathf.Abs(pendiente) > maxSlopeAngle) return;            // pendiente demasiado empinada -> no la sigue
+
+        // Se inclina con la pendiente A PARTIR de como la pusiste en la escena: si la diste vuelta
+        // (ej. 180 grados) se queda dada vuelta. Antes siempre la llevaba a 0 grados y, apoyada en
+        // el piso, la hacia girar media vuelta contra el suelo: flotaba y se volvia loca.
+        float targetAngle = rotInicial + pendiente;
 
         // fijamos la rotacion nosotros hacia el angulo de la pendiente (sin dejar que un choque la vuelque)
         float newAngle = Mathf.LerpAngle(rb.rotation, targetAngle, alignSpeed * Time.fixedDeltaTime);

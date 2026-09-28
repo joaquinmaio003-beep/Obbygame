@@ -177,7 +177,7 @@ public class PlayerRock : MonoBehaviour
             Vector2 cercano = other.ClosestPoint(pos);
             Vector2 n = pos - cercano;
             n = n.sqrMagnitude > 0.0001f ? n.normalized : new Vector2(-dirX, 0.3f).normalized;
-            rb.position = cercano + n * 0.12f;
+            rb.position = cercano + n * 0.03f;   // apenas afuera: se ve que lo toco
         }
 
         // se devuelve por donde vino, con perdida de velocidad y un saltito
