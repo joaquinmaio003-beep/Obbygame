@@ -41,11 +41,11 @@ GameObject:
   m_Component:
   - component: {fileID: 2123827154568518273}
   - component: {fileID: 8544347132984336299}
-  - component: {fileID: 4956837307182220750}
+  - component: {fileID: 2793435618312224109}
   - component: {fileID: 5911674564907660447}
   - component: {fileID: 1197233348591428811}
   m_Layer: 3
-  m_Name: Triangle
+  m_Name: TroncoReloj
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -60,8 +60,8 @@ Transform:
   m_GameObject: {fileID: 4835650600845742538}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 1, w: 0}
-  m_LocalPosition: {x: -7.96, y: 3.24, z: 0}
-  m_LocalScale: {x: 1.4497184, y: 2.6448524, z: 0.30173}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1441865794070694523}
@@ -111,18 +111,18 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 75f5f34dc1b5347e0b8351032682f224, type: 3}
-  m_Color: {r: 0.98564005, g: 1, b: 0, a: 1}
+  m_Sprite: {fileID: 21300000, guid: 567a9de7807b48459db1b3c3d3311808, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 4, y: 4}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!60 &4956837307182220750
+--- !u!60 &2793435618312224109
 PolygonCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -159,18 +159,46 @@ PolygonCollider2D:
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.28866667}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 4, y: 4}
+    newSize: {x: 4, y: 4}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
   m_Points:
     m_Paths:
-    - - {x: 0, y: 0.5773587}
-      - {x: -0.5, y: -0.28866667}
-      - {x: 0.5, y: -0.28866667}
+    - - {x: 1.7508202, y: 0.18821919}
+      - {x: 1.7502403, y: 0.43803263}
+      - {x: 1.6883354, y: 0.43823707}
+      - {x: 1.6886978, y: 0.50018656}
+      - {x: 1.1891441, y: 0.50012887}
+      - {x: 1.1888809, y: 0.62285984}
+      - {x: 1.1111374, y: 0.687683}
+      - {x: 1.000927, y: 0.6894742}
+      - {x: 0.93535614, y: 0.62890255}
+      - {x: 0.8745842, y: 0.5605358}
+      - {x: 0.8657341, y: 0.49864388}
+      - {x: -0.38223267, y: 0.50067854}
+      - {x: -1.2474747, y: 0.50139415}
+      - {x: -1.2494965, y: 0.56463575}
+      - {x: -1.503212, y: 0.6254492}
+      - {x: -1.7502823, y: 0.6256616}
+      - {x: -1.7513046, y: 0.5631057}
+      - {x: -1.812767, y: 0.5628178}
+      - {x: -1.8128738, y: -0.25085688}
+      - {x: -1.7502441, y: -0.25029838}
+      - {x: -1.7499924, y: -0.37556362}
+      - {x: -1.6878281, y: -0.3753369}
+      - {x: -1.6878357, y: -0.437306}
+      - {x: -1.6256943, y: -0.43808043}
+      - {x: -1.6253815, y: -0.50060135}
+      - {x: 1.687458, y: -0.50037175}
+      - {x: 1.6878242, y: -0.4384026}
+      - {x: 1.7500229, y: -0.43833178}
+      - {x: 1.7504997, y: -0.37503183}
+      - {x: 1.812664, y: -0.37514293}
+      - {x: 1.8128891, y: 0.18876112}
   m_UseDelaunayMesh: 0
 --- !u!50 &5911674564907660447
 Rigidbody2D:

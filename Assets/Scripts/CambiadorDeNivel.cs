@@ -51,6 +51,10 @@ public class CambiadorDeNivel : MonoBehaviour
         var pc = other.GetComponentInParent<PlayerController2D>();
         if (pc == null) return;
 
+        // desde aca nada lo lastima (si justo se estaba muriendo, manda la muerte)
+        var resp = pc.GetComponent<PlayerRespawn>();
+        if (resp != null && !resp.EmpezarFestejo()) return;
+
         finished = true;
         StartCoroutine(Terminar(pc));
     }
@@ -61,10 +65,14 @@ public class CambiadorDeNivel : MonoBehaviour
         if (finishSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(finishSound);
 
-        // Obby se queda quieto y saluda (festejo)
+        // Obby deja de responder (tampoco tira piedras), pero CAE con su gravedad hasta el piso.
+        // Antes se le apagaba el script entero y, si llegaba saltando, quedaba flotando en el aire.
+        pc.ControlBloqueado = true;
         var rb = pc.GetComponent<Rigidbody2D>();
-        if (rb != null) rb.linearVelocity = Vector2.zero;
-        pc.enabled = false;
+        if (rb != null) rb.linearVelocity = new Vector2(0f, Mathf.Min(0f, rb.linearVelocity.y)); // si subia, empieza a caer
+
+        // saluda recien al tocar el piso (en el aire el saludo se cortaba). Con tope, por si la meta esta sobre un pozo.
+        for (float t = 0f; t < 1f && !pc.IsGrounded; t += Time.deltaTime) yield return null;
         var anim = pc.GetComponent<PlayerAnimator>();
         if (anim != null) anim.PlayWave();
 

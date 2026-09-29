@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Plataforma que gira alrededor de un pivote como la AGUJA DE UN RELOJ.
-/// Arranca donde la dejes (ej: a la izquierda del pivote) y, cuando Obby se sube,
+/// Arranca donde la dejes (ej: a la izquierda del pivote) y, cuando Obby CAE encima,
 /// barre hasta el angulo indicado (ej: hasta la derecha). Si se baja, puede volver sola.
 /// Mientras gira LLEVA a Obby por el mismo arco (sin inclinarlo, para que no resbale).
 ///
@@ -35,9 +35,12 @@ public class ClockHandPlatform : MonoBehaviour
     public bool rotateWithArm = false;
 
     Rigidbody2D rb;
+    PlayerController2D obby;
     Rigidbody2D playerRb;
     float progress;   // grados barridos desde el arranque (0 .. sweepAngle)
     float onTimer;    // >0 mientras Obby este parado encima
+    float velObbyY;                // velocidad vertical de Obby ANTES del paso de fisica
+    float ultimoEnElAire = -10f;   // ultimo momento en que Obby estuvo en el aire
 
     void Awake()
     {
@@ -46,8 +49,22 @@ public class ClockHandPlatform : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
     }
 
+    // Obby se busca de entrada: hace falta saber que venia haciendo ANTES de tocarla
+    void Start()
+    {
+        obby = FindFirstObjectByType<PlayerController2D>();
+        if (obby != null) playerRb = obby.GetComponent<Rigidbody2D>();
+    }
+
     void FixedUpdate()
     {
+        // se anota antes del paso de fisica (los choques se avisan despues, ya resueltos)
+        if (obby != null)
+        {
+            velObbyY = obby.Velocity.y;
+            if (!obby.IsGrounded) ultimoEnElAire = Time.fixedTime;
+        }
+
         if (pivot == null) return;
 
         if (onTimer > 0f) onTimer -= Time.fixedDeltaTime;
@@ -81,26 +98,43 @@ public class ClockHandPlatform : MonoBehaviour
     // Marca que Obby esta parado ENCIMA (el onTimer se vacia solo si deja de tocarla).
     void Detectar(Collision2D col)
     {
-        // primero el chequeo barato, y el Rigidbody de Obby se busca una sola vez
-        // (antes hacia GetComponentInParent + GetComponent en cada paso de fisica)
-        if (!EstaArriba(col)) return;
-        if (playerRb == null || col.rigidbody != playerRb)
+        // Obby se busca en Start; si no estaba, se toma del primer choque
+        if (obby == null)
         {
-            var p = col.transform.GetComponentInParent<PlayerController2D>();
-            if (p == null) return;
-            playerRb = p.GetComponent<Rigidbody2D>();
+            obby = col.transform.GetComponentInParent<PlayerController2D>();
+            if (obby == null) return;
+            playerRb = obby.GetComponent<Rigidbody2D>();
         }
+        if (col.rigidbody != playerRb) return; // piedras, enemigos, etc: no la mueven
+        if (!PisaArriba(col)) return;
+
+        // Para ARRANCAR tiene que CAER encima (venir de un salto o una caida, sin estar subiendo).
+        // Caminar contra ella o chocarla de costado no la mueve. Ya arriba, alcanza con seguir parado.
+        if (onTimer <= 0f && !CayoEncima()) return;
         onTimer = 0.1f;
     }
 
-    // Confirma que el contacto viene desde arriba (Obby esta parado encima).
+    // Obby la pisa: algun contacto esta a la altura de sus PIES y ahi la superficie esta
+    // acostada (no es un costado). Tocarla con el costado o la cabeza no cuenta.
     // GetContact en vez de col.contacts: ese crea un array nuevo en cada llamada,
     // y esto corre en cada paso de fisica mientras Obby esta arriba.
-    bool EstaArriba(Collision2D col)
+    bool PisaArriba(Collision2D col)
     {
+        Bounds b = col.collider.bounds;          // el collider de Obby
+        float pies = b.min.y + b.size.y * 0.2f;  // franja de abajo de todo de Obby
         for (int i = 0; i < col.contactCount; i++)
-            if (col.GetContact(i).normal.y < -0.5f) return true; // normal hacia abajo -> lo tocan desde arriba
+        {
+            ContactPoint2D cp = col.GetContact(i);
+            if (cp.point.y <= pies && Mathf.Abs(cp.normal.y) >= 0.5f) return true;
+        }
         return false;
+    }
+
+    // Estuvo en el aire hace un ratito y no esta subiendo. El margen es porque Obby
+    // se da por "en el piso" un poquito ANTES de tocarla (sus rayos miran hacia abajo).
+    bool CayoEncima()
+    {
+        return Time.fixedTime - ultimoEnElAire < 0.25f && velObbyY < 0.5f;
     }
 
     void OnDrawGizmos()

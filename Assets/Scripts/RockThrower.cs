@@ -57,8 +57,14 @@ public class RockThrower : MonoBehaviour
 
     void Update()
     {
-        // apreto Attack y tengo piedras -> animacion + preparar tiro
-        if (attackAction != null && attackAction.WasPressedThisFrame() && currentRocks > 0)
+        // muerto (control apagado) o festejando en la meta: no tira
+        bool puedeTirar = controller == null || (controller.enabled && !controller.ControlBloqueado);
+
+        // apreto Attack y tengo piedras -> animacion + preparar tiro.
+        // Solo si no hay otro tiro esperando a salir: apretando dos veces rapido se descontaban
+        // 2 piedras (o se perdia la manzana) y salia una sola.
+        if (puedeTirar && delayTimer < 0f &&
+            attackAction != null && attackAction.WasPressedThisFrame() && currentRocks > 0)
         {
             // si tiene manzanas, tira primero esas
             proximaEsManzana = manzanas > 0 && spriteManzana != null;

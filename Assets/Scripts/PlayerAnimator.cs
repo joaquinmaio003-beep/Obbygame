@@ -358,7 +358,8 @@ public class PlayerAnimator : MonoBehaviour
     /// <summary>Arranca el saludo sostenido (lo mismo que la secreta por estar quieto).</summary>
     public void PlayWave()
     {
-        if (isDead || oneShotPlaying) return;
+        if (isDead) return;
+        oneShotPlaying = false;   // corta el tiro en curso: si llegaba a la meta tirando una piedra, no saludaba
         StartWave();
     }
 

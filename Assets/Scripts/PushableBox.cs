@@ -44,6 +44,8 @@ public class PushableBox : MonoBehaviour
     public float gravityScale = 3.5f;
     [Tooltip("Resistencia al movimiento. 0 = cae sin frenarse. Subilo si patina mucho al empujarla.")]
     public float linearDrag = 0f;
+    [Tooltip("Si cae mas abajo que esta altura (a un pozo), se apaga. Vuelve al volver a un checkpoint.")]
+    public float killY = -20f;
 
     [Header("Estabilidad")]
     [Tooltip("Mientras Obby este parado encima, la caja no se desplaza de costado " +
@@ -51,6 +53,9 @@ public class PushableBox : MonoBehaviour
     public bool lockWhileStoodOn = true;
     [Tooltip("Velocidad MINIMA a la que Obby la empuja (parado en el piso). Si agarra una bajada puede ir mas rapido.")]
     public float pushSpeed = 2.5f;
+    [Tooltip("Peso de la roca apoyada en el piso. Bien pesada para que los golpes de Obby " +
+             "(saltarle de abajo, el dash) no la muevan: solo se mueve empujandola. En el aire vuelve a su peso normal.")]
+    public float groundedMass = 100f;
 
     [Header("Alinear con la pendiente")]
     [Tooltip("Si esta activo, la caja se inclina para quedar paralela a la colina.")]
@@ -77,6 +82,7 @@ public class PushableBox : MonoBehaviour
     static readonly System.Collections.Generic.List<PushableBox> todas = new();
     Vector3 posInicial;
     float rotInicial;
+    float masaNormal;      // el Mass del Rigidbody (la que tiene en el aire)
 
     void Awake()
     {
@@ -98,10 +104,15 @@ public class PushableBox : MonoBehaviour
         todas.Add(this);
         posInicial = transform.position;
         rotInicial = rb.rotation;
+        masaNormal = rb.mass;
     }
 
     void FixedUpdate()
     {
+        // se fue a un pozo: se apaga (antes seguia cayendo para siempre, cada vez mas rapido).
+        // Reponer la vuelve a prender al volver a un checkpoint.
+        if (rb.position.y < killY) { gameObject.SetActive(false); return; }
+
         // CHOQUE CONTRA UNA PARED: la simulacion le corto de golpe la velocidad de costado.
         // Se compara con la del paso anterior; asi anda aunque la pared sea parte del mismo
         // collider que el piso (ahi OnCollisionEnter no se vuelve a disparar).
@@ -124,6 +135,14 @@ public class PushableBox : MonoBehaviour
         // EN EL AIRE no la tocamos: cae y vuela con su propia fisica (gravedad, rebote,
         // aceleracion al bajar la colina). Si le metiamos mano aca, parecia que flotaba.
         enElPiso = ApoyadaEnPiso();
+
+        // Apoyada pesa MUCHO: el choque de un salto de abajo o de un dash la empujaba ANTES de
+        // que el script llegara a frenarla, y despues seguia de largo como si viniera rodando.
+        // El empuje no cambia (le pone la velocidad directo). En el aire vuelve a su peso normal,
+        // asi si le cae encima a Obby no lo hunde en el piso.
+        float masa = enElPiso ? Mathf.Max(groundedMass, masaNormal) : masaNormal;
+        if (rb.mass != masa) rb.mass = masa;
+
         if (!enElPiso)
         {
             rb.constraints &= ~RigidbodyConstraints2D.FreezePositionX;
@@ -288,6 +307,11 @@ public class PushableBox : MonoBehaviour
         var enemy = other.GetComponentInParent<IStunnable>();
         if (enemy == null) return;
 
+        // Parado ENCIMA de la roca (la sierra se puede subir si le cae arriba): no lo atropella ni
+        // lo arrastra. Antes, al empujarla, lo tiraba de golpe al costado o lo mataba "de la nada"
+        // contra una pared, y rodando por una bajada lo mataba aunque fuera arriba.
+        if (ParadoEncima(other)) return;
+
         Vector2 v = rb.linearVelocity;
 
         // ATROPELLO: va rapido de costado POR SU CUENTA (rodando por una colina, o suelta despues
@@ -338,6 +362,26 @@ public class PushableBox : MonoBehaviour
 
         var comp = enemy as Component;
         if (comp != null) comp.transform.position += new Vector3(d * solape, 0f, 0f);
+    }
+
+    // El bicho esta parado encima de ESTA roca? Mira lo primero solido que tiene bajo los pies.
+    // (Con los bounds no alcanza: la roca se inclina con las colinas.)
+    bool ParadoEncima(Collider2D bicho)
+    {
+        Bounds b = bicho.bounds;
+        var filter = new ContactFilter2D();
+        filter.SetLayerMask(Physics2D.AllLayers);
+        filter.useTriggers = false;   // los enemigos (trigger) no cuentan
+        int n = Physics2D.Raycast(new Vector2(b.center.x, b.min.y + 0.05f), Vector2.down, filter, s_rayBuf, 0.3f);
+        for (int i = 0; i < n; i++)
+        {
+            var c = s_rayBuf[i].collider;
+            if (c == null) continue;
+            if (s_rayBuf[i].distance <= 0.0001f) continue;   // arranco adentro: la roca se le metio encima, no esta arriba
+            if (c.GetComponentInParent<PlayerController2D>() != null) continue;   // Obby no es piso
+            return c == col;
+        }
+        return false;
     }
 
     // Hay una PARED de verdad justo detras del bicho, del lado hacia donde lo empujan?

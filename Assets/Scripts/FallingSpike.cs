@@ -31,6 +31,8 @@ public class FallingSpike : MonoBehaviour
     public float respawnTime = 0f;
     [Tooltip("Al clavarse queda solido (no trigger) y en el Ground Layer, para que Obby lo use (pararse, obstaculo).")]
     public bool solidWhenLanded = true;
+    [Tooltip("Si cae mas abajo que esta altura (a un pozo), se frena ahi abajo, fuera de pantalla.")]
+    public float killY = -20f;
 
     [Header("Sonido")]
     [Tooltip("Al empezar a temblar (aviso antes de caer).")]
@@ -69,6 +71,18 @@ public class FallingSpike : MonoBehaviour
     {
         if (!triggered && PlayerUnder())
             StartCoroutine(DropRoutine());
+    }
+
+    void FixedUpdate()
+    {
+        // se fue a un pozo: se frena ahi abajo, fuera de pantalla (antes seguia cayendo para
+        // siempre, cada vez mas rapido). Si tiene Respawn Time, igual vuelve a su lugar a su tiempo.
+        if (falling && transform.position.y < killY)
+        {
+            falling = false;
+            rb.linearVelocity = Vector2.zero;
+            rb.bodyType = RigidbodyType2D.Kinematic;
+        }
     }
 
     // Obby esta debajo del pincho, alineado, NO demasiado abajo y sin piso/techo en el medio.

@@ -128,6 +128,9 @@ public class PlayerController2D : MonoBehaviour
     public float DashChargeNormalized =>
         dashCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(dashCdTimer / dashCooldown);
     public bool DashReady => !isDashing && dashCdTimer <= 0f;
+    // Sin control del jugador (festejo en la meta): no camina, no salta ni dashea, pero la fisica
+    // sigue (cae con su gravedad). Apagar el script entero lo dejaba flotando: la gravedad es de aca.
+    public bool ControlBloqueado { get; set; }
 
     void Awake()
     {
@@ -172,18 +175,19 @@ public class PlayerController2D : MonoBehaviour
     void Update()
     {
         // --- lectura de input ---
-        Vector2 mv = moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+        bool conControl = !ControlBloqueado;
+        Vector2 mv = conControl && moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
         moveInput = mv.x;
 
         // saltar SOLO con la accion Jump (Espacio). Antes W/flecha arriba tambien saltaba y,
         // al apretar los dos juntos, metia el salto (y el sonido) dos veces seguidas.
-        bool jumpDown = jumpAction != null && jumpAction.WasPressedThisFrame();
+        bool jumpDown = conControl && jumpAction != null && jumpAction.WasPressedThisFrame();
         if (jumpDown) bufferCounter = jumpBuffer;
 
         // dash (Shift): dispara si no estamos ya dasheando y paso el cooldown
         if (dashCdTimer > 0f) dashCdTimer -= Time.deltaTime;
         if (dashGraceTimer > 0f) dashGraceTimer -= Time.deltaTime;
-        if (!isDashing && dashCdTimer <= 0f &&
+        if (conControl && !isDashing && dashCdTimer <= 0f &&
             dashAction != null && dashAction.WasPressedThisFrame())
             StartDash();
 
@@ -338,10 +342,30 @@ public class PlayerController2D : MonoBehaviour
             leftX = rb.position.x - halfW; rightX = rb.position.x + halfW; midX = rb.position.x;
         }
 
-        // 3 rayos, sin reservar arrays (Raycast simple devuelve struct, no genera basura)
-        if (Physics2D.Raycast(new Vector2(leftX, originY), Vector2.down, len, groundLayer)) return true;
-        if (Physics2D.Raycast(new Vector2(midX, originY), Vector2.down, len, groundLayer)) return true;
-        if (Physics2D.Raycast(new Vector2(rightX, originY), Vector2.down, len, groundLayer)) return true;
+        // 3 rayos (con el buffer reutilizable, no generan basura)
+        if (PisoEn(leftX, originY, len)) return true;
+        if (PisoEn(midX, originY, len)) return true;
+        if (PisoEn(rightX, originY, len)) return true;
+        return false;
+    }
+
+    // Un rayo de piso hacia abajo.
+    bool PisoEn(float x, float y, float len)
+    {
+        int n = Physics2D.Raycast(new Vector2(x, y), Vector2.down, LayerFilter(groundLayer), s_hitBuf, len);
+        for (int i = 0; i < n; i++)
+        {
+            var c = s_hitBuf[i].collider;
+            if (c == null) continue;
+            if (!c.usedByEffector) return true;   // piso comun
+
+            // Plataforma de UN SOLO LADO (el taladro): se atraviesa desde abajo. Cuenta como piso
+            // solo con los pies ARRIBA de ella y sin venir subiendo rapido (el taladro sube a 2 al
+            // volver). Si no, al atravesarla de un salto lo daba por parado un instante y podia
+            // volver a saltar en el aire (doble salto).
+            bool piesArriba = col == null || col.bounds.min.y >= c.bounds.max.y - 0.05f;
+            if (piesArriba && rb.linearVelocity.y < 4f) return true;
+        }
         return false;
     }
 
@@ -461,6 +485,7 @@ public class PlayerController2D : MonoBehaviour
     // ¿A este collider te podes colgar (es pared de verdad)? No a cajones ni pinchos.
     bool IsClingable(Collider2D c)
     {
+        if (c.usedByEffector) return false;   // plataforma de un solo lado (el taladro): de costado se atraviesa
         if (c.GetComponentInParent<PushableBox>() != null) return false;
         if (c.GetComponentInParent<FallingSpike>() != null) return false;
         if (c.GetComponentInParent<SpikeHazard>() != null) return false;

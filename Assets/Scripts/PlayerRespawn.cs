@@ -52,6 +52,7 @@ public class PlayerRespawn : MonoBehaviour
     CameraFollow2D cam;
     bool dying;
     bool invulnerable;
+    bool festejando;      // llego a la meta: ya nada lo lastima ni lo manda al checkpoint
     Coroutine invulnCo;   // el parpadeo en curso (uno solo a la vez)
     static readonly WaitForSeconds s_parpadeo = new WaitForSeconds(0.08f);
 
@@ -71,8 +72,21 @@ public class PlayerRespawn : MonoBehaviour
     {
         // un pozo mata SIEMPRE, aunque este invulnerable por un golpe recien recibido
         // (antes te dejaba ~1 segundo cayendo fuera de pantalla antes de reaparecer)
-        if (!dying && transform.position.y < killY)
+        if (!dying && !festejando && transform.position.y < killY)
             Respawn();
+    }
+
+    /// <summary>
+    /// Llego a la meta: desde aca nada lo lastima (enemigos, balas, pinchos, pozos) mientras festeja
+    /// y carga el nivel. Antes le seguian pegando y, si perdia la ultima vida ahi, se pisaban el
+    /// reinicio del nivel y el cambio de nivel. Devuelve false si ya se estaba muriendo.
+    /// </summary>
+    public bool EmpezarFestejo()
+    {
+        if (dying) return false;
+        festejando = true;
+        CortarInvuln();   // si estaba titilando por un golpe, que festeje entero
+        return true;
     }
 
     /// <summary>Actualiza el respawn solo si el checkpoint es mas avanzado (no retrocede).</summary>
@@ -90,7 +104,7 @@ public class PlayerRespawn : MonoBehaviour
     /// <summary>Golpe de enemigo, bala o pincho: pierde una vida pero SIGUE donde esta.</summary>
     public void Hurt(Vector2 fromPos)
     {
-        if (dying || invulnerable) return;
+        if (dying || invulnerable || festejando) return;
         if (controller != null && controller.IsDashInvulnerable) return; // en el dash (y un instante despues) esquiva todo
 
         LoseLife(false);   // un golpe NO te manda al checkpoint
@@ -99,7 +113,7 @@ public class PlayerRespawn : MonoBehaviour
     /// <summary>Caida al vacio: pierde una vida y vuelve al checkpoint (no podes quedarte en el pozo).</summary>
     public void Respawn()
     {
-        if (dying) return;   // la invulnerabilidad del golpe no salva de un pozo
+        if (dying || festejando) return;   // la invulnerabilidad del golpe no salva de un pozo
         LoseLife(true);
     }
 
