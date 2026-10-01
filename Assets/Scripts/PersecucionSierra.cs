@@ -47,7 +47,7 @@ public class PersecucionSierra : MonoBehaviour
     [Tooltip("Segundos que la camara muestra a la sierra saliendo (Obby queda quieto mientras tanto).")]
     public float introTime = 2f;
     [Tooltip("Cuanto avanza la sierra al salir de su escondite (unidades). Despues se queda ahi hasta que termina la cinematica.")]
-    public float introAdvance = 1f;
+    public float introDistance = 2f;
     [Tooltip("Velocidad a la que avanza ese tramito.")]
     public float introSpeed = 1.5f;
     [Tooltip("Si esta escondida mas abajo que el piso: a que velocidad sube al salir (unidades por segundo). Bajo = sale despacio.")]
@@ -170,7 +170,7 @@ public class PersecucionSierra : MonoBehaviour
         float desde = sierra.CuerpoX;
         for (float t = 0f; t < introTime; t += Time.deltaTime)
         {
-            bool yaSalio = Mathf.Abs(sierra.CuerpoX - desde) >= introAdvance;
+            bool yaSalio = Mathf.Abs(sierra.CuerpoX - desde) >= introDistance;
             sierra.Embestir(dir, yaSalio ? 0f : introSpeed);
             yield return null;
         }
