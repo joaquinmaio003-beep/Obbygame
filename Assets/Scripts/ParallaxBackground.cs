@@ -17,7 +17,21 @@ public class ParallaxBackground : MonoBehaviour
     [Tooltip("Segui a la camara en Y tambien (para niveles con mucha altura).")]
     public bool followY = false;
 
+    [Header("Viento")]
+    [Tooltip("Cuanto se mece con el viento, en pixeles de la imagen. 0 = quieta (troncos, piso).")]
+    [Range(0f, 6f)] public float wind = 0f;
+    [Tooltip("Tildalo en las hojas que cuelgan de arriba: se mueve la parte de abajo.")]
+    public bool windHanging = false;
+    [Tooltip("Altura de la imagen donde esta agarrado y no se mueve (0 = abajo de todo, 1 = arriba de todo). " +
+             "Arbustos: donde empiezan. Hojas que cuelgan: arriba de los flecos.")]
+    [Range(0f, 1f)] public float windAnchor = 0f;
+    [Tooltip("Cuanto mas lejos del ancla ya se mueve entero (fraccion de la altura de la imagen).")]
+    [Range(0.01f, 1f)] public float windLength = 1f;
+    [Tooltip("Velocidad del viento.")]
+    public float windSpeed = 1f;
+
     Transform cam;
+    Material materialViento;
     float startX;
     float startY;
     float length; // ancho de una repeticion del sprite
@@ -29,6 +43,7 @@ public class ParallaxBackground : MonoBehaviour
         startY = transform.position.y;
 
         var sr = GetComponent<SpriteRenderer>();
+        if (wind > 0f) PonerViento(sr);   // antes de copiar la tira: las copias usan el mismo material
 
         if (sr.drawMode == SpriteDrawMode.Tiled && sr.tileMode == SpriteTileMode.Adaptive)
         {
@@ -46,6 +61,28 @@ public class ParallaxBackground : MonoBehaviour
             // ancho de UNA copia del sprite (no del area tileada)
             length = sr.sprite.bounds.size.x * Mathf.Abs(transform.lossyScale.x);
         }
+    }
+
+    // Material que mece el dibujo con el viento. Es el mismo iluminado de siempre (lo alumbran las
+    // luces 2D igual), con el movimiento agregado.
+    void PonerViento(SpriteRenderer sr)
+    {
+        var sh = Shader.Find("Obby/SpriteViento");
+        if (sh == null || sr.sprite == null) return;
+
+        materialViento = new Material(sh);
+        materialViento.SetFloat("_VientoUV", wind / Mathf.Max(1f, sr.sprite.texture.width));   // pixeles -> UV
+        materialViento.SetFloat("_Ancla", windAnchor);
+        materialViento.SetFloat("_Largo", windLength);
+        materialViento.SetFloat("_Colgando", windHanging ? 1f : 0f);
+        materialViento.SetFloat("_Velocidad", windSpeed);
+        materialViento.SetFloat("_Fase", Random.Range(0f, 6.2831853f));   // cada capa a su ritmo
+        sr.sharedMaterial = materialViento;
+    }
+
+    void OnDestroy()
+    {
+        if (materialViento != null) Destroy(materialViento);
     }
 
     // Copia de la tira pegada al costado (lado -1 izquierda, 1 derecha), identica a la original.

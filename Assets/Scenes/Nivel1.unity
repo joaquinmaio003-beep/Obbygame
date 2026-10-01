@@ -350,6 +350,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.5
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &128656806
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1306,6 +1311,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.2
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &511193576
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1529,7 +1539,7 @@ Camera:
   far clip plane: 1000
   field of view: 34
   orthographic: 1
-  orthographic size: 5
+  orthographic size: 6
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -1581,6 +1591,11 @@ MonoBehaviour:
   maxX: 200
   minY: -5
   maxY: 3
+  closeZoom: 0.85
+  fallZoom: 1.12
+  fallZoomDelay: 0.45
+  zoomSpeed: 3
+  focusSmooth: 4
 --- !u!4 &521503828 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7968054374442993923, guid: f5babccd39834464ea6d86d87153602e, type: 3}
@@ -1633,6 +1648,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.3
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &524507637
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -2429,6 +2449,63 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f5babccd39834464ea6d86d87153602e, type: 3}
+--- !u!1001 &882576607
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 54.79796
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.87230086
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7301340584296395610, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_Name
+      value: Luciernagas
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
 --- !u!4 &897134248 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7721510524283957056, guid: 17d7770e280b4a941a08e675b7e8650c, type: 3}
@@ -2789,6 +2866,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.9
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &965349328
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -3848,6 +3930,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.8
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &1349167226
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -4259,6 +4346,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.1
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &1517721645
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -4936,6 +5028,14 @@ MonoBehaviour:
   jumpStretch: {x: 0.8, y: 1.2}
   squashRecover: 12
   landSquashMinSpeed: 4
+  dashTrail: 1
+  trailInterval: 0.035
+  trailLife: 0.22
+  trailColor: {r: 0.55, g: 0.85, b: 1, a: 0.6}
+  softLight: 1
+  softLightColor: {r: 1, g: 0.93, b: 0.8, a: 1}
+  softLightIntensity: 0.35
+  softLightRadius: 2.5
 --- !u!114 &1576281940
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31246,6 +31346,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.2
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &1822272958
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -31816,6 +31921,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.72
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &2019777903
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -32212,6 +32322,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2057372705}
   m_CullTransparentMesh: 1
+--- !u!1001 &2064332627
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 14.08
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 2.06
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4402709113570670578, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7301340584296395610, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
+      propertyPath: m_Name
+      value: Luciernagas (1)
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: f440d9ab802d49c4a184eb1272b80cc7, type: 3}
 --- !u!1 &2073489178
 GameObject:
   m_ObjectHideFlags: 0
@@ -32259,6 +32426,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.6
   followY: 0
+  wind: 0
+  windHanging: 0
+  windAnchor: 0
+  windLength: 1
+  windSpeed: 1
 --- !u!212 &2073489181
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -33207,3 +33379,5 @@ SceneRoots:
   - {fileID: 1543682558}
   - {fileID: 945543328}
   - {fileID: 6926836387124039695}
+  - {fileID: 882576607}
+  - {fileID: 2064332627}

@@ -68,6 +68,8 @@ public class CambiadorDeNivel : MonoBehaviour
         // Obby deja de responder (tampoco tira piedras), pero CAE con su gravedad hasta el piso.
         // Antes se le apagaba el script entero y, si llegaba saltando, quedaba flotando en el aire.
         pc.ControlBloqueado = true;
+        var cam = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
+        if (cam != null) cam.Acercar();   // la camara se acerca un poco para el festejo
         var rb = pc.GetComponent<Rigidbody2D>();
         if (rb != null) rb.linearVelocity = new Vector2(0f, Mathf.Min(0f, rb.linearVelocity.y)); // si subia, empieza a caer
 

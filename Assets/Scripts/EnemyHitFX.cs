@@ -28,6 +28,16 @@ public class EnemyHitFX : MonoBehaviour
         }
     }
 
+    /// <summary>El material normal del enemigo (el de sus colores, no el del destello blanco).</summary>
+    public Material NormalMaterial => normalMat;
+
+    // Si se apaga en medio del destello (muere o se cae), vuelve a su material: si no, al
+    // reaparecer en un checkpoint quedaba blanco.
+    void OnDisable()
+    {
+        if (sr != null && normalMat != null) sr.sharedMaterial = normalMat;
+    }
+
     public void Flash()
     {
         if (flashMat == null || !gameObject.activeInHierarchy) return;

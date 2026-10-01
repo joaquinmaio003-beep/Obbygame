@@ -62,6 +62,8 @@ public class Enemy : MonoBehaviour, IStunnable
     public float shootCooldown = 1.5f;
     [Tooltip("Tiempo de la anim de disparo antes de soltar el tiro.")]
     public float shootWindup = 0.4f;
+    [Tooltip("Segundos que sigue atento despues de perderte de vista. Evita que gire sin parar donde te ve y te pierde a cada rato (esquinas, saltos).")]
+    public float memoryTime = 0.8f;
 
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
@@ -95,6 +97,8 @@ public class Enemy : MonoBehaviour, IStunnable
     bool isAlerted;           // vio a Obby: se detiene y dispara
     float shootCdTimer;
     float flipCd;
+    float giroCd;             // anti-jitter mientras te apunta
+    float recuerdo;           // segundos que le quedan de seguir atento sin verte
     bool muerto;                  // se esta muriendo o ya murio (queda apagado)
     Color colorBase = Color.white;
     Collider2D[] colliders;
@@ -138,11 +142,16 @@ public class Enemy : MonoBehaviour, IStunnable
 
         if (shootCdTimer > 0f) shootCdTimer -= Time.deltaTime;
 
-        isAlerted = !isStunned && !isRecovering && PlayerInSight();
+        // alerta = te ve ahora o te vio hace un momento (memoryTime). Sin esa memoria, donde te ve y
+        // te pierde a cada rato alternaba entre apuntarte y patrullar: giraba sin parar.
+        bool ve = PlayerInSight();
+        if (ve) recuerdo = memoryTime;
+        else if (recuerdo > 0f) recuerdo -= Time.deltaTime;
+        isAlerted = !isStunned && !isRecovering && recuerdo > 0f;
         if (alertIcon != null) alertIcon.SetActive(isAlerted);
 
-        // parado apuntando: dispara repetido mientras te ve
-        if (isAlerted && !isShooting && canShoot && shootCdTimer <= 0f && !enElAire)   // cayendo no dispara
+        // parado apuntando: dispara repetido mientras te VE (de memoria no tira)
+        if (ve && isAlerted && !isShooting && canShoot && shootCdTimer <= 0f && !enElAire)   // cayendo no dispara
             StartCoroutine(ShootRoutine());
 
         // animacion segun el estado
@@ -160,6 +169,7 @@ public class Enemy : MonoBehaviour, IStunnable
         if (Dormido()) { rb.linearVelocity = Vector2.zero; return; }
 
         SnapToGround(); // siempre pegado al piso (no flotando)
+        if (giroCd > 0f) giroCd -= Time.fixedDeltaTime;
 
         // en el aire (lo empujaron fuera de un borde): cae derecho, sin caminar ni darse vuelta
         if (enElAire) { rb.linearVelocity = Vector2.zero; return; }
@@ -169,7 +179,7 @@ public class Enemy : MonoBehaviour, IStunnable
         // te ve: se queda quieto y te encara
         if (isAlerted)
         {
-            FacePlayer();
+            EncararConCalma();
             rb.linearVelocity = Vector2.zero;
             return;
         }
@@ -247,7 +257,7 @@ public class Enemy : MonoBehaviour, IStunnable
         Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)
     }
 
-    // ---- eliminado (roca, pincho): flash, se aplasta contra el piso, polvo y desaparece ----
+    // ---- eliminado (roca, pincho): flash, polvo y se deshace en pixeles ----
     public void Defeat()
     {
         if (muerto) return;
@@ -262,8 +272,11 @@ public class Enemy : MonoBehaviour, IStunnable
         if (deathSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(deathSound);
         EnemigoFX.Polvo(b, sr, 6);
-        yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
-        yield return new WaitForSeconds(0.08f);
+        yield return new WaitForSeconds(0.08f);   // que se alcance a ver el destello
+        // se deshace en cuadraditos de su propio dibujo (con sus colores, no los del destello);
+        // si no se puede recortar el sprite, se aplasta contra el piso como antes
+        if (!EnemigoFX.Pixelar(sr, hitFX != null ? hitFX.NormalMaterial : null))
+            yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
         Desaparecer();
     }
 
@@ -317,6 +330,8 @@ public class Enemy : MonoBehaviour, IStunnable
         fallVel = 0f;
         shootCdTimer = 0f;
         flipCd = 0f;
+        giroCd = 0f;
+        recuerdo = 0f;
         transform.position = posInicial;
         transform.localScale = escalaInicial;
         dir = dirInicial;
@@ -375,14 +390,28 @@ public class Enemy : MonoBehaviour, IStunnable
     void TestStun() { Stun(); }
 
     // ---- facing / patrulla ----
-    void FacePlayer()
+    // Encara a Obby. Devuelve true si se dio vuelta.
+    bool FacePlayer()
     {
-        if (player == null) return;
-        float dx = player.position.x - transform.position.x;
-        if (Mathf.Abs(dx) < 0.15f) return; // casi alineado -> no gira (evita spin)
+        if (player == null) return false;
+        float dx = player.position.x - CentroX();
+        if (Mathf.Abs(dx) < 0.15f) return false; // casi alineado -> no gira (evita spin)
         int want = dx >= 0f ? 1 : -1;
-        if (want != dir) { dir = want; ApplyFacing(); }
+        if (want == dir) return false;
+        dir = want;
+        ApplyFacing();
+        return true;
     }
+
+    // Mientras esta atento no gira mas de una vez cada tanto: si Obby le pasa justo por encima
+    // (o por debajo), no se pone a dar vueltas.
+    void EncararConCalma()
+    {
+        if (giroCd <= 0f && FacePlayer()) giroCd = 0.25f;
+    }
+
+    // Centro del CUERPO (el collider) en X. No es el centro del dibujo: adelante lleva el arma.
+    float CentroX() { return transform.position.x + col.offset.x * transform.lossyScale.x; }
 
     void Flip()
     {
@@ -393,8 +422,18 @@ public class Enemy : MonoBehaviour, IStunnable
     void ApplyFacing()
     {
         var s = transform.localScale;
-        s.x = Mathf.Abs(s.x) * dir; // conserva la escala que le pusiste
+        float x = Mathf.Abs(s.x) * dir; // conserva la escala que le pusiste
+        if (x == s.x) return;   // ya mira para ese lado
+        // El dibujo se espeja, pero el CUERPO se queda donde estaba. Antes se espejaba todo sobre
+        // el centro del dibujo y el cuerpo (que esta corrido hacia atras) saltaba al otro lado:
+        // mirando para un lado te veia y para el otro no, y contra una pared quedaba metido
+        // adentro. En las esquinas eso lo dejaba girando sin parar.
+        float cuerpoX = CentroX();
+        s.x = x;
         transform.localScale = s;
+        var p = transform.position;
+        p.x = 2f * cuerpoX - p.x;
+        transform.position = p;
     }
 
     // deteccion relativa al tamano real (bounds) -> funciona a cualquier escala

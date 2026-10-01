@@ -57,6 +57,25 @@ public class PlayerAnimator : MonoBehaviour
     [Tooltip("Velocidad de caida minima para aplastarse al aterrizar (saltitos chicos no).")]
     public float landSquashMinSpeed = 4f;
 
+    [Header("Estela del dash")]
+    [Tooltip("Mientras dashea deja copias suyas que se desvanecen atras.")]
+    public bool dashTrail = true;
+    [Tooltip("Cada cuantos segundos deja una copia.")]
+    public float trailInterval = 0.035f;
+    [Tooltip("Cuanto tarda cada copia en desaparecer (segundos).")]
+    public float trailLife = 0.22f;
+    [Tooltip("Color de las copias (el alpha es la opacidad con la que nacen).")]
+    public Color trailColor = new Color(0.55f, 0.85f, 1f, 0.6f);
+
+    [Header("Luz suave")]
+    [Tooltip("Una luz tenue que sigue a Obby: siempre se distingue del fondo, hasta en lo oscuro.")]
+    public bool softLight = true;
+    public Color softLightColor = new Color(1f, 0.93f, 0.8f, 1f);
+    [Tooltip("Intensidad (bajita: es un halo, no una linterna).")]
+    public float softLightIntensity = 0.35f;
+    [Tooltip("Radio de la luz, en unidades.")]
+    public float softLightRadius = 2.5f;
+
     Transform visual;                  // hijo que dibuja a Obby (se deforma sin tocar la fisica)
     Vector2 escalaVisual = Vector2.one;
     bool pisoAntes = true;
@@ -72,6 +91,15 @@ public class PlayerAnimator : MonoBehaviour
     Material damageMat;
     bool flashing;
     bool damageFlashing;
+
+    // estela del dash: copias recicladas (no se crean ni se destruyen durante el juego)
+    const int CopiasEstela = 8;
+    Transform raizEstela;
+    Material matEstela;
+    SpriteRenderer[] copias;
+    float[] edadCopia;
+    int proximaCopia;
+    float timerEstela;
 
     enum State { Idle, Walk, Air, WallSlide, Push, Attack, Death, Wave, Swim, Ship }
     State state = State.Idle;
@@ -107,14 +135,84 @@ public class PlayerAnimator : MonoBehaviour
             flashMat.SetColor("_Color", dashColor);
             damageMat = new Material(flashShader);
             damageMat.SetColor("_Color", damageColor);
+            if (dashTrail) CrearEstela(flashShader);
         }
 
+        if (softLight)
+            Luces.Punto(transform, sr.bounds.center, softLightColor, softLightIntensity, softLightRadius, "Luz de Obby");
+
         Play(idle, State.Idle, true);
+    }
+
+    void OnDestroy()
+    {
+        if (raizEstela != null) Destroy(raizEstela.gameObject);
+        if (matEstela != null) Destroy(matEstela);
+    }
+
+    // Las copias de la estela: siluetas de color (el mismo shader del flash), sueltas en el mundo.
+    void CrearEstela(Shader silueta)
+    {
+        raizEstela = new GameObject("Estela de Obby").transform;
+        matEstela = new Material(silueta);   // blanco: el color lo pone cada copia
+        copias = new SpriteRenderer[CopiasEstela];
+        edadCopia = new float[CopiasEstela];
+        for (int i = 0; i < CopiasEstela; i++)
+        {
+            var go = new GameObject("Copia");
+            go.transform.SetParent(raizEstela, false);
+            var c = go.AddComponent<SpriteRenderer>();
+            c.sharedMaterial = matEstela;
+            c.enabled = false;
+            copias[i] = c;
+        }
+    }
+
+    // Mientras dashea suelta copias; las que ya estan se van desvaneciendo.
+    void ActualizarEstela()
+    {
+        if (copias == null) return;
+
+        if (player != null && player.IsDashing && !isDead)
+        {
+            timerEstela -= Time.deltaTime;
+            if (timerEstela <= 0f) { timerEstela = trailInterval; SoltarCopia(); }
+        }
+        else timerEstela = 0f;   // asi la primera copia sale apenas arranca el dash
+
+        for (int i = 0; i < copias.Length; i++)
+        {
+            var c = copias[i];
+            if (!c.enabled) continue;
+            edadCopia[i] += Time.deltaTime;
+            float k = edadCopia[i] / Mathf.Max(0.01f, trailLife);
+            if (k >= 1f) { c.enabled = false; continue; }
+            Color col = trailColor; col.a *= 1f - k;
+            c.color = col;
+        }
+    }
+
+    void SoltarCopia()
+    {
+        var c = copias[proximaCopia];
+        edadCopia[proximaCopia] = 0f;
+        proximaCopia = (proximaCopia + 1) % copias.Length;
+
+        c.sprite = sr.sprite;
+        c.flipX = sr.flipX;
+        c.flipY = sr.flipY;
+        c.sortingLayerID = sr.sortingLayerID;
+        c.sortingOrder = sr.sortingOrder - 1;   // detras de Obby
+        c.color = trailColor;
+        c.transform.SetPositionAndRotation(visual.position, visual.rotation);
+        c.transform.localScale = visual.lossyScale;   // con el signo: mira para el mismo lado
+        c.enabled = true;
     }
 
     void Update()
     {
         ActualizarEstiramiento();
+        ActualizarEstela();
 
         // muerto: reproduce la muerte una vez y se queda CONGELADO en el ultimo frame
         if (isDead)

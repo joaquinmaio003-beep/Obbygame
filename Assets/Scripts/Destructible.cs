@@ -13,6 +13,10 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public class Destructible : MonoBehaviour
 {
+    [Header("Muerte en pixeles")]
+    [Tooltip("Al romperse se deshace en cuadraditos de su propio dibujo. Apagado = usa los pedazos de abajo.")]
+    public bool pixelBreak = true;
+
     [Header("Pedazos que salen volando")]
     [Tooltip("Si esta activo, al romperse salen pedazos que se abren y caen.")]
     public bool spawnPieces = true;
@@ -67,7 +71,9 @@ public class Destructible : MonoBehaviour
         if (breakSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(breakSound);
 
-        if (spawnPieces) SpawnPieces();   // ANTES de destruir, para tener los bounds validos
+        // ANTES de apagarlo, para tener los bounds validos
+        bool pixelado = pixelBreak && EnemigoFX.Pixelar(GetComponent<SpriteRenderer>(), null, 0.8f);
+        if (!pixelado && spawnPieces) SpawnPieces();
         gameObject.SetActive(false);   // se apaga (no se destruye) para poder volver en el checkpoint
     }
 

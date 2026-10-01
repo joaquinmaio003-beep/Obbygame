@@ -81,6 +81,8 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
     [Tooltip("Si Obby esta mas alto que esto (ej: colgado de una pared), no lo persigue ni gira debajo.")]
     public float maxReachHeight = 2.5f;
+    [Tooltip("Segundos que sigue atento despues de perderte de vista. Evita que gire sin parar donde te ve y te pierde a cada rato (esquinas, saltos).")]
+    public float memoryTime = 0.8f;
 
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
@@ -114,6 +116,8 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     bool isRecovering;
     float attackCdTimer;
     float flipCd;   // anti-jitter para no girar sin parar
+    float giroCd;   // idem, mientras te persigue
+    float recuerdo; // segundos que le quedan de seguir atento sin verte
     bool muerto;                  // se esta muriendo o ya murio (queda apagado)
     Color colorBase = Color.white;
     Collider2D[] colliders;
@@ -123,6 +127,13 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     bool persiguiendo;  // true mientras te esta cazando (baja de las plataformas)
     bool enElAire;      // cayendo (no hay piso debajo)
     float fallVel;      // velocidad de caida acumulada
+
+    // embestida (la maneja PersecucionSierra): corre derecho sin frenar, cortando lo que encuentra
+    bool embistiendo;
+    float velEmbestida;
+    float tiempoCorte;  // > 0: muestra la animacion del sierrazo mientras corre
+    float golpeCd;      // para no pegarle a Obby en cada frame mientras lo pasa por encima
+    bool sobrecargado;  // se frena, titila y tiembla hasta explotar (final de la persecucion)
 
     Anim current;
     int frame;
@@ -155,22 +166,39 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     void Update()
     {
         if (muerto) return;
-        if (Dormido()) { if (alertIcon != null && alertIcon.activeSelf) alertIcon.SetActive(false); return; }
+        if (!embistiendo && Dormido()) { if (alertIcon != null && alertIcon.activeSelf) alertIcon.SetActive(false); return; }
 
         if (attackCdTimer > 0f) attackCdTimer -= Time.deltaTime;
+        if (tiempoCorte > 0f) tiempoCorte -= Time.deltaTime;
+        if (golpeCd > 0f) golpeCd -= Time.deltaTime;
 
         // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar
-        bool detecta = !isStunned && !isRecovering && InRange(detectRange) && Reachable() && CanSeePlayer();
+        bool detecta = !isStunned && !isRecovering && (persiguiendo || embistiendo);
         if (alertIcon != null) alertIcon.SetActive(detecta);
 
-        // ataca a Obby si lo tiene cerca, O parte lo que tenga adelante para seguir avanzando
-        bool puedeAtacar = !isStunned && !isRecovering && !isAttacking && !enElAire && attackCdTimer <= 0f;
-        if (puedeAtacar && (PlayerEnCajaDeGolpe() || RompibleAdelante() != null))
-            StartCoroutine(AttackRoutine());
+        if (embistiendo)
+        {
+            // corriendo no se frena a pegar: si agarra a Obby con la sierra, lo agarro. Que pasa
+            // ahi lo decide quien maneja la embestida (AlAtrapar); si nadie, le saca una vida.
+            if (!isStunned && !isRecovering && golpeCd <= 0f && playerHealth != null && PlayerEnCajaDeGolpe())
+            {
+                golpeCd = 0.4f;
+                tiempoCorte = Mathf.Max(tiempoCorte, 0.3f);
+                if (AlAtrapar != null) AlAtrapar();
+                else playerHealth.Hurt(transform.position);
+            }
+        }
+        else if (!sobrecargado)
+        {
+            // ataca a Obby si lo tiene cerca, O parte lo que tenga adelante para seguir avanzando
+            bool puedeAtacar = !isStunned && !isRecovering && !isAttacking && !enElAire && attackCdTimer <= 0f;
+            if (puedeAtacar && (PlayerEnCajaDeGolpe() || RompibleAdelante() != null))
+                StartCoroutine(AttackRoutine());
+        }
 
         Anim target = isStunned ? stun
                      : isRecovering ? stunRecover
-                     : isAttacking ? attack
+                     : (isAttacking || tiempoCorte > 0f || sobrecargado) ? attack
                      : Mathf.Abs(rb.linearVelocity.x) > 0.05f ? walk
                      : idle;
         if (target != current) SetAnim(target);
@@ -180,11 +208,21 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     void FixedUpdate()
     {
         if (muerto) return;
-        if (Dormido()) { rb.linearVelocity = Vector2.zero; return; }
+        if (sobrecargado) { rb.linearVelocity = Vector2.zero; return; }   // clavado en el lugar, temblando
+        if (!embistiendo && Dormido()) { rb.linearVelocity = Vector2.zero; return; }
 
         SnapToGround();
+        ActualizarAtencion();
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
+
+        // embestida: corre derecho sin frenar (no patrulla, no mira bordes ni paredes).
+        // El piedrazo en la cabeza lo sigue aturdiendo: es la forma de ganarle tiempo.
+        if (embistiendo)
+        {
+            rb.linearVelocity = new Vector2(dir * velEmbestida * (enElAire ? 0.6f : 1f), 0f);
+            return;
+        }
 
         // cayendo: no gira ni frena en el aire, sigue derecho hasta tocar piso
         if (enElAire)
@@ -193,12 +231,11 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
             return;
         }
 
-        // te ve (con linea de vision) y podes alcanzarlo: te persigue, pero NO se trepa ni se cae.
+        // te ve (o te vio hace un momento) y podes alcanzarlo: te persigue, pero NO se trepa ni se cae.
         // Si Obby esta colgado muy arriba de una pared, no lo persigue (no gira como loco debajo).
-        persiguiendo = InRange(detectRange) && Reachable() && CanSeePlayer();
         if (persiguiendo)
         {
-            FacePlayer();
+            EncararConCalma();
             if (PlayerEnCajaDeGolpe() || !CanAdvance()) rb.linearVelocity = Vector2.zero; // se frena, te sigue encarando
             else rb.linearVelocity = new Vector2(dir * chaseSpeed, 0f);
             return;
@@ -215,6 +252,134 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         {
             rb.linearVelocity = new Vector2(dir * patrolSpeed, 0f);
         }
+    }
+
+    // Atento = te ve ahora o te vio hace un momento (memoryTime). Sin esa memoria, donde te ve y
+    // te pierde a cada rato alternaba entre encararte y patrullar: giraba sin parar.
+    void ActualizarAtencion()
+    {
+        if (giroCd > 0f) giroCd -= Time.fixedDeltaTime;
+        if (InRange(detectRange) && Reachable() && CanSeePlayer()) recuerdo = memoryTime;
+        else if (recuerdo > 0f) recuerdo -= Time.fixedDeltaTime;
+        persiguiendo = recuerdo > 0f;
+    }
+
+    // ---------------- embestida (para la persecucion entre los arboles) ----------------
+
+    /// <summary>Esta muerto (o muriendose).</summary>
+    public bool Muerto => muerto;
+
+    /// <summary>Donde esta su cuerpo, en X.</summary>
+    public float CuerpoX => CentroX();
+
+    /// <summary>Altura de sus pies (el piso por donde corre).</summary>
+    public float PiesY => col.bounds.min.y;
+
+    /// <summary>Durante una embestida: se llama cuando agarra a Obby con la sierra (lo pone PersecucionSierra).</summary>
+    public System.Action AlAtrapar;
+
+    /// <summary>
+    /// Embestida: corre hacia 'direccion' (1 derecha, -1 izquierda) a 'velocidad', sin patrullar
+    /// ni frenar ante nada. Se puede llamar seguido para cambiarle la velocidad. Lo usa PersecucionSierra.
+    /// </summary>
+    public void Embestir(int direccion, float velocidad)
+    {
+        if (muerto) return;
+        embistiendo = true;
+        velEmbestida = velocidad;
+        int d = direccion >= 0 ? 1 : -1;
+        if (d != dir) { dir = d; ApplyFacing(); }
+    }
+
+    /// <summary>Termina la embestida: vuelve a comportarse como siempre.</summary>
+    public void TerminarEmbestida() { embistiendo = false; }
+
+    /// <summary>
+    /// En una embestida: a cuantas unidades por segundo sube cuando el piso esta mas alto que sus
+    /// pies. 0 = de golpe (lo normal, para seguir las cuestas). Con un valor bajo, si arranca
+    /// escondido mas abajo que el piso, se lo ve salir de a poco.
+    /// </summary>
+    public float SubidaSuave { get; set; }
+
+    /// <summary>
+    /// Se SOBRECARGA: se clava en el lugar con la sierra girando, titila y tiembla cada vez mas
+    /// rapido durante 'segundos', y explota (muere deshecho en pedazos). Final de la persecucion.
+    /// </summary>
+    public void Sobrecargar(float segundos)
+    {
+        if (muerto || sobrecargado) return;
+        StopAllCoroutines();
+        embistiendo = false;
+        isAttacking = false;
+        isStunned = false;
+        isRecovering = false;
+        sobrecargado = true;
+        StartCoroutine(SobrecargaRoutine(segundos));
+    }
+
+    IEnumerator SobrecargaRoutine(float segundos)
+    {
+        Vector3 lugar = transform.position;
+        for (float t = 0f; t < segundos; t += Time.deltaTime)
+        {
+            float k = t / Mathf.Max(0.01f, segundos);   // 0 -> 1: cada vez peor
+            sr.color = Color.Lerp(colorBase, attackWarnColor, Mathf.PingPong(t * Mathf.Lerp(8f, 30f, k), 1f));
+            transform.position = lugar + (Vector3)(Random.insideUnitCircle * (0.08f * k));
+            yield return null;
+        }
+        transform.position = lugar;
+        Explotar();
+    }
+
+    // Muere de golpe, con mas fuerza que una muerte comun: mas polvo y los pedazos salen lejos.
+    void Explotar()
+    {
+        if (muerto) return;
+        Bounds b = col.bounds;   // antes de apagar los colliders
+        EmpezarMuerte();
+        sobrecargado = false;
+        if (deathSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(deathSound);
+        EnemigoFX.Polvo(b, sr, 12);
+        EnemigoFX.Pixelar(sr, hitFX != null ? hitFX.NormalMaterial : null, 2.2f);
+        Desaparecer();
+    }
+
+    /// <summary>Muestra el sierrazo un momento sin frenarse (al cortar un arbol corriendo).</summary>
+    public void AnimarCorte(float segundos)
+    {
+        if (muerto) return;
+        tiempoCorte = Mathf.Max(tiempoCorte, segundos);
+        if (attackSound != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(attackSound);
+    }
+
+    /// <summary>Vuelve a su lugar y a su estado del principio del nivel (queda prendido).</summary>
+    public void VolverAlInicio() { Reaparecer(); }
+
+    /// <summary>
+    /// Lo pone con el cuerpo en esa X, ya apoyado en el piso que haya debajo de la altura 'desdeY'
+    /// (los arboles y rocas no cuentan como piso). Devuelve false si ahi abajo no hay piso (o el
+    /// punto cae adentro de una pared): en ese caso no lo mueve.
+    /// </summary>
+    public bool ColocarEn(float cuerpoX, float desdeY)
+    {
+        RaycastHit2D h = GroundRayPisable(new Vector2(cuerpoX, desdeY), Vector2.down, 40f, float.NegativeInfinity);
+        if (h.collider == null) return false;
+
+        // del pivote a los pies. Con la caja se calcula directo: recien prendido, los bounds del
+        // collider todavia pueden no estar listos.
+        float pivotToFoot = col is BoxCollider2D caja
+            ? (caja.size.y * 0.5f - caja.offset.y) * Mathf.Abs(transform.lossyScale.y)
+            : transform.position.y - col.bounds.min.y;
+        float pivotX = cuerpoX - col.offset.x * transform.lossyScale.x;
+        transform.position = new Vector3(pivotX, h.point.y + pivotToFoot, transform.position.z);
+        enElAire = false;
+        fallVel = 0f;
+        // que el collider ya este en el lugar nuevo: si no, el proximo acomodo al piso se calculaba
+        // con el lugar viejo y pegaba un salto
+        Physics2D.SyncTransforms();
+        return true;
     }
 
     // Obby dentro de un rango radial (saltar no lo saca del rango)
@@ -311,7 +476,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         Stun(); // la piedra NUNCA lo mata, solo lo aturde
     }
 
-    // ---- eliminado (roca, pincho): flash, se aplasta contra el piso, polvo y desaparece ----
+    // ---- eliminado (roca, pincho): flash, polvo y se deshace en pixeles ----
     public void Defeat()
     {
         if (muerto) return;
@@ -326,8 +491,11 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         if (deathSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(deathSound);
         EnemigoFX.Polvo(b, sr, 6);
-        yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
-        yield return new WaitForSeconds(0.08f);
+        yield return new WaitForSeconds(0.08f);   // que se alcance a ver el destello
+        // se deshace en cuadraditos de su propio dibujo (con sus colores, no los del destello);
+        // si no se puede recortar el sprite, se aplasta contra el piso como antes
+        if (!EnemigoFX.Pixelar(sr, hitFX != null ? hitFX.NormalMaterial : null))
+            yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
         Desaparecer();
     }
 
@@ -381,6 +549,14 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         fallVel = 0f;
         attackCdTimer = 0f;
         flipCd = 0f;
+        giroCd = 0f;
+        recuerdo = 0f;
+        persiguiendo = false;
+        embistiendo = false;
+        tiempoCorte = 0f;
+        golpeCd = 0f;
+        sobrecargado = false;
+        SubidaSuave = 0f;
         transform.position = posInicial;
         transform.localScale = escalaInicial;
         dir = dirInicial;
@@ -405,7 +581,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
     public void Stun(float duration)
     {
-        if (muerto) return;
+        if (muerto || sobrecargado) return;   // a punto de explotar ya no se aturde
         StopAllCoroutines();
         isAttacking = false;
         sr.color = colorBase;   // por si lo agarro en medio del amague del golpe
@@ -436,14 +612,28 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     // espadazo (ver AttackRoutine). Chocarlo o rozarle la espada no hace nada.
 
     // ---- facing / patrulla ----
-    void FacePlayer()
+    // Encara a Obby. Devuelve true si se dio vuelta.
+    bool FacePlayer()
     {
-        if (player == null) return;
-        float dx = player.position.x - transform.position.x;
-        if (Mathf.Abs(dx) < 0.15f) return; // casi alineado -> no gira (evita spin)
+        if (player == null) return false;
+        float dx = player.position.x - CentroX();
+        if (Mathf.Abs(dx) < 0.15f) return false; // casi alineado -> no gira (evita spin)
         int want = dx >= 0f ? 1 : -1;
-        if (want != dir) { dir = want; ApplyFacing(); }
+        if (want == dir) return false;
+        dir = want;
+        ApplyFacing();
+        return true;
     }
+
+    // Mientras esta atento no gira mas de una vez cada tanto: si Obby le pasa justo por encima
+    // (o por debajo), no se pone a dar vueltas.
+    void EncararConCalma()
+    {
+        if (giroCd <= 0f && FacePlayer()) giroCd = 0.25f;
+    }
+
+    // Centro del CUERPO (el collider) en X. No es el centro del dibujo: adelante lleva el arma.
+    float CentroX() { return transform.position.x + col.offset.x * transform.lossyScale.x; }
 
     void Flip() { dir = -dir; ApplyFacing(); }
 
@@ -451,8 +641,18 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     {
         var s = transform.localScale;
         int sign = spriteFacesRight ? dir : -dir;
-        s.x = Mathf.Abs(s.x) * sign;
+        float x = Mathf.Abs(s.x) * sign;
+        if (x == s.x) return;   // ya mira para ese lado
+        // El dibujo se espeja, pero el CUERPO se queda donde estaba. Antes se espejaba todo sobre
+        // el centro del dibujo y el cuerpo (que esta corrido hacia atras) saltaba al otro lado:
+        // mirando para un lado te veia y para el otro no, y contra una pared quedaba metido
+        // adentro. En las esquinas eso lo dejaba girando sin parar.
+        float cuerpoX = CentroX();
+        s.x = x;
         transform.localScale = s;
+        var p = transform.position;
+        p.x = 2f * cuerpoX - p.x;
+        transform.position = p;
     }
 
     // Buffers y filtro reutilizables (no reservan memoria por frame).
@@ -618,7 +818,11 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
             enElAire = false;
             fallVel = 0f;
             float pivotToFoot = transform.position.y - col.bounds.min.y;
-            transform.position = new Vector3(transform.position.x, superficieY + pivotToFoot, transform.position.z);
+            float y = superficieY + pivotToFoot;
+            // saliendo de un escondite mas bajo que el piso: sube de a poco, no aparece de golpe arriba
+            if (embistiendo && SubidaSuave > 0f && y > transform.position.y)
+                y = Mathf.MoveTowards(transform.position.y, y, SubidaSuave * Time.fixedDeltaTime);
+            transform.position = new Vector3(transform.position.x, y, transform.position.z);
             return;
         }
 

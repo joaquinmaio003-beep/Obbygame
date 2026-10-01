@@ -110,6 +110,18 @@ public class PlayerRespawn : MonoBehaviour
         LoseLife(false);   // un golpe NO te manda al checkpoint
     }
 
+    /// <summary>
+    /// Muerte directa, tenga las vidas que tenga: muere y el nivel entero arranca de nuevo.
+    /// Lo usa la persecucion de la sierra cuando lo agarra.
+    /// </summary>
+    public void Morir()
+    {
+        if (dying || festejando) return;
+        lives = 0;
+        if (anim != null) anim.DamageFlash();
+        StartCoroutine(DeathRoutine());
+    }
+
     /// <summary>Caida al vacio: pierde una vida y vuelve al checkpoint (no podes quedarte en el pozo).</summary>
     public void Respawn()
     {
@@ -189,7 +201,7 @@ public class PlayerRespawn : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         if (controller != null) controller.enabled = false;
         if (anim != null) anim.PlayDeath();
-        if (cam != null) cam.Shake(0.4f, 0.25f); // temblor mas fuerte en la muerte
+        if (cam != null) { cam.Shake(0.4f, 0.25f); cam.Acercar(); } // temblor mas fuerte y se acerca
         if (deathSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(deathSound);
 
@@ -212,6 +224,7 @@ public class PlayerRespawn : MonoBehaviour
         lives = maxLives;
         if (controller != null) controller.enabled = true;
         if (anim != null) anim.Revive();
+        if (cam != null) cam.SoltarZoom();
         VolverAlCheckpoint();
 
         if (ScreenFader.Instance != null)
@@ -240,5 +253,6 @@ public class PlayerRespawn : MonoBehaviour
             WarriorEnemy.ResetAll();
             EnemigoSierra.ResetAll();
         }
+        PersecucionSierra.ResetAll();  // la persecucion de los arboles se rearma (al final: vuelve a esconder su sierra)
     }
 }

@@ -58,6 +58,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     public float attackWindup = 0.3f;
     [Tooltip("Si Obby esta mas alto que esto (ej: colgado de una pared), no lo persigue ni gira debajo.")]
     public float maxReachHeight = 2.5f;
+    [Tooltip("Segundos que sigue atento despues de perderte de vista. Evita que gire sin parar donde te ve y te pierde a cada rato (esquinas, saltos).")]
+    public float memoryTime = 0.8f;
 
     [Header("Stun")]
     public float defaultStunTime = 2.5f;
@@ -93,6 +95,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     bool isRecovering;
     float attackCdTimer;
     float flipCd;   // anti-jitter para no girar sin parar
+    float giroCd;   // idem, mientras te persigue
+    float recuerdo; // segundos que le quedan de seguir atento sin verte
+    bool atento;    // te ve o te vio hace un momento
     bool muerto;                  // se esta muriendo o ya murio (queda apagado)
     Color colorBase = Color.white;
     Collider2D[] colliders;
@@ -136,7 +141,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         if (attackCdTimer > 0f) attackCdTimer -= Time.deltaTime;
 
         // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar
-        bool detecta = !isStunned && !isRecovering && InRange(detectRange) && Reachable() && CanSeePlayer();
+        bool detecta = !isStunned && !isRecovering && atento;
         if (alertIcon != null) alertIcon.SetActive(detecta);
 
         if (!isStunned && !isRecovering && !isAttacking && !enElAire && attackCdTimer <= 0f   // cayendo no pega
@@ -158,17 +163,18 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         if (Dormido()) { rb.linearVelocity = Vector2.zero; return; }
 
         SnapToGround();
+        ActualizarAtencion();
 
         // en el aire (lo empujaron fuera de un borde): cae derecho, sin caminar ni darse vuelta
         if (enElAire) { rb.linearVelocity = Vector2.zero; return; }
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
 
-        // te ve (con linea de vision) y podes alcanzarlo: te persigue, pero NO se trepa ni se cae.
+        // te ve (o te vio hace un momento) y podes alcanzarlo: te persigue, pero NO se trepa ni se cae.
         // Si Obby esta colgado muy arriba de una pared, no lo persigue (no gira como loco debajo).
-        if (InRange(detectRange) && Reachable() && CanSeePlayer())
+        if (atento)
         {
-            FacePlayer();
+            EncararConCalma();
             if (InRange(attackRange) || !CanAdvance()) rb.linearVelocity = Vector2.zero; // se frena, te sigue encarando
             else rb.linearVelocity = new Vector2(dir * chaseSpeed, 0f);
             return;
@@ -185,6 +191,16 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         {
             rb.linearVelocity = new Vector2(dir * patrolSpeed, 0f);
         }
+    }
+
+    // Atento = te ve ahora o te vio hace un momento (memoryTime). Sin esa memoria, donde te ve y
+    // te pierde a cada rato alternaba entre encararte y patrullar: giraba sin parar.
+    void ActualizarAtencion()
+    {
+        if (giroCd > 0f) giroCd -= Time.fixedDeltaTime;
+        if (InRange(detectRange) && Reachable() && CanSeePlayer()) recuerdo = memoryTime;
+        else if (recuerdo > 0f) recuerdo -= Time.fixedDeltaTime;
+        atento = recuerdo > 0f;
     }
 
     // Obby dentro de un rango radial (saltar no lo saca del rango)
@@ -225,7 +241,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         // momento del golpe: si Obby sigue en rango y adelante -> le pega
         if (player != null && InRange(attackRange) && playerHealth != null)
         {
-            float dx = player.position.x - transform.position.x;
+            float dx = player.position.x - CentroX();   // adelante del CUERPO, no del centro del dibujo
             if ((int)Mathf.Sign(dx) == dir)
                 playerHealth.Hurt(transform.position);
         }
@@ -249,7 +265,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)
     }
 
-    // ---- eliminado (roca, pincho): flash, se aplasta contra el piso, polvo y desaparece ----
+    // ---- eliminado (roca, pincho): flash, polvo y se deshace en pixeles ----
     public void Defeat()
     {
         if (muerto) return;
@@ -264,8 +280,11 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         if (deathSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(deathSound);
         EnemigoFX.Polvo(b, sr, 6);
-        yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
-        yield return new WaitForSeconds(0.08f);
+        yield return new WaitForSeconds(0.08f);   // que se alcance a ver el destello
+        // se deshace en cuadraditos de su propio dibujo (con sus colores, no los del destello);
+        // si no se puede recortar el sprite, se aplasta contra el piso como antes
+        if (!EnemigoFX.Pixelar(sr, hitFX != null ? hitFX.NormalMaterial : null))
+            yield return EnemigoFX.Aplastar(transform, transform.position.y - b.min.y, 0.15f);
         Desaparecer();
     }
 
@@ -319,6 +338,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         fallVel = 0f;
         attackCdTimer = 0f;
         flipCd = 0f;
+        giroCd = 0f;
+        recuerdo = 0f;
+        atento = false;
         transform.position = posInicial;
         transform.localScale = escalaInicial;
         dir = dirInicial;
@@ -374,14 +396,28 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     // espadazo (ver AttackRoutine). Chocarlo o rozarle la espada no hace nada.
 
     // ---- facing / patrulla ----
-    void FacePlayer()
+    // Encara a Obby. Devuelve true si se dio vuelta.
+    bool FacePlayer()
     {
-        if (player == null) return;
-        float dx = player.position.x - transform.position.x;
-        if (Mathf.Abs(dx) < 0.15f) return; // casi alineado -> no gira (evita spin)
+        if (player == null) return false;
+        float dx = player.position.x - CentroX();
+        if (Mathf.Abs(dx) < 0.15f) return false; // casi alineado -> no gira (evita spin)
         int want = dx >= 0f ? 1 : -1;
-        if (want != dir) { dir = want; ApplyFacing(); }
+        if (want == dir) return false;
+        dir = want;
+        ApplyFacing();
+        return true;
     }
+
+    // Mientras esta atento no gira mas de una vez cada tanto: si Obby le pasa justo por encima
+    // (o por debajo), no se pone a dar vueltas.
+    void EncararConCalma()
+    {
+        if (giroCd <= 0f && FacePlayer()) giroCd = 0.25f;
+    }
+
+    // Centro del CUERPO (el collider) en X. No es el centro del dibujo: adelante lleva el arma.
+    float CentroX() { return transform.position.x + col.offset.x * transform.lossyScale.x; }
 
     void Flip() { dir = -dir; ApplyFacing(); }
 
@@ -389,8 +425,18 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     {
         var s = transform.localScale;
         int sign = spriteFacesRight ? dir : -dir;
-        s.x = Mathf.Abs(s.x) * sign;
+        float x = Mathf.Abs(s.x) * sign;
+        if (x == s.x) return;   // ya mira para ese lado
+        // El dibujo se espeja, pero el CUERPO se queda donde estaba. Antes se espejaba todo sobre
+        // el centro del dibujo y el cuerpo (que esta corrido hacia atras) saltaba al otro lado:
+        // mirando para un lado te veia y para el otro no, y contra una pared quedaba metido
+        // adentro. En las esquinas eso lo dejaba girando sin parar.
+        float cuerpoX = CentroX();
+        s.x = x;
         transform.localScale = s;
+        var p = transform.position;
+        p.x = 2f * cuerpoX - p.x;
+        transform.position = p;
     }
 
     // Buffers y filtro reutilizables (no reservan memoria por frame).

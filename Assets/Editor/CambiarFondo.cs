@@ -8,7 +8,8 @@ using UnityEngine.SceneManagement;
 /// Pone el fondo nuevo (FondoArboles, capas de atras hacia adelante) en los dos niveles y borra
 /// el viejo. Menu: Obby > Poner fondo nuevo.
 /// Hace todo solo: importa las capas igual que el fondo viejo, abre cada nivel, cambia las
-/// imagenes, agrega la capa nueva, guarda y borra el arte viejo. Se puede correr de nuevo sin
+/// imagenes, agrega la capa nueva, pone el viento en hojas y arbustos, guarda y borra el arte viejo.
+/// Se puede correr de nuevo sin
 /// problema. Cuando ya este hecho, este script se puede borrar.
 /// </summary>
 public static class CambiarFondo
@@ -16,21 +17,25 @@ public static class CambiarFondo
     const string Carpeta = "Assets/Art/Background/forest/";
     static readonly string[] Niveles = { "Assets/Scenes/Nivel1.unity", "Assets/Scenes/Nivel2.unity" };
 
-    // objeto del fondo (dentro de "background") -> capa nueva, orden de dibujo, parallax.
+    // objeto del fondo (dentro de "background") -> capa nueva, orden de dibujo, parallax, y viento:
+    // viento = pixeles que se mece (0 = quieta), colgando = hojas que cuelgan de arriba,
+    // ancla/largo = altura de la imagen donde esta agarrado y cuanto mas lejos se mueve entero
+    // (medido sobre cada imagen: arbustos entre 0.20 y 0.37, flecos de las hojas entre 0.65 y 0.77).
     // De atras hacia adelante, igual que en el Aseprite.
-    static readonly (string objeto, string png, int orden, float parallax)[] Capas =
+    static readonly (string objeto, string png, int orden, float parallax,
+                     float viento, bool colgando, float ancla, float largo)[] Capas =
     {
-        ("background",        "01_Fondo.png",           -21, 0.9f),
-        ("arboles muy fondo", "02_ArbolMuuuyFondo.png", -20, 0.85f),   // capa NUEVA
-        ("arboles 1",         "03_Arboles4Fondo.png",   -19, 0.8f),
-        ("arboles2",          "05_Fondo3Arboles.png",   -18, 0.72f),
-        ("arboles 3",         "06_Arboles2Fondo.png",   -17, 0.6f),
-        ("hojas 1",           "07_AtrasHojasArbol.png", -16, 0.5f),
+        ("background",        "01_Fondo.png",           -21, 0.9f,  0f,   false, 0f,   1f),
+        ("arboles muy fondo", "02_ArbolMuuuyFondo.png", -20, 0.85f, 0f,   false, 0f,   1f),   // capa NUEVA
+        ("arboles 1",         "03_Arboles4Fondo.png",   -19, 0.8f,  0f,   false, 0f,   1f),
+        ("arboles2",          "05_Fondo3Arboles.png",   -18, 0.72f, 0f,   false, 0f,   1f),
+        ("arboles 3",         "06_Arboles2Fondo.png",   -17, 0.6f,  0f,   false, 0f,   1f),
+        ("hojas 1",           "07_AtrasHojasArbol.png", -16, 0.5f,  2f,   true,  0.85f, 0.2f),
         // (los rayos de luz van en -15: entre las hojas de atras y los arbustos)
-        ("arbusto1",          "08_Arbustos.png",        -14, 0.3f),
-        ("arbusto2",          "09_ArbolesFrente.png",   -13, 0.2f),
-        ("Piso",              "10_Piso.png",            -12, 0.1f),
-        ("hojas 2",           "11_HojasArbol.png",      -11, 0.1f),   // ahora va delante del piso
+        ("arbusto1",          "08_Arbustos.png",        -14, 0.3f,  1.5f, false, 0.2f, 0.17f),
+        ("arbusto2",          "09_ArbolesFrente.png",   -13, 0.2f,  0f,   false, 0f,   1f),   // troncos: quietos
+        ("Piso",              "10_Piso.png",            -12, 0.1f,  0f,   false, 0f,   1f),
+        ("hojas 2",           "11_HojasArbol.png",      -11, 0.1f,  2f,   true,  0.9f, 0.23f),   // ahora va delante del piso
     };
 
     static readonly string[] Viejas =
@@ -118,7 +123,15 @@ public static class CambiarFondo
             sr.sprite = sprite;
             sr.sortingOrder = c.orden;
             EditorUtility.SetDirty(sr);
-            if (pb != null) { pb.parallaxEffect = c.parallax; EditorUtility.SetDirty(pb); }
+            if (pb != null)
+            {
+                pb.parallaxEffect = c.parallax;
+                pb.wind = c.viento;
+                pb.windHanging = c.colgando;
+                pb.windAnchor = c.ancla;
+                pb.windLength = c.largo;
+                EditorUtility.SetDirty(pb);
+            }
             cambiadas++;
         }
         return escena.name + ": " + cambiadas + " capas" + (creada ? " (capa nueva agregada)" : "");
