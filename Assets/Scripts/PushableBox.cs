@@ -26,6 +26,8 @@ public class PushableBox : MonoBehaviour
     public float crushFallSpeed = 1f;
     [Tooltip("Sonido al atropellar (opcional).")]
     public AudioClip runOverSound;
+    [Tooltip("Golpe seco al chocar contra una pared o al caer al piso. Vacio = el de fabrica.")]
+    public AudioClip impactSound;
     [Tooltip("Sacudida de camara al aplastar un bicho.")]
     public bool shakeOnCrush = true;
     public float crushShakeDuration = 0.2f;
@@ -83,6 +85,10 @@ public class PushableBox : MonoBehaviour
     Vector3 posInicial;
     float rotInicial;
     float masaNormal;      // el Mass del Rigidbody (la que tiene en el aire)
+    bool encajada;         // quedo fija en un hueco (HuecoParaRoca): es una plataforma, ya no se empuja
+
+    /// <summary>Quedo fija en un hueco, hecha plataforma.</summary>
+    public bool Encajada => encajada;
 
     void Awake()
     {
@@ -109,6 +115,8 @@ public class PushableBox : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (encajada) return;   // fija en su hueco: ya no la mueve nada
+
         // se fue a un pozo: se apaga (antes seguia cayendo para siempre, cada vez mas rapido).
         // Reponer la vuelve a prender al volver a un checkpoint.
         if (rb.position.y < killY) { gameObject.SetActive(false); return; }
@@ -134,7 +142,10 @@ public class PushableBox : MonoBehaviour
 
         // EN EL AIRE no la tocamos: cae y vuela con su propia fisica (gravedad, rebote,
         // aceleracion al bajar la colina). Si le metiamos mano aca, parecia que flotaba.
+        bool estabaEnElPiso = enElPiso;
         enElPiso = ApoyadaEnPiso();
+        // venia cayendo y toco el piso: golpe seco (solo se escucha cerca de la camara)
+        if (enElPiso && !estabaEnElPiso && velPrevia.y < -4f) Sonidos.PlayEn(impactSound, "roca_golpe", rb.position);
 
         // Apoyada pesa MUCHO: el choque de un salto de abajo o de un dash la empujaba ANTES de
         // que el script llegara a frenarla, y despues seguia de largo como si viniera rodando.
@@ -304,6 +315,7 @@ public class PushableBox : MonoBehaviour
 
     void TryRunOver(Collider2D other)
     {
+        if (encajada) return;   // hecha plataforma: no atropella ni arrastra a nadie
         var enemy = other.GetComponentInParent<IStunnable>();
         if (enemy == null) return;
 
@@ -346,8 +358,8 @@ public class PushableBox : MonoBehaviour
         if (shakeOnCrush && cam != null) cam.Shake(crushShakeDuration, crushShakeIntensity); // temblor al aplastar
     }
 
-    // Corre al bicho lo mismo que la roca se le metio. Si detras tiene una pared no tiene
-    // adonde ir: queda aplastado entre la roca y la pared.
+    // Corre al bicho lo que la roca se le metio, DE A POCO (lo va empujando). Si detras tiene una
+    // pared no tiene adonde ir: queda aplastado entre la roca y la pared.
     void Arrastrar(Collider2D other, IStunnable enemy, Vector2 v)
     {
         Bounds roca = col.bounds;
@@ -355,13 +367,51 @@ public class PushableBox : MonoBehaviour
         int d = bicho.center.x >= roca.center.x ? 1 : -1;   // de que lado de la roca esta el bicho
         if (v.x * d <= 0.05f) return;                        // la roca no va hacia el: no lo empuja
 
-        float solape = d > 0 ? roca.max.x - bicho.min.x : bicho.max.x - roca.min.x;
+        // Hasta donde llega la roca DE VERDAD a la altura del bicho. Antes se usaba el recuadro
+        // que la envuelve, y la roca es irregular (abajo es mas angosta): lo mandaba lejos de
+        // donde lo tocaba, la roca lo volvia a alcanzar y lo mandaba lejos otra vez, a los saltos.
+        if (!BordeReal(bicho, d, out float borde)) return;
+        float solape = d > 0 ? borde - bicho.min.x : bicho.max.x - borde;
         if (solape <= 0f) return;
 
-        if (ParedDetras(bicho, d, solape + 0.02f)) { Aplastar(enemy); return; }
+        // lo corre como mucho un poco mas rapido de lo que avanza la roca: si quedo muy metido
+        // adentro, lo va sacando mientras lo empuja en vez de teletransportarlo al borde
+        float paso = Mathf.Min(solape, Mathf.Abs(v.x) * Time.fixedDeltaTime * 2f + 0.02f);
+
+        if (ParedDetras(bicho, d, paso + 0.02f)) { Aplastar(enemy); return; }
+
+        enemy.Asustar();   // lo viene empujando: se asusta
 
         var comp = enemy as Component;
-        if (comp != null) comp.transform.position += new Vector3(d * solape, 0f, 0f);
+        if (comp != null) comp.transform.position += new Vector3(d * paso, 0f, 0f);
+    }
+
+    // El borde de la roca del lado 'd' (1 derecha, -1 izquierda), medido a la altura del bicho
+    // (pies, medio y cabeza): rayos desde afuera hacia la roca. false si a esa altura no hay roca.
+    bool BordeReal(Bounds bicho, int d, out float borde)
+    {
+        Bounds roca = col.bounds;
+        var filter = new ContactFilter2D();
+        filter.NoFilter();
+        filter.useTriggers = false;   // los enemigos (trigger) no cuentan
+
+        float desdeX = d > 0 ? roca.max.x + 0.5f : roca.min.x - 0.5f;
+        float largo = roca.size.x + 1f;
+        borde = 0f;
+        bool hay = false;
+        for (int i = 0; i < 3; i++)
+        {
+            float y = i == 0 ? bicho.min.y + 0.05f : i == 1 ? bicho.center.y : bicho.max.y - 0.05f;
+            int n = Physics2D.Raycast(new Vector2(desdeX, y), new Vector2(-d, 0f), filter, s_rayBuf, largo);
+            for (int j = 0; j < n; j++)
+            {
+                if (s_rayBuf[j].collider != col) continue;
+                float x = s_rayBuf[j].point.x;
+                if (!hay || (d > 0 ? x > borde : x < borde)) { borde = x; hay = true; }   // el punto que mas sobresale
+                break;
+            }
+        }
+        return hay;
     }
 
     // El bicho esta parado encima de ESTA roca? Mira lo primero solido que tiene bajo los pies.
@@ -420,6 +470,7 @@ public class PushableBox : MonoBehaviour
             if (Mathf.Abs(cp.normal.x) < 0.7f) continue;                            // piso o techo, no pared
             nextWallDust = Time.time + 0.3f;   // un choque = una sola nube
             LargarPolvo(cp.point);
+            Sonidos.PlayEn(impactSound, "roca_golpe", cp.point);
             return;
         }
     }
@@ -456,6 +507,64 @@ public class PushableBox : MonoBehaviour
         resp.Hurt(transform.position);
     }
 
+    // ---------------- encajar en un hueco (HuecoParaRoca) ----------------
+
+    /// <summary>
+    /// La deja FIJA como plataforma, pero sin teletransportarla: CAE de una con gravedad y,
+    /// mientras cae, se corre de costado (como minimo a velCostado) hasta quedar centrada en centroX, hasta que su
+    /// parte de arriba queda a la altura 'techoY'. Al asentarse larga polvo y avisa (alAsentarse).
+    /// Ya no se puede empujar ni se cae. Al volver a un checkpoint vuelve a ser una roca comun.
+    /// </summary>
+    public void Encajar(float centroX, float techoY, float velCostado, float gravedad, System.Action alAsentarse)
+    {
+        if (encajada) return;
+        encajada = true;
+        StartCoroutine(EncajarRoutine(centroX, techoY, velCostado, gravedad, alAsentarse));
+    }
+
+    static readonly WaitForFixedUpdate s_pasoFisica = new WaitForFixedUpdate();
+
+    System.Collections.IEnumerator EncajarRoutine(float centroX, float techoY, float velCostado,
+                                                  float gravedad, System.Action alAsentarse)
+    {
+        // deja de ser un cuerpo que cae y se empuja: la mueve solo esta rutina
+        rb.linearVelocity = Vector2.zero;
+        rb.angularVelocity = 0f;
+        rb.constraints &= ~RigidbodyConstraints2D.FreezePositionX;
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        velPrevia = Vector2.zero;
+        empujadaHasta = 0f;
+
+        // derecha como la pusiste, y con el collider al dia para medir bien donde queda
+        transform.rotation = Quaternion.Euler(0f, 0f, rotInicial);
+        Physics2D.SyncTransforms();
+        Bounds b = col.bounds;
+        Vector2 pos = transform.position;
+        float destinoX = pos.x + (centroX - b.center.x);
+        float destinoY = pos.y + (techoY - b.max.y);
+
+        // Cae DE UNA (sin quedarse en el aire) y, mientras cae, se termina de correr de costado
+        // hasta el centro del hueco. De costado va lo bastante rapido como para llegar al centro
+        // justo cuando toca fondo.
+        float tiempoCaida = Mathf.Sqrt(2f * Mathf.Abs(pos.y - destinoY) / Mathf.Max(0.01f, gravedad));
+        float velX = Mathf.Max(0.5f, velCostado);
+        if (tiempoCaida > 0.01f) velX = Mathf.Max(velX, Mathf.Abs(destinoX - pos.x) / tiempoCaida);
+
+        float vel = 0f;   // arranca despacio y agarra velocidad, como una caida de verdad
+        while (Mathf.Abs(pos.x - destinoX) > 0.001f || Mathf.Abs(pos.y - destinoY) > 0.001f)
+        {
+            vel += gravedad * Time.fixedDeltaTime;
+            pos.x = Mathf.MoveTowards(pos.x, destinoX, velX * Time.fixedDeltaTime);
+            pos.y = Mathf.MoveTowards(pos.y, destinoY, vel * Time.fixedDeltaTime);
+            rb.MovePosition(pos);
+            yield return s_pasoFisica;
+        }
+
+        // 3) se asento: polvo, y avisa (sonido, temblor...)
+        LargarPolvo(new Vector2(centroX, techoY));
+        alAsentarse?.Invoke();
+    }
+
     // ---------------- volver al checkpoint ----------------
 
     /// <summary>
@@ -472,6 +581,9 @@ public class PushableBox : MonoBehaviour
     void Reponer()
     {
         gameObject.SetActive(true);
+        StopAllCoroutines();                      // por si se estaba acomodando en un hueco
+        encajada = false;
+        rb.bodyType = RigidbodyType2D.Dynamic;    // encajada quedaba fija (Kinematic)
         rb.constraints &= ~RigidbodyConstraints2D.FreezePositionX;
         rb.linearVelocity = Vector2.zero;
         rb.angularVelocity = 0f;

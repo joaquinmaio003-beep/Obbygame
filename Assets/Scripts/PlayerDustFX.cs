@@ -32,6 +32,8 @@ public class PlayerDustFX : MonoBehaviour
     public int landPuffCount = 4;
     [Tooltip("Que tan grandes salen respecto a las normales.")]
     public float landSizeMultiplier = 1.4f;
+    [Tooltip("Sonido al aterrizar de una caida. Vacio = el de fabrica.")]
+    public AudioClip landSound;
 
     [Header("Al dashear")]
     public bool dustOnDash = true;
@@ -85,8 +87,11 @@ public class PlayerDustFX : MonoBehaviour
             fallSpeed = -player.Velocity.y;
 
         // --- aterrizaje: justo cuando pasa de aire a piso ---
-        if (dustOnLand && grounded && !wasGrounded && fallSpeed >= landSpeedThreshold)
-            GolpeAterrizaje();
+        if (grounded && !wasGrounded && fallSpeed >= landSpeedThreshold)
+        {
+            if (dustOnLand) GolpeAterrizaje();
+            Sonidos.Play(landSound, "obby_aterriza");
+        }
         if (grounded) fallSpeed = 0f;
         wasGrounded = grounded;
 

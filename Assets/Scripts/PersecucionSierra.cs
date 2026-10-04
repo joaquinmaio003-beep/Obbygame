@@ -58,7 +58,9 @@ public class PersecucionSierra : MonoBehaviour
     [Header("Final")]
     [Tooltip("Al cortar el ultimo arbol se sobrecarga: segundos que tiembla y titila antes de explotar.")]
     public float overloadTime = 0.9f;
-    [Tooltip("Sonido de la explosion (opcional).")]
+    [Tooltip("Sonido mientras se sobrecarga, antes de explotar. Vacio = el de fabrica.")]
+    public AudioClip overloadSound;
+    [Tooltip("Sonido de la explosion. Vacio = el de fabrica.")]
     public AudioClip explodeSound;
 
     [Header("Ritmo")]
@@ -84,9 +86,9 @@ public class PersecucionSierra : MonoBehaviour
     public Color cutWarnColor = new Color(1f, 0.4f, 0.3f, 1f);
 
     [Header("Efectos (opcional)")]
-    [Tooltip("Sonido cuando aparece la sierra.")]
+    [Tooltip("Sonido cuando aparece la sierra. Vacio = el de fabrica.")]
     public AudioClip appearSound;
-    [Tooltip("Sonido cuando se cae un arbol.")]
+    [Tooltip("Sonido extra cuando se cae un arbol (opcional: el arbol ya trae el suyo).")]
     public AudioClip treeFallSound;
     [Tooltip("La camara tiembla cuando aparece y con cada arbol que cae.")]
     public bool cameraShake = true;
@@ -157,8 +159,7 @@ public class PersecucionSierra : MonoBehaviour
             Debug.LogWarning("PersecucionSierra: debajo del Spawn Point no hay piso.", this);
         tramoIni = sierra.CuerpoX;
         sierra.AlAtrapar = Matar;   // si agarra a Obby, lo mata (no le saca una vida y sigue)
-        if (appearSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(appearSound);
+        Sonidos.Play(appearSound, "sierra_aparece");
         if (cameraShake && cam != null) cam.Shake(0.35f, 0.2f);
         onStart?.Invoke();
 
@@ -237,12 +238,12 @@ public class PersecucionSierra : MonoBehaviour
         BloquearControl(false);
         sierra.AlAtrapar = null;
         sierra.Sobrecargar(overloadTime);
+        Sonidos.Play(overloadSound, "sierra_sobrecarga");
 
         yield return new WaitForSeconds(overloadTime);
         yield return null;   // un frame mas: ya exploto
 
-        if (explodeSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(explodeSound);
+        Sonidos.Play(explodeSound, "sierra_explota");
         if (cameraShake && cam != null) cam.Shake(0.45f, 0.3f);
         onEnd?.Invoke();
     }

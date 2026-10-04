@@ -62,8 +62,7 @@ public class CambiadorDeNivel : MonoBehaviour
     IEnumerator Terminar(PlayerController2D pc)
     {
         onFinish?.Invoke();
-        if (finishSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(finishSound);
+        Sonidos.Play(finishSound, "nivel_completo");   // vacio = el de fabrica
 
         // Obby deja de responder (tampoco tira piedras), pero CAE con su gravedad hasta el piso.
         // Antes se le apagaba el script entero y, si llegaba saltando, quedaba flotando en el aire.

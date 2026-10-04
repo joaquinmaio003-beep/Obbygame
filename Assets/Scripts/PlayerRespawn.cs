@@ -8,7 +8,8 @@ using UnityEngine.SceneManagement;
 ///   una breve invulnerabilidad. Caerse al vacio -> vuelve al checkpoint.
 /// - Los checkpoints se activan con solo tocarlos (ver Checkpoint.cs).
 /// - Al perder las 3 vidas -> muere y el nivel ARRANCA DE NUEVO desde el principio.
-///   Volver al checkpoint (reponiendo plataformas, piedras y rocas) es solo al caerse.
+///   Volver al checkpoint es solo al caerse, y ahi se reinicia TODO el nivel (enemigos, pinchos,
+///   plataformas, rocas...): solo Obby queda en el checkpoint.
 ///   En el dash es invulnerable.
 /// Va en el mismo GameObject que el PlayerController2D.
 /// </summary>
@@ -26,9 +27,6 @@ public class PlayerRespawn : MonoBehaviour
     [Tooltip("Altura minima: si cae mas abajo que esto, vuelve al checkpoint.")]
     public float killY = -20f;
 
-    [Header("Enemigos")]
-    [Tooltip("Al volver a un checkpoint los enemigos muertos reaparecen y todos vuelven a su lugar (como en Mario). Apagado = los que mataste quedan muertos.")]
-    public bool respawnEnemies = false;
 
 
     [Header("Game over")]
@@ -142,8 +140,7 @@ public class PlayerRespawn : MonoBehaviour
 
         // todavia le quedan vidas
         if (cam != null) cam.Shake();
-        if (hurtSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(hurtSound);
+        Sonidos.Play(hurtSound, "obby_golpe");   // vacio = el de fabrica
 
         if (teleport) StartCoroutine(TeleportRoutine()); // se cayo al vacio
         else EmpezarInvuln();                            // golpe: sigue donde esta
@@ -234,7 +231,8 @@ public class PlayerRespawn : MonoBehaviour
         EmpezarInvuln();
     }
 
-    // Deja a Obby en el ultimo checkpoint y repone el tramo.
+    // Deja a Obby en el ultimo checkpoint y REINICIA TODO el nivel: queda como al empezar
+    // (enemigos, pinchos, plataformas, rocas, piedras, persecucion). Solo Obby no vuelve al principio.
     void VolverAlCheckpoint()
     {
         rb.linearVelocity = Vector2.zero;
@@ -247,12 +245,16 @@ public class PlayerRespawn : MonoBehaviour
         RockPile.ResetAll();           // montones de piedras repuestos
         Destructible.ResetAll();       // lo que rompio la sierra (la roca grande incluida)
         PushableBox.ResetAll();        // rocas empujables en su lugar (si no, podias quedar trabado)
-        if (respawnEnemies)            // enemigos: solo si esta activado
-        {
-            Enemy.ResetAll();
-            WarriorEnemy.ResetAll();
-            EnemigoSierra.ResetAll();
-        }
+        FallingSpike.ResetAll();       // los pinchos que cayeron vuelven a colgar
+        Enemy.ResetAll();              // enemigos: los muertos reaparecen y todos vuelven a su lugar
+        WarriorEnemy.ResetAll();
+        EnemigoSierra.ResetAll();
+        foreach (var bala in FindObjectsByType<EnemyProjectile>(FindObjectsSortMode.None))
+            Destroy(bala.gameObject);  // las balas que venian en el aire
         PersecucionSierra.ResetAll();  // la persecucion de los arboles se rearma (al final: vuelve a esconder su sierra)
+
+        // todo lo que se movio de lugar queda con su collider ya en el lugar nuevo (si no, el
+        // primer paso de fisica lo calculaba con el lugar viejo y pegaba un salto)
+        Physics2D.SyncTransforms();
     }
 }

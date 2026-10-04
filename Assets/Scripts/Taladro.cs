@@ -45,6 +45,8 @@ public class Taladro : MonoBehaviour
     public float burnHeight = 0.5625f;
     [Tooltip("Sonido al prender el fuego (opcional).")]
     public AudioClip fireSound;
+    [Tooltip("Hasta que distancia de la camara se escucha el fuego. De la mitad para afuera se va apagando; mas lejos no suena. 0 = suena en todo el nivel.")]
+    public float soundDistance = 14f;
 
     [Header("Punta")]
     [Tooltip("Centro de la zona de la punta que lastima al bajar (relativo al taladro; se escala con el objeto).")]
@@ -218,7 +220,7 @@ public class Taladro : MonoBehaviour
             // 2) prende el fuego y BAJA (si Obby esta encima, se quema)
             PonerFuego(true);
             if (fireSound != null && AudioManager.Instance != null)
-                AudioManager.Instance.PlaySFX(fireSound);
+                AudioManager.Instance.PlaySFX(fireSound, VolumenPorDistancia());   // solo cerca: lejos no suena
             bajando = true;
             yield return Mover(inicio + Vector2.down * dropDistance, dropSpeed);
             bajando = false;
@@ -230,6 +232,15 @@ public class Taladro : MonoBehaviour
             // 4) vuelve a su lugar
             yield return Mover(inicio, returnSpeed);
         }
+    }
+
+    // Que tan fuerte se escucha desde donde esta la camara: entero cerca, se va apagando de la
+    // mitad de Sound Distance para afuera, y nada mas lejos. (Antes sonaba igual en todo el nivel.)
+    float VolumenPorDistancia()
+    {
+        if (soundDistance <= 0f || Camera.main == null) return 1f;
+        float d = Vector2.Distance(Camera.main.transform.position, transform.position);
+        return 1f - Mathf.InverseLerp(soundDistance * 0.5f, soundDistance, d);
     }
 
     IEnumerator Mover(Vector2 destino, float velocidad)

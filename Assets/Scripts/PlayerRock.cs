@@ -35,6 +35,8 @@ public class PlayerRock : MonoBehaviour
     public int maxWallBounces = 4;
     [Tooltip("Si despues de un rebote va mas lento que esto, se rompe (ya no tiene fuerza).")]
     public float minBounceSpeed = 1.5f;
+    [Tooltip("Sonido de cada rebote contra algo solido. Vacio = el de fabrica.")]
+    public AudioClip bounceSound;
 
     Rigidbody2D rb;
     int bouncesLeft;
@@ -157,6 +159,7 @@ public class PlayerRock : MonoBehaviour
             return;
         }
 
+        Sonidos.PlayEn(bounceSound, "piedrita_rebota", nuevoCentro);
         rb.position = nuevoCentro - offset;
         rb.linearVelocity = rebote;
         rb.gravityScale = gravityAfterBounce;             // desde el primer rebote cae como una piedra

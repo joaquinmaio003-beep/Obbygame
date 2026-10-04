@@ -45,7 +45,14 @@ public class FallingSpike : MonoBehaviour
     Transform player;
     Vector3 startPos;
     int startLayer;
+    Quaternion startRot;
     bool triggered;
+    bool clavado;          // clavado en el piso (quieto)
+    float proximoChequeo;  // cuando vuelve a mirar si sigue teniendo donde apoyarse
+
+    // Registro de todos los pinchos (para volver a colgarlos al volver a un checkpoint).
+    static readonly System.Collections.Generic.List<FallingSpike> todos = new();
+    static readonly Collider2D[] s_buf = new Collider2D[8];
     bool falling;   // solo daña mientras esta cayendo
 
     void Reset()
@@ -61,10 +68,24 @@ public class FallingSpike : MonoBehaviour
         rb.gravityScale = 0f;
         col.isTrigger = true;
         startPos = transform.position;
+        startRot = transform.rotation;
         startLayer = gameObject.layer;
+        todos.Add(this);
 
         var p = FindFirstObjectByType<PlayerController2D>();
         if (p != null) player = p.transform;
+    }
+
+    void OnDestroy() { todos.Remove(this); }
+
+    /// <summary>
+    /// Vuelve a colgar en su lugar TODOS los pinchos que cayeron. Lo llama PlayerRespawn al volver
+    /// a un checkpoint: el nivel se reinicia entero.
+    /// </summary>
+    public static void ResetAll()
+    {
+        for (int i = 0; i < todos.Count; i++)
+            if (todos[i] != null && todos[i].triggered) todos[i].ResetSpike();
     }
 
     void Update()
@@ -83,6 +104,39 @@ public class FallingSpike : MonoBehaviour
             rb.linearVelocity = Vector2.zero;
             rb.bodyType = RigidbodyType2D.Kinematic;
         }
+
+        // Clavado: si se queda sin apoyo (se rompio la plataforma donde estaba, se corrio la roca)
+        // se suelta y sigue cayendo. Antes quedaba pegado en el aire.
+        if (clavado && Time.time >= proximoChequeo)
+        {
+            proximoChequeo = Time.time + 0.15f;
+            if (!TieneApoyo()) Soltar();
+        }
+    }
+
+    // Sigue habiendo algo solido en la punta, donde se clavo?
+    bool TieneApoyo()
+    {
+        Bounds b = col.bounds;
+        var f = new ContactFilter2D();
+        f.SetLayerMask(groundLayer);
+        f.useTriggers = false;
+        int n = Physics2D.OverlapBox(new Vector2(b.center.x, b.min.y), new Vector2(b.size.x * 0.8f, 0.3f), 0f, f, s_buf);
+        for (int i = 0; i < n; i++)
+            if (s_buf[i] != null && s_buf[i] != col) return true;
+        return false;
+    }
+
+    // Se quedo sin apoyo: vuelve a caer (y cayendo vuelve a lastimar), hasta clavarse mas abajo.
+    void Soltar()
+    {
+        clavado = false;
+        col.isTrigger = true;
+        gameObject.layer = startLayer;
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.gravityScale = fallGravity;
+        rb.freezeRotation = true;
+        falling = true;
     }
 
     // Obby esta debajo del pincho, alineado, NO demasiado abajo y sin piso/techo en el medio.
@@ -161,6 +215,8 @@ public class FallingSpike : MonoBehaviour
             AudioManager.Instance.PlaySFX(impactSound);
         rb.linearVelocity = Vector2.zero;
         rb.bodyType = RigidbodyType2D.Kinematic;
+        clavado = true;
+        proximoChequeo = Time.time + 0.3f;
 
         // queda como objeto solido usable (parado encima, obstaculo), sin dano
         if (solidWhenLanded)
@@ -184,12 +240,13 @@ public class FallingSpike : MonoBehaviour
         StopAllCoroutines();
         falling = false;
         triggered = false;
+        clavado = false;
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.gravityScale = 0f;
         rb.linearVelocity = Vector2.zero;
         col.isTrigger = true;            // vuelve a ser trigger para caer de nuevo
         gameObject.layer = startLayer;   // restaura el layer original
-        transform.SetPositionAndRotation(startPos, Quaternion.identity);
+        transform.SetPositionAndRotation(startPos, startRot);
     }
 
     void OnDrawGizmosSelected()

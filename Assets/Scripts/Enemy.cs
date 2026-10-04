@@ -99,6 +99,8 @@ public class Enemy : MonoBehaviour, IStunnable
     float flipCd;
     float giroCd;             // anti-jitter mientras te apunta
     float recuerdo;           // segundos que le quedan de seguir atento sin verte
+    float sustoHasta;         // asustado hasta este momento (la roca lo viene empujando)
+    float sustoGiro;          // cuenta para el proximo giro del susto
     bool muerto;                  // se esta muriendo o ya murio (queda apagado)
     Color colorBase = Color.white;
     Collider2D[] colliders;
@@ -142,6 +144,16 @@ public class Enemy : MonoBehaviour, IStunnable
 
         if (shootCdTimer > 0f) shootCdTimer -= Time.deltaTime;
 
+        // asustado (la roca lo viene empujando): no ataca; mira para todos lados con el "!" prendido
+        if (Asustado && !isStunned && !isRecovering)
+        {
+            if (alertIcon != null) alertIcon.SetActive(true);
+            sustoGiro -= Time.deltaTime;
+            if (sustoGiro <= 0f) { Flip(); sustoGiro = 0.12f; }
+            if (current != walk) SetAnim(walk);   // patalea en el lugar
+            Advance();
+            return;
+        }
         // alerta = te ve ahora o te vio hace un momento (memoryTime). Sin esa memoria, donde te ve y
         // te pierde a cada rato alternaba entre apuntarte y patrullar: giraba sin parar.
         bool ve = PlayerInSight();
@@ -170,7 +182,8 @@ public class Enemy : MonoBehaviour, IStunnable
 
         SnapToGround(); // siempre pegado al piso (no flotando)
         if (giroCd > 0f) giroCd -= Time.fixedDeltaTime;
-
+        // asustado: no camina por su cuenta, lo lleva la roca
+        if (Asustado) { rb.linearVelocity = Vector2.zero; return; }
         // en el aire (lo empujaron fuera de un borde): cae derecho, sin caminar ni darse vuelta
         if (enElAire) { rb.linearVelocity = Vector2.zero; return; }
 
@@ -247,6 +260,24 @@ public class Enemy : MonoBehaviour, IStunnable
     }
 
     public bool IsStunned => isStunned || isRecovering;
+
+    // ---- la roca lo viene empujando: se asusta ----
+    bool Asustado => Time.time < sustoHasta;
+
+    /// <summary>
+    /// La roca lo esta empujando: se asusta mientras dure el empujon y un ratito mas. Deja de
+    /// disparar (corta el tiro que estaba por soltar) y mira para todos lados.
+    /// </summary>
+    public void Asustar()
+    {
+        if (muerto || isStunned || isRecovering) return;
+        if (isShooting)
+        {
+            StopAllCoroutines();
+            isShooting = false;
+        }
+        sustoHasta = Time.time + 0.3f;
+    }
 
     // ---- la piedra de Obby: flash + knockback chico + stun ----
     public void HitByRock(Vector2 fromPos)

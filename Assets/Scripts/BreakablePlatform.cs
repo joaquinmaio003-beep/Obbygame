@@ -43,6 +43,10 @@ public class BreakablePlatform : MonoBehaviour
              "(la estructura se resquebraja). Ej: con 6 frames, 5 = se parte al final.")]
     public int colliderOffFrame = 5;
 
+    [Header("Rotura en pixeles")]
+    [Tooltip("Al partirse se deshace en cuadraditos de su propio dibujo, como los enemigos y la roca. Apagado = usa los pedazos de abajo.")]
+    public bool pixelBreak = true;
+
     [Header("Pedazos que caen")]
     [Tooltip("Si esta activo, al romperse salen pedazos volando que caen. Con animacion de rotura podes apagarlo.")]
     public bool spawnPieces = true;
@@ -152,6 +156,7 @@ public class BreakablePlatform : MonoBehaviour
             {
                 sr.sprite = breakFrames[i];
                 if (!brokeYet && i >= colliderOffFrame) { DoBreak(); brokeYet = true; }
+                if (brokeYet && !sr.enabled) break;   // ya se deshizo en pixeles: no quedan frames por mostrar
                 yield return new WaitForSeconds(step);
             }
         }
@@ -174,7 +179,10 @@ public class BreakablePlatform : MonoBehaviour
     {
         // OJO: los pedazos se crean ANTES de apagar el collider, porque un collider
         // deshabilitado devuelve bounds vacios y saldrian todos del mismo punto.
-        if (spawnPieces) SpawnPieces();
+        // Se deshace en cuadraditos del dibujo que tiene en ese momento (ya resquebrajado) y se
+        // esconde ahi mismo; si no se puede recortar el sprite, salen los pedazos de siempre.
+        if (pixelBreak && EnemigoFX.Pixelar(sr, null, 0.8f)) sr.enabled = false;
+        else if (spawnPieces) SpawnPieces();
         if (defeatEnemiesOnBreak) DefeatEnemiesOnTop();
         if (col != null) col.enabled = false;   // ya no sostiene a Obby
         if (breakSound != null && AudioManager.Instance != null)

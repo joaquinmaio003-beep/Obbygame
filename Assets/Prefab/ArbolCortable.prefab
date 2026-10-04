@@ -111,7 +111,7 @@ MonoBehaviour:
   pieceGravity: 3
   pieceLifetime: 1.5
   pieceScale: 0.4
-  breakSound: {fileID: 0}
+  breakSound: {fileID: 8300000, guid: cd415b38f6674397b062d359082f8662, type: 3}
 --- !u!60 &4049421998040660327
 PolygonCollider2D:
   m_ObjectHideFlags: 0

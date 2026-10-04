@@ -15,4 +15,6 @@ public interface IStunnable
     void Defeat();
     /// <summary>Se rompio la plataforma donde estaba: cae atravesando todo y desaparece.</summary>
     void CaerYMorir(float gravedad, float tiempo);
+    /// <summary>La roca lo viene empujando: se asusta (deja de atacar y mira para todos lados).</summary>
+    void Asustar();
 }

@@ -18,8 +18,8 @@ public class ArbolManzanas : MonoBehaviour
     public float appleSize = 0.28f;
 
     [Header("Que se vea")]
-    [Tooltip("Orden de dibujo de la manzana: alto = delante de todo el escenario (pasto, arbustos, etc).")]
-    public int appleSortingOrder = 10;
+    [Tooltip("Orden de dibujo de la manzana. El piso esta en 2: con 1 queda detras del piso (el pasto la tapa un poco) y delante del arbol y de Obby. Mas alto que 2 = delante del piso.")]
+    public int appleSortingOrder = 1;
     [Tooltip("Contorno iluminado que late (como el del monton de piedras), para que se note en el piso.")]
     public bool appleGlow = true;
     [Tooltip("Ancho del contorno iluminado, en unidades.")]
@@ -85,7 +85,7 @@ public class ArbolManzanas : MonoBehaviour
         var asr = go.AddComponent<SpriteRenderer>();
         asr.sprite = appleSprite;
         asr.sortingLayerID = sr.sortingLayerID;
-        asr.sortingOrder = appleSortingOrder;     // delante de todo el escenario
+        asr.sortingOrder = appleSortingOrder;
 
         var rb = go.AddComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Kinematic;  // la mueve el script; el rigidbody es para detectar a Obby

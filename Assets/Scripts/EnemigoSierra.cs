@@ -461,6 +461,9 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
 
     public bool IsStunned => isStunned || isRecovering;
 
+    /// <summary>La sierra NO se asusta: es una maquina, a la roca la parte con el sierrazo.</summary>
+    public void Asustar() { }
+
     // ---- la piedra de Obby: flash + knockback chico + stun ----
     // Solo se stunea si la piedra le pega ARRIBA, donde va el soldado.
     // Si le pega en la parte robotica (el carro), no le hace nada.

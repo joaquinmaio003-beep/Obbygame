@@ -73,10 +73,12 @@ public class PlayerController2D : MonoBehaviour
 
     [Header("Sonido")]
     public AudioClip jumpSound;   // salto.ogg
-    [Tooltip("Sonido de paso al caminar en el piso.")]
+    [Tooltip("Sonido de paso al caminar en el piso. Vacio = el de fabrica.")]
     public AudioClip footstepSound;
     [Tooltip("Segundos entre pasos.")]
     public float stepInterval = 0.3f;
+    [Tooltip("Sonido del dash. Vacio = el de fabrica.")]
+    public AudioClip dashSound;
 
     // --- estado interno ---
     Rigidbody2D rb;
@@ -202,13 +204,13 @@ public class PlayerController2D : MonoBehaviour
         else if (coyoteCounter > 0f) coyoteCounter -= Time.deltaTime;
 
         // pasos: suena cada stepInterval mientras camina en el piso
-        if (footstepSound != null && isGrounded && !isDashing &&
+        if (isGrounded && !isDashing &&
             Mathf.Abs(rb.linearVelocity.x) > 0.5f)
         {
             stepTimer -= Time.deltaTime;
             if (stepTimer <= 0f)
             {
-                AudioManager.Instance.PlaySFX(footstepSound);
+                Sonidos.Play(footstepSound, "paso");
                 stepTimer = stepInterval;
             }
         }
@@ -502,6 +504,7 @@ public class PlayerController2D : MonoBehaviour
     {
         isDashing = true;
         dashTimer = dashDuration;
+        Sonidos.Play(dashSound, "dash");
         dashCdTimer = dashCooldown;
         // dashea hacia donde apunta el input; si no hay, hacia donde mira.
         // Colgado de una pared y sin tocar direccion: hacia AFUERA de la pared (antes se

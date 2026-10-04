@@ -81,16 +81,17 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>Reproduce un efecto una vez. Cada llamada usa una voz distinta, con un
-    /// toque de variacion de tono, asi dos efectos simultaneos se escuchan separados.</summary>
-    public void PlaySFX(AudioClip clip)
+    /// toque de variacion de tono, asi dos efectos simultaneos se escuchan separados.
+    /// volumen (0..1) = que tan fuerte suena este en particular (ej: mas bajo si esta lejos).</summary>
+    public void PlaySFX(AudioClip clip, float volumen = 1f)
     {
-        if (clip == null) return;
+        if (clip == null || volumen <= 0f) return;
         EnsureSources();
 
         var src = sfxPool[sfxIndex];
         sfxIndex = (sfxIndex + 1) % sfxPool.Length;
 
         src.pitch = 1f + Random.Range(-sfxPitchVariation, sfxPitchVariation);
-        src.PlayOneShot(clip, sfxVolume);
+        src.PlayOneShot(clip, sfxVolume * Mathf.Clamp01(volumen));
     }
 }
