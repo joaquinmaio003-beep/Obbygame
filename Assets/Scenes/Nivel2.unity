@@ -1987,6 +1987,7 @@ MonoBehaviour:
   emergeSpeed: 1.2
   cameraReturnTime: 0.5
   overloadTime: 0.9
+  overloadSound: {fileID: 0}
   explodeSound: {fileID: 0}
   speed: 4
   catchUpDistance: 7
@@ -2039,7 +2040,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0.1211586, y: 0}
+  m_Offset: {x: 14.62381, y: 1.9468117}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -2049,7 +2050,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 4.943138, y: 1}
+  m_Size: {x: 33.94844, y: 18.805668}
   m_EdgeRadius: 0
 --- !u!4 &678692391
 Transform:
@@ -5212,6 +5213,7 @@ MonoBehaviour:
   jumpSound: {fileID: 8300000, guid: af1fcff2c68520f45ac4002056ff4732, type: 3}
   footstepSound: {fileID: 0}
   stepInterval: 0.3
+  dashSound: {fileID: 0}
 --- !u!50 &1576281938
 Rigidbody2D:
   serializedVersion: 5
@@ -5338,7 +5340,6 @@ MonoBehaviour:
   invulnDuration: 1.2
   startPoint: {fileID: 0}
   killY: -20
-  respawnEnemies: 0
   deathDelay: 0.8
   fadeDuration: 0.5
   hurtSound: {fileID: 0}
@@ -5383,6 +5384,7 @@ MonoBehaviour:
   landSpeedThreshold: 6
   landPuffCount: 4
   landSizeMultiplier: 1.4
+  landSound: {fileID: 0}
   dustOnDash: 1
   dashPuffCount: 3
   dashTrailInterval: 0.04
