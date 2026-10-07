@@ -43,6 +43,10 @@ public class CameraFollow2D : MonoBehaviour
     [Tooltip("Suavizado cuando la camara se va a mirar otra cosa (ej: la sierra que aparece). Mas bajo = paneo mas lento.")]
     public float focusSmooth = 4f;
 
+    [Header("Ambiente")]
+    [Tooltip("Hojas cayendo por delante del fondo. La camara las agrega sola; para ajustarlas (cantidad, colores, velocidad) agrega vos el componente Hojas Cayendo a la camara.")]
+    public bool fallingLeaves = true;
+
     Camera cam;
     float shakeTime;
     float shakeIntensity;
@@ -57,6 +61,10 @@ public class CameraFollow2D : MonoBehaviour
     {
         cam = GetComponent<Camera>();
         if (target != null) targetRb = target.GetComponent<Rigidbody2D>();
+
+        // hojas que caen: se agregan solas, salvo que ya haya un Hojas Cayendo puesto a mano
+        if (fallingLeaves && FindFirstObjectByType<HojasCayendo>() == null)
+            gameObject.AddComponent<HojasCayendo>();
     }
 
     /// <summary>Se acerca un poco (llegar a la meta, morir). Queda asi hasta SoltarZoom.</summary>

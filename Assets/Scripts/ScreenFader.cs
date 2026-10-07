@@ -110,7 +110,9 @@ public class ScreenFader : MonoBehaviour
         float t = 0f;
         while (t < duration)
         {
-            t += Time.unscaledDeltaTime; // anda aunque el juego este pausado
+            // anda aunque el juego este pausado. Con tope por cuadro: el primero despues de cargar
+            // un nivel dura muchisimo, y sin tope el fundido de entrada se salteaba casi entero.
+            t += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             SetAlpha(Mathf.Lerp(start, target, t / Mathf.Max(0.0001f, duration)));
             yield return null;
         }

@@ -350,6 +350,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.5
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -591,6 +592,79 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f8b15159a118dcc4ab99ad02bd24f251, type: 3}
+--- !u!1001 &158599864
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3301881133465978508, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_Name
+      value: PasarDeNivel
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 276.6003
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 3.76
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6301241192592588475, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_Size.x
+      value: 6.6747437
+      objectReference: {fileID: 0}
+    - target: {fileID: 6301241192592588475, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_Size.y
+      value: 7.1980305
+      objectReference: {fileID: 0}
+    - target: {fileID: 6301241192592588475, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_Offset.x
+      value: -0.7674866
+      objectReference: {fileID: 0}
+    - target: {fileID: 6301241192592588475, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
+      propertyPath: m_Offset.y
+      value: 2.5990152
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
 --- !u!4 &171502032 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7968054374442993923, guid: f5babccd39834464ea6d86d87153602e, type: 3}
@@ -1431,6 +1505,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.2
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -1716,6 +1791,7 @@ MonoBehaviour:
   fallZoomDelay: 0.45
   zoomSpeed: 3
   focusSmooth: 4
+  fallingLeaves: 1
 --- !u!4 &521503828 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7968054374442993923, guid: f5babccd39834464ea6d86d87153602e, type: 3}
@@ -1768,6 +1844,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.3
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -3058,6 +3135,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.9
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -4122,6 +4200,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.8
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -4538,6 +4617,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.1
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -5118,6 +5198,7 @@ MonoBehaviour:
   jumpSound: {fileID: 8300000, guid: af1fcff2c68520f45ac4002056ff4732, type: 3}
   footstepSound: {fileID: 8300000, guid: 35187877bf992fb428e85cb4e895e93c, type: 3}
   stepInterval: 0.3
+  dashSound: {fileID: 0}
 --- !u!50 &1576281938
 Rigidbody2D:
   serializedVersion: 5
@@ -5244,7 +5325,6 @@ MonoBehaviour:
   invulnDuration: 1.2
   startPoint: {fileID: 0}
   killY: -20
-  respawnEnemies: 0
   deathDelay: 0.8
   fadeDuration: 0.5
   hurtSound: {fileID: 8300000, guid: 8180ed9e46be2144b915b4e391cd2616, type: 3}
@@ -5289,6 +5369,7 @@ MonoBehaviour:
   landSpeedThreshold: 6
   landPuffCount: 4
   landSizeMultiplier: 1.4
+  landSound: {fileID: 0}
   dustOnDash: 1
   dashPuffCount: 3
   dashTrailInterval: 0.04
@@ -31538,6 +31619,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.2
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -31586,7 +31668,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -13
+  m_SortingOrder: -14
   m_Sprite: {fileID: 21300000, guid: 6bac7e947dc15c34199b939ae0cc3527, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -32113,6 +32195,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.72
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -32685,6 +32768,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   parallaxEffect: 0.6
   followY: 0
+  windAuto: 1
   wind: 0
   windHanging: 0
   windAnchor: 0
@@ -33382,7 +33466,7 @@ PrefabInstance:
     - target: {fileID: 3210177167799123754, guid: e9946897cb356eb47af08436dba43c0f, type: 3}
       propertyPath: m_Sprite
       value: 
-      objectReference: {fileID: 21300000, guid: 2518091fb2def6c4db03b35bb184f94e, type: 3}
+      objectReference: {fileID: 21300000, guid: 0e52ea26697d90c47ba770f0c304a1a0, type: 3}
     m_RemovedComponents:
     - {fileID: 1583549797727931860, guid: e9946897cb356eb47af08436dba43c0f, type: 3}
     m_RemovedGameObjects: []
@@ -33643,3 +33727,4 @@ SceneRoots:
   - {fileID: 1543682558}
   - {fileID: 945543328}
   - {fileID: 233381780}
+  - {fileID: 158599864}

@@ -80,7 +80,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 2518091fb2def6c4db03b35bb184f94e, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 0e52ea26697d90c47ba770f0c304a1a0, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -131,13 +131,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   runOverSpeed: 3
+  crushFallSpeed: 1
   runOverSound: {fileID: 8300000, guid: 5ea84d3f2cedc944db34a0ef76f44419, type: 3}
+  impactSound: {fileID: 0}
   shakeOnCrush: 1
   crushShakeDuration: 0.2
   crushShakeIntensity: 0.2
+  wallDustSprite: {fileID: 0}
+  wallDustMinSpeed: 3
+  wallDustCount: 8
   gravityScale: 3.5
   linearDrag: 0
+  killY: -20
   lockWhileStoodOn: 1
+  pushSpeed: 2.5
+  groundedMass: 100
   alignToSlope: 1
   groundMask:
     serializedVersion: 2
@@ -180,7 +188,7 @@ PolygonCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
-    border: {x: 1.625, y: 1, z: 0, w: 0.8125}
+    border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 4, y: 4}
     newSize: {x: 4, y: 4}
@@ -197,18 +205,22 @@ PolygonCollider2D:
       - {x: -0.17883402, y: 0.3142052}
       - {x: -0.24664153, y: 0.24809058}
       - {x: -0.31166685, y: 0.11962188}
-      - {x: -0.37198487, y: 0.07001357}
-      - {x: -0.37778318, y: 0.0007890947}
+      - {x: -0.3135641, y: 0.08278899}
+      - {x: -0.3139099, y: 0.019952226}
       - {x: -0.3122416, y: 0.004594978}
-      - {x: -0.30753836, y: -0.24253777}
+      - {x: -0.3166326, y: -0.2516352}
+      - {x: -0.2505129, y: -0.2525673}
       - {x: -0.2549489, y: -0.37014616}
+      - {x: -0.2503298, y: -0.43715796}
       - {x: -0.17454885, y: -0.52109134}
       - {x: 0.11628364, y: -0.7596484}
-      - {x: 0.1840225, y: -0.9338312}
-      - {x: 0.2554718, y: -0.99375457}
+      - {x: 0.24789579, y: -0.8699544}
+      - {x: 0.32253927, y: -0.9394593}
+      - {x: 0.3809873, y: -0.99628633}
       - {x: 1.3125, y: -1.0000241}
       - {x: 1.6725006, y: -0.685073}
-      - {x: 1.7475511, y: -0.6799894}
+      - {x: 1.6932502, y: -0.6320819}
+      - {x: 1.7540646, y: -0.6258233}
       - {x: 1.7540805, y: -0.4369375}
       - {x: 1.8093097, y: -0.4367547}
       - {x: 1.8031858, y: -0.13138032}
@@ -227,6 +239,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac4e75ef16014374384fd4b9fee9c4d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  pixelBreak: 1
   spawnPieces: 1
   pieceSprites: []
   pieceCount: 6

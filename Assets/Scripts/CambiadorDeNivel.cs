@@ -5,13 +5,16 @@ using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Cambiador de nivel (la meta). Al tocarlo Obby se queda quieto saludando, la pantalla se
-/// pone negra, aparece la pantalla de carga, se carga el nivel siguiente y ahi aparece.
-/// Si no hay nivel siguiente en la lista de escenas, reinicia este.
+/// Cambiador de nivel (la meta). Cuando Obby toca este cuadradito la pantalla se funde a negro,
+/// se carga el nivel siguiente y aparece con otro fundido. Asi como viene es DIRECTO: sin festejo
+/// y sin pantalla de carga. Si no hay nivel siguiente en la lista de escenas, reinicia este.
 ///
-/// Setup: un GameObject al final del nivel con un Collider2D en Is Trigger + este script.
-/// Ponele un sprite (bandera, puerta...) asi se ve donde termina. Los niveles tienen que
-/// estar en File > Build Profiles > Scene List, en orden (nivel 1, nivel 2, ...).
+/// Setup: arrastra el prefab Prefab/PasarDeNivel al final del nivel (o un objeto con un
+/// Collider2D en Is Trigger + este script). En la escena se ve como un recuadro verde. Los
+/// niveles tienen que estar en File > Build Profiles > Scene List, en orden (nivel 1, nivel 2...).
+///
+/// Para mas adelante: Loading Text / Min Loading Time dejan algo en el medio mientras carga, y
+/// Celebrate Time hace que Obby salude antes de irse.
 /// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class CambiadorDeNivel : MonoBehaviour
@@ -20,17 +23,17 @@ public class CambiadorDeNivel : MonoBehaviour
     [Tooltip("Nombre de la escena a cargar. Vacio = el nivel siguiente de la lista de escenas (si es el ultimo, reinicia este).")]
     public string nextScene = "";
 
-    [Header("Pantalla de carga")]
-    [Tooltip("Texto sobre el negro mientras carga (vacio = negro solo).")]
-    public string loadingText = "Cargando...";
+    [Header("Pantalla de carga (por ahora no hay)")]
+    [Tooltip("Texto sobre el negro mientras carga. Vacio = negro solo.")]
+    public string loadingText = "";
     [Tooltip("Fuente del texto (ej: PublicPixel SDF). Vacio = la fuente por defecto de TextMeshPro.")]
     public TMP_FontAsset loadingFont;
-    [Tooltip("Segundos minimos que se ve la pantalla de carga, aunque el nivel cargue al toque.")]
-    public float minLoadingTime = 1.5f;
+    [Tooltip("Segundos minimos que la pantalla queda en negro entre un nivel y el otro. 0 = lo que tarde en cargar.")]
+    public float minLoadingTime = 0f;
 
     [Header("Transicion")]
-    [Tooltip("Segundos de festejo de Obby antes de ponerse negro.")]
-    public float celebrateTime = 1.2f;
+    [Tooltip("Segundos de festejo de Obby (saluda) antes de ponerse negro. 0 = directo, sin festejo.")]
+    public float celebrateTime = 0f;
     [Tooltip("Duracion del fundido a negro (y del de vuelta en el nivel nuevo).")]
     public float fadeDuration = 0.6f;
     [Tooltip("Sonido al llegar (opcional).")]
@@ -67,17 +70,23 @@ public class CambiadorDeNivel : MonoBehaviour
         // Obby deja de responder (tampoco tira piedras), pero CAE con su gravedad hasta el piso.
         // Antes se le apagaba el script entero y, si llegaba saltando, quedaba flotando en el aire.
         pc.ControlBloqueado = true;
-        var cam = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
-        if (cam != null) cam.Acercar();   // la camara se acerca un poco para el festejo
         var rb = pc.GetComponent<Rigidbody2D>();
         if (rb != null) rb.linearVelocity = new Vector2(0f, Mathf.Min(0f, rb.linearVelocity.y)); // si subia, empieza a caer
 
-        // saluda recien al tocar el piso (en el aire el saludo se cortaba). Con tope, por si la meta esta sobre un pozo.
-        for (float t = 0f; t < 1f && !pc.IsGrounded; t += Time.deltaTime) yield return null;
-        var anim = pc.GetComponent<PlayerAnimator>();
-        if (anim != null) anim.PlayWave();
+        // Con festejo: la camara se acerca, Obby saluda y recien despues se va. Sin festejo
+        // (Celebrate Time en 0) pasa directo al fundido.
+        if (celebrateTime > 0f)
+        {
+            var cam = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
+            if (cam != null) cam.Acercar();
 
-        yield return new WaitForSeconds(celebrateTime);
+            // saluda recien al tocar el piso (en el aire el saludo se cortaba). Con tope, por si la meta esta sobre un pozo.
+            for (float t = 0f; t < 1f && !pc.IsGrounded; t += Time.deltaTime) yield return null;
+            var anim = pc.GetComponent<PlayerAnimator>();
+            if (anim != null) anim.PlayWave();
+
+            yield return new WaitForSeconds(celebrateTime);
+        }
 
         // El cambio lo hace el ScreenFader, que sobrevive al cambio de escena (esta meta no:
         // se destruye junto con su nivel, y con ella cualquier corrutina suya).
@@ -87,5 +96,17 @@ public class CambiadorDeNivel : MonoBehaviour
             : Mathf.Max(0, actual);   // ultimo nivel: reinicia este
         ScreenFader.Instance.CambiarDeNivel(nextScene, siguiente, loadingText, loadingFont,
                                             fadeDuration, minLoadingTime);
+    }
+
+    // Recuadro verde en la escena: el cuadradito no tiene dibujo, asi se ve donde esta.
+    void OnDrawGizmos()
+    {
+        var c = GetComponent<Collider2D>();
+        if (c == null) return;
+        Bounds b = c.bounds;
+        Gizmos.color = new Color(0.2f, 1f, 0.4f, 0.25f);
+        Gizmos.DrawCube(b.center, b.size);
+        Gizmos.color = new Color(0.2f, 1f, 0.4f, 1f);
+        Gizmos.DrawWireCube(b.center, b.size);
     }
 }

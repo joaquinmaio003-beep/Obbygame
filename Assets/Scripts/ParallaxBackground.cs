@@ -18,7 +18,9 @@ public class ParallaxBackground : MonoBehaviour
     public bool followY = false;
 
     [Header("Viento")]
-    [Tooltip("Cuanto se mece con el viento, en pixeles de la imagen. 0 = quieta (troncos, piso).")]
+    [Tooltip("Con Wind en 0, las hojas y los arbustos del bosque se mecen solos con su viento de fabrica. Destildalo para dejar esta capa quieta.")]
+    public bool windAuto = true;
+    [Tooltip("Cuanto se mece con el viento, en pixeles de la imagen. 0 = el de fabrica (si Wind Auto esta tildado) o quieta.")]
     [Range(0f, 6f)] public float wind = 0f;
     [Tooltip("Tildalo en las hojas que cuelgan de arriba: se mueve la parte de abajo.")]
     public bool windHanging = false;
@@ -43,6 +45,7 @@ public class ParallaxBackground : MonoBehaviour
         startY = transform.position.y;
 
         var sr = GetComponent<SpriteRenderer>();
+        if (wind <= 0f && windAuto) VientoDeFabrica(sr);
         if (wind > 0f) PonerViento(sr);   // antes de copiar la tira: las copias usan el mismo material
 
         if (sr.drawMode == SpriteDrawMode.Tiled && sr.tileMode == SpriteTileMode.Adaptive)
@@ -60,6 +63,21 @@ public class ParallaxBackground : MonoBehaviour
         {
             // ancho de UNA copia del sprite (no del area tileada)
             length = sr.sprite.bounds.size.x * Mathf.Abs(transform.lossyScale.x);
+        }
+    }
+
+    // Viento de fabrica de las capas del bosque, segun la imagen que tenga la capa. Los valores
+    // estan medidos sobre cada imagen: donde empieza el dibujo y hasta donde llega. Las hojas
+    // cuelgan de arriba (se mueven los flecos de abajo) y los arbustos se mecen desde la base.
+    // Troncos, piso y arboles del fondo quedan quietos.
+    void VientoDeFabrica(SpriteRenderer sr)
+    {
+        if (sr.sprite == null || sr.sprite.texture == null) return;
+        switch (sr.sprite.texture.name)
+        {
+            case "5_AtrasHojas": wind = 2f;   windHanging = true;  windAnchor = 0.85f; windLength = 0.2f;  break;
+            case "6_Hojas":      wind = 2f;   windHanging = true;  windAnchor = 0.9f;  windLength = 0.23f; break;
+            case "7_Arbustos":   wind = 1.5f; windHanging = false; windAnchor = 0.2f;  windLength = 0.17f; break;
         }
     }
 
