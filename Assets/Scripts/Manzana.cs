@@ -55,6 +55,8 @@ public class Manzana : MonoBehaviour
             float y = hit.point.y - visible.min.y * escala;
             transform.position = new Vector3(transform.position.x, y, transform.position.z);
             apoyada = true;
+            // golpecito al caer (solo se escucha si el arbol esta cerca de la camara)
+            Sonidos.PlayEn(arbol != null ? arbol.dropSound : null, "manzana_cae", transform.position);
             return;
         }
         transform.position += Vector3.down * paso;

@@ -79,6 +79,7 @@ public class Taladro : MonoBehaviour
     float animT;
     int cuadro = -1;
     static readonly Collider2D[] s_buf = new Collider2D[16];
+    static readonly WaitForFixedUpdate s_pasoFisica = new WaitForFixedUpdate();
 
     // luz y aire caliente: se prenden y apagan suave con el fuego
     UnityEngine.Rendering.Universal.Light2D luz;
@@ -248,7 +249,7 @@ public class Taladro : MonoBehaviour
         while ((rb.position - destino).sqrMagnitude > 0.0001f)
         {
             rb.MovePosition(Vector2.MoveTowards(rb.position, destino, velocidad * Time.fixedDeltaTime));
-            yield return new WaitForFixedUpdate();
+            yield return s_pasoFisica;   // reutilizado: antes creaba uno nuevo en cada paso mientras se movia
         }
     }
 

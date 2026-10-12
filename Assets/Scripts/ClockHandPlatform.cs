@@ -33,6 +33,8 @@ public class ClockHandPlatform : MonoBehaviour
     [Tooltip("Si la plataforma se inclina acompanando el giro. Destildado = queda siempre derecha " +
              "(recomendado, asi Obby no se resbala).")]
     public bool rotateWithArm = false;
+    [Tooltip("Crujido cuando empieza a girar con Obby encima. Vacio = el de fabrica.")]
+    public AudioClip moveSound;
 
     Rigidbody2D rb;
     PlayerController2D obby;
@@ -41,6 +43,7 @@ public class ClockHandPlatform : MonoBehaviour
     float onTimer;    // >0 mientras Obby este parado encima
     float velObbyY;                // velocidad vertical de Obby ANTES del paso de fisica
     float ultimoEnElAire = -10f;   // ultimo momento en que Obby estuvo en el aire
+    bool crujio;                   // ya sono el crujido de esta subida
 
     void Awake()
     {
@@ -69,6 +72,7 @@ public class ClockHandPlatform : MonoBehaviour
 
         if (onTimer > 0f) onTimer -= Time.fixedDeltaTime;
         bool playerOn = onTimer > 0f;
+        if (!playerOn) crujio = false;
 
         // con Obby encima va hacia sweepAngle; sin el, vuelve a 0 (si esta activado)
         float target = playerOn ? sweepAngle : (returnWhenEmpty ? 0f : progress);
@@ -78,6 +82,8 @@ public class ClockHandPlatform : MonoBehaviour
         float delta = next - progress;
         if (Mathf.Abs(delta) < 0.0001f) return;
         progress = next;
+        // empieza a girar con Obby encima: cruje una vez por subida
+        if (playerOn && !crujio) { crujio = true; Sonidos.PlayEn(moveSound, "tronco_gira", rb.position); }
 
         Vector2 c = pivot.position;
         Quaternion rot = Quaternion.Euler(0f, 0f, delta);

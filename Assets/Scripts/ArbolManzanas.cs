@@ -40,6 +40,8 @@ public class ArbolManzanas : MonoBehaviour
     [Header("Sonido (opcional)")]
     [Tooltip("Al juntar una manzana.")]
     public AudioClip pickupSound;
+    [Tooltip("Cuando la manzana cae al piso. Vacio = el de fabrica.")]
+    public AudioClip dropSound;
 
     SpriteRenderer sr;
     float timer;

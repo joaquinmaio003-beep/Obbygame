@@ -14,6 +14,8 @@ public class EnemyProjectile : MonoBehaviour
     public float speed = 8f;
     [Tooltip("Segundos hasta autodestruirse si no pega nada.")]
     public float life = 4f;
+    [Tooltip("Al pegar contra el piso o una pared. Vacio = el de fabrica.")]
+    public AudioClip impactSound;
 
     Rigidbody2D rb;
     int dir = 1;
@@ -62,6 +64,7 @@ public class EnemyProjectile : MonoBehaviour
 
         if (other.isTrigger) return; // ignora otros triggers (el enemigo, checkpoints)
 
+        Sonidos.PlayEn(impactSound, "bala_impacto", transform.position);
         Destroy(gameObject); // pega en piso o pared -> desaparece
     }
 }

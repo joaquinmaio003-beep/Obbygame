@@ -47,6 +47,8 @@ public class Luciernagas : MonoBehaviour
     Vector2[] casa;       // lugar alrededor del que deambula cada una (local)
     float[] semilla;
     float[] ritmo;        // cada una parpadea a su velocidad
+    Vector2 alcance;      // medio tamano de la zona en el mundo, contando hasta donde alumbran
+    bool dormidas;        // fuera de pantalla: quietas y con las luces apagadas
 
     void Start()
     {
@@ -78,6 +80,7 @@ public class Luciernagas : MonoBehaviour
             sr.sprite = Punto();
             if (s_aditivo != null) sr.sharedMaterial = s_aditivo;
             sr.sortingOrder = sortingOrder;
+            sr.color = new Color(color.r, color.g, color.b, 0f);   // apagada hasta que le toque prenderse
             float escala = size / Mathf.Max(0.0001f, Mathf.Abs(transform.lossyScale.x));
             go.transform.localScale = new Vector3(escala, escala, 1f);
 
@@ -86,11 +89,30 @@ public class Luciernagas : MonoBehaviour
             if (withLight)
                 luces[i] = Luces.Punto(go.transform, go.transform.position, color, 0f, lightRadius, "Luz");
         }
+
+        Vector3 e = transform.lossyScale;
+        alcance = new Vector2(area.x * 0.5f * Mathf.Abs(e.x) + lightRadius, area.y * 0.5f * Mathf.Abs(e.y) + lightRadius);
+        Dormir();   // arrancan apagadas: se prenden recien cuando entran en pantalla
+    }
+
+    // Fuera de pantalla: no se mueven ni parpadean, y sus luces quedan apagadas (una luz
+    // prendida le cuesta al juego aunque no se vea).
+    void Dormir()
+    {
+        dormidas = true;
+        for (int i = 0; i < luces.Length; i++)
+            if (luces[i] != null) luces[i].enabled = false;
     }
 
     void Update()
     {
         if (bichos == null) return;
+
+        // Fuera de pantalla no se animan: antes todas las luciernagas del nivel (y sus luces)
+        // seguian andando aunque estuvieran en la otra punta.
+        if (!Pantalla.Ve(transform.position, alcance)) { if (!dormidas) Dormir(); return; }
+        dormidas = false;
+
         float t = Time.time;
 
         for (int i = 0; i < bichos.Length; i++)

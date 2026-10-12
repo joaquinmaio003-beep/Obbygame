@@ -52,6 +52,8 @@ public class DustMotes : MonoBehaviour
     float[] speed;      // velocidad propia de cada mota
     float[] phase;      // desfase para titileo y vaiven
     float[] sway;       // amplitud propia del vaiven
+    Vector2 alcance;    // hasta donde pueden llegar las motas desde el centro, en el mundo
+    bool acomodadas;    // ya se ubicaron al menos una vez
 
     void Start()
     {
@@ -99,11 +101,23 @@ public class DustMotes : MonoBehaviour
             motes[i] = sr;
             moteTr[i] = go.transform;
         }
+
+        // Radio que cubre toda la zona aunque el rayo este inclinado (para saber si se ve).
+        Vector3 e = transform.lossyScale;
+        float radio = new Vector2(area.x * e.x, area.y * e.y).magnitude * 0.5f + swayAmount * 1.5f * Mathf.Abs(e.x);
+        alcance = new Vector2(radio, radio);
     }
 
     void Update()
     {
         if (motes == null) return;
+
+        // Fuera de pantalla no se animan: eran cientos de sprites (25 por cada rayo de luz del
+        // nivel) moviendose y cambiando de color en cada cuadro sin que nadie los viera.
+        // (La primera vez se acomodan igual: si no, quedarian todas apiladas en el centro y se
+        // verian asi un instante si la camara salta hasta aca de golpe.)
+        if (acomodadas && !Pantalla.Ve(transform.position, alcance)) return;
+        acomodadas = true;
 
         Vector2 dir = driftDir.sqrMagnitude > 0.0001f ? driftDir.normalized : Vector2.up;
         float halfY = area.y * 0.5f;

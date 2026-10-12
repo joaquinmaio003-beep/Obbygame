@@ -60,9 +60,8 @@ public class NubePolvo : MonoBehaviour
         if (sprite == null) sprite = SpriteDefault;
         if (sprite == null) return;
 
-        var go = new GameObject("Polvo");
-        var n = go.AddComponent<NubePolvo>();
-        n.sr = go.AddComponent<SpriteRenderer>();
+        NubePolvo n = Tomar();
+        n.t = 0f;
         n.sr.sprite = sprite;
         if (MaterialPolvo != null) n.sr.sharedMaterial = MaterialPolvo;
         n.sr.sortingLayerID = sortingLayerID;
@@ -77,12 +76,34 @@ public class NubePolvo : MonoBehaviour
         n.Aplicar(0f);
     }
 
+    // Nubes ya usadas, guardadas para la proxima: no se crea ni se destruye un objeto por cada una.
+    static readonly System.Collections.Generic.Stack<NubePolvo> s_libres = new();
+
+    static NubePolvo Tomar()
+    {
+        while (s_libres.Count > 0)
+        {
+            NubePolvo usada = s_libres.Pop();
+            if (usada == null) continue;   // era de un nivel anterior: ya no existe
+            usada.gameObject.SetActive(true);
+            return usada;
+        }
+        var go = new GameObject("Polvo");
+        var nueva = go.AddComponent<NubePolvo>();
+        nueva.sr = go.AddComponent<SpriteRenderer>();
+        return nueva;
+    }
+
     void Update()
     {
         t += Time.deltaTime;
         float k = Mathf.Clamp01(t / vida);
         Aplicar(k);
-        if (k >= 1f) Destroy(gameObject);
+        if (k >= 1f)
+        {
+            gameObject.SetActive(false);   // se guarda para la proxima
+            s_libres.Push(this);
+        }
     }
 
     // Crece, se aleja y se apaga.

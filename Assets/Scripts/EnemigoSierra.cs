@@ -98,6 +98,8 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     public AudioClip stunSound;
     [Tooltip("Sonido al morir (aplastado por la roca, un pincho, etc). Opcional.")]
     public AudioClip deathSound;
+    [Tooltip("Cuando te ve (se le prende el '!'). Vacio = el de fabrica.")]
+    public AudioClip alertSound;
     [Tooltip("Lejos de Obby (mas que esto) se pausa: no piensa ni se mueve. Ahorra rendimiento y evita que se vaya caminando a donde no lo esperas. 0 = nunca se pausa.")]
     public float sleepDistance = 25f;
     [Tooltip("Color con el que titila durante el amague del golpe (aviso para que el jugador esquive).")]
@@ -118,7 +120,9 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     float flipCd;   // anti-jitter para no girar sin parar
     float giroCd;   // idem, mientras te persigue
     float recuerdo; // segundos que le quedan de seguir atento sin verte
-    bool muerto;                  // se esta muriendo o ya murio (queda apagado)
+    bool avisado;         // ya sono el "!" de esta vez que te vio
+    float proximaAlerta;  // el "!" no vuelve a sonar antes de este momento
+    bool muerto;                 // se esta muriendo o ya murio (queda apagado)
     Color colorBase = Color.white;
     Collider2D[] colliders;
     Vector3 posInicial, escalaInicial;
@@ -175,6 +179,13 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar
         bool detecta = !isStunned && !isRecovering && (persiguiendo || embistiendo);
         if (alertIcon != null) alertIcon.SetActive(detecta);
+        // en la persecucion (embistiendo) no suena: ahi ya tiene su propio sonido al aparecer
+        if (detecta && !avisado && !embistiendo && Time.time >= proximaAlerta)
+        {
+            proximaAlerta = Time.time + 3f;   // si te pierde y te vuelve a ver enseguida, no repite
+            Sonidos.PlayEn(alertSound, "enemigo_alerta", transform.position);
+        }
+        avisado = detecta;
 
         if (embistiendo)
         {

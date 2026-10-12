@@ -48,11 +48,7 @@ public static class EnemigoFX
         Sprite s = sr.sprite;
         if (s.packed) return false;   // en un atlas no se puede recortar el pedazo
 
-        Rect r = s.textureRect;
-        float ppu = s.pixelsPerUnit;
-        int tam = Mathf.Max(2, Mathf.CeilToInt(Mathf.Max(r.width, r.height) / 10f));   // ~10 cuadraditos de lado
-        Vector2[] verts = s.vertices;
-        ushort[] tris = s.triangles;
+        Recortes recortes = RecortesDe(s);
 
         Transform t = sr.transform;
         Vector3 escala = t.lossyScale;             // con el signo: si mira para el otro lado, tambien
@@ -61,6 +57,46 @@ public static class EnemigoFX
         Vector3 centro = sr.bounds.center;
         Material mat = material != null ? material : sr.sharedMaterial;
 
+        for (int i = 0; i < recortes.sprites.Length; i++)
+        {
+            Vector2 local = recortes.locales[i];
+            Vector3 pos = t.TransformPoint(new Vector3(sr.flipX ? -local.x : local.x,
+                                                       sr.flipY ? -local.y : local.y, 0f));
+            Vector2 afuera = pos - centro;
+            afuera = afuera.sqrMagnitude > 0.0001f ? afuera.normalized : Random.insideUnitCircle.normalized;
+            Vector2 vel = (afuera * Random.Range(1.5f, 3.5f) + Vector2.up * Random.Range(1.5f, 3.5f)) * fuerza;
+
+            PixelVolador.Lanzar(recortes.sprites[i], mat, sr.color, sr.sortingLayerID, sr.sortingOrder + 1,
+                                pos, escala, vel, Random.Range(0.5f, 0.8f));
+        }
+        return true;
+    }
+
+    // Los cuadraditos de un dibujo: cada pedazo y donde va (en unidades del sprite, desde su pivote).
+    class Recortes
+    {
+        public Sprite[] sprites;
+        public Vector2[] locales;
+    }
+
+    // Un dibujo se recorta UNA sola vez y queda guardado: la proxima muerte con la misma imagen
+    // (el mismo enemigo en la misma pose, otra roca igual) no vuelve a recortar nada.
+    static readonly System.Collections.Generic.Dictionary<Sprite, Recortes> s_recortes = new();
+
+    static Recortes RecortesDe(Sprite s)
+    {
+        if (s_recortes.TryGetValue(s, out Recortes guardado)
+            && (guardado.sprites.Length == 0 || guardado.sprites[0] != null))
+            return guardado;
+
+        Rect r = s.textureRect;
+        float ppu = s.pixelsPerUnit;
+        int tam = Mathf.Max(2, Mathf.CeilToInt(Mathf.Max(r.width, r.height) / 10f));   // ~10 cuadraditos de lado
+        Vector2[] verts = s.vertices;
+        ushort[] tris = s.triangles;
+
+        var sprites = new System.Collections.Generic.List<Sprite>();
+        var locales = new System.Collections.Generic.List<Vector2>();
         for (int py = 0; py < r.height; py += tam)
         for (int px = 0; px < r.width; px += tam)
         {
@@ -69,18 +105,14 @@ public static class EnemigoFX
             Vector2 local = new Vector2((px + w * 0.5f - s.pivot.x) / ppu, (py + h * 0.5f - s.pivot.y) / ppu);
             if (!DentroDelDibujo(local, verts, tris)) continue;   // borde transparente: no hay nada
 
-            var recorte = Sprite.Create(s.texture, new Rect(r.x + px, r.y + py, w, h),
-                                        new Vector2(0.5f, 0.5f), ppu, 0, SpriteMeshType.FullRect);
-            Vector3 pos = t.TransformPoint(new Vector3(sr.flipX ? -local.x : local.x,
-                                                       sr.flipY ? -local.y : local.y, 0f));
-            Vector2 afuera = pos - centro;
-            afuera = afuera.sqrMagnitude > 0.0001f ? afuera.normalized : Random.insideUnitCircle.normalized;
-            Vector2 vel = (afuera * Random.Range(1.5f, 3.5f) + Vector2.up * Random.Range(1.5f, 3.5f)) * fuerza;
-
-            PixelVolador.Lanzar(recorte, mat, sr.color, sr.sortingLayerID, sr.sortingOrder + 1,
-                                pos, escala, vel, Random.Range(0.5f, 0.8f));
+            sprites.Add(Sprite.Create(s.texture, new Rect(r.x + px, r.y + py, w, h),
+                                      new Vector2(0.5f, 0.5f), ppu, 0, SpriteMeshType.FullRect));
+            locales.Add(local);
         }
-        return true;
+
+        var nuevo = new Recortes { sprites = sprites.ToArray(), locales = locales.ToArray() };
+        s_recortes[s] = nuevo;
+        return nuevo;
     }
 
     // El punto cae dentro de la malla del sprite? (Unity la ajusta al dibujo: afuera es transparente)

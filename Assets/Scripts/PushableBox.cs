@@ -28,6 +28,8 @@ public class PushableBox : MonoBehaviour
     public AudioClip runOverSound;
     [Tooltip("Golpe seco al chocar contra una pared o al caer al piso. Vacio = el de fabrica.")]
     public AudioClip impactSound;
+    [Tooltip("Raspado contra el piso mientras Obby la empuja (se repite). Vacio = el de fabrica.")]
+    public AudioClip pushSound;
     [Tooltip("Sacudida de camara al aplastar un bicho.")]
     public bool shakeOnCrush = true;
     public float crushShakeDuration = 0.2f;
@@ -58,6 +60,8 @@ public class PushableBox : MonoBehaviour
     [Tooltip("Peso de la roca apoyada en el piso. Bien pesada para que los golpes de Obby " +
              "(saltarle de abajo, el dash) no la muevan: solo se mueve empujandola. En el aire vuelve a su peso normal.")]
     public float groundedMass = 100f;
+    [Tooltip("Quieta y con Obby mas lejos que esto, la roca descansa: no revisa piso ni contactos (ahorra rendimiento). 0 = nunca descansa.")]
+    public float restDistance = 6f;
 
     [Header("Alinear con la pendiente")]
     [Tooltip("Si esta activo, la caja se inclina para quedar paralela a la colina.")]
@@ -78,7 +82,8 @@ public class PushableBox : MonoBehaviour
     bool EmpujadaPorObby => Time.time < empujadaHasta;
     Vector2 velPrevia;     // velocidad al terminar el paso anterior (para detectar choques)
     float nextWallDust;
-    bool enElPiso;         // apoyada en algo solido (bajando una colina tambien)
+    float proximoRaspe;    // cuando vuelve a sonar el raspado del empuje
+    bool enElPiso;        // apoyada en algo solido (bajando una colina tambien)
 
     // Registro de todas las rocas (para reponerlas al volver a un checkpoint).
     static readonly System.Collections.Generic.List<PushableBox> todas = new();
@@ -86,6 +91,9 @@ public class PushableBox : MonoBehaviour
     float rotInicial;
     float masaNormal;      // el Mass del Rigidbody (la que tiene en el aire)
     bool encajada;         // quedo fija en un hueco (HuecoParaRoca): es una plataforma, ya no se empuja
+    float quietaDesde;     // desde cuando esta sin moverse (para descansar)
+    static Transform s_obby;            // Obby, compartido por todas las rocas
+    static float s_proximaBusqueda;
 
     /// <summary>Quedo fija en un hueco, hecha plataforma.</summary>
     public bool Encajada => encajada;
@@ -111,6 +119,7 @@ public class PushableBox : MonoBehaviour
         posInicial = transform.position;
         rotInicial = rb.rotation;
         masaNormal = rb.mass;
+        quietaDesde = Time.time;
     }
 
     void FixedUpdate()
@@ -121,6 +130,10 @@ public class PushableBox : MonoBehaviour
         // Reponer la vuelve a prender al volver a un checkpoint.
         if (rb.position.y < killY) { gameObject.SetActive(false); return; }
 
+        // Quieta y con Obby lejos: descansa. Revisar el piso, la pendiente y los contactos en cada
+        // paso de fisica era trabajo de mas para una roca que nadie esta tocando.
+        if (Descansa()) return;
+
         // CHOQUE CONTRA UNA PARED: la simulacion le corto de golpe la velocidad de costado.
         // Se compara con la del paso anterior; asi anda aunque la pared sea parte del mismo
         // collider que el piso (ahi OnCollisionEnter no se vuelve a disparar).
@@ -129,6 +142,25 @@ public class PushableBox : MonoBehaviour
 
         Fisica();
         velPrevia = rb.linearVelocity;
+    }
+
+    // Lleva un rato sin moverse y Obby esta lejos? Entonces no hace falta revisar nada. Vuelve a
+    // trabajar sola apenas se mueve (se le rompio el piso, algo la empujo) o Obby se acerca.
+    bool Descansa()
+    {
+        if (restDistance <= 0f) return false;
+        if (rb.linearVelocity.sqrMagnitude > 0.0004f) { quietaDesde = Time.time; return false; }
+        if (Time.time - quietaDesde < 0.5f) return false;
+
+        if (s_obby == null)   // se busca una vez (y de nuevo al cambiar de nivel), no en cada paso
+        {
+            if (Time.time < s_proximaBusqueda) return false;
+            s_proximaBusqueda = Time.time + 1f;
+            var p = FindFirstObjectByType<PlayerController2D>();
+            if (p == null) return false;
+            s_obby = p.transform;
+        }
+        return ((Vector2)s_obby.position - rb.position).sqrMagnitude > restDistance * restDistance;
     }
 
     // Empuje, freno y pendiente: lo que hace la roca en cada paso de fisica.
@@ -201,6 +233,13 @@ public class PushableBox : MonoBehaviour
             float vx = rb.linearVelocity.x;
             if (objetivo > 0f ? vx < objetivo : vx > objetivo)
                 rb.linearVelocity = new Vector2(objetivo, rb.linearVelocity.y);
+
+            // raspa contra el piso mientras avanza (contra una pared no se mueve: no suena)
+            if (Time.time >= proximoRaspe && Mathf.Abs(velPrevia.x) > 0.5f)
+            {
+                proximoRaspe = Time.time + 0.34f;
+                Sonidos.PlayEn(pushSound, "roca_arrastra", rb.position);
+            }
         }
     }
 
@@ -316,6 +355,12 @@ public class PushableBox : MonoBehaviour
     void TryRunOver(Collider2D other)
     {
         if (encajada) return;   // hecha plataforma: no atropella ni arrastra a nadie
+
+        // Quieta no atropella, no arrastra ni le cae encima a nadie: se corta antes de buscar nada
+        // (esto corre en cada paso de fisica por cada cosa que este tocando la roca).
+        Vector2 v = rb.linearVelocity;
+        if (v.sqrMagnitude < 0.0025f) return;
+
         var enemy = other.GetComponentInParent<IStunnable>();
         if (enemy == null) return;
 
@@ -324,7 +369,6 @@ public class PushableBox : MonoBehaviour
         // contra una pared, y rodando por una bajada lo mataba aunque fuera arriba.
         if (ParadoEncima(other)) return;
 
-        Vector2 v = rb.linearVelocity;
 
         // ATROPELLO: va rapido de costado POR SU CUENTA (rodando por una colina, o suelta despues
         // de un empujon fuerte). Mientras Obby la esta empujando NO cuenta: eso es empujar.
@@ -583,6 +627,7 @@ public class PushableBox : MonoBehaviour
         gameObject.SetActive(true);
         StopAllCoroutines();                      // por si se estaba acomodando en un hueco
         encajada = false;
+        quietaDesde = Time.time;                  // recien repuesta: que se acomode antes de descansar
         rb.bodyType = RigidbodyType2D.Dynamic;    // encajada quedaba fija (Kinematic)
         rb.constraints &= ~RigidbodyConstraints2D.FreezePositionX;
         rb.linearVelocity = Vector2.zero;

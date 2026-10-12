@@ -79,6 +79,10 @@ public class Enemy : MonoBehaviour, IStunnable
     public AudioClip stunSound;
     [Tooltip("Sonido al morir (aplastado por la roca, un pincho, etc). Opcional.")]
     public AudioClip deathSound;
+    [Tooltip("Cuando te ve (se le prende el '!'). Vacio = el de fabrica.")]
+    public AudioClip alertSound;
+    [Tooltip("Cuando se asusta porque la roca lo viene empujando. Vacio = el de fabrica.")]
+    public AudioClip scareSound;
     [Tooltip("Lejos de Obby (mas que esto) se pausa: no piensa ni se mueve. Ahorra rendimiento y evita que se vaya caminando a donde no lo esperas. 0 = nunca se pausa.")]
     public float sleepDistance = 25f;
 
@@ -101,7 +105,10 @@ public class Enemy : MonoBehaviour, IStunnable
     float recuerdo;           // segundos que le quedan de seguir atento sin verte
     float sustoHasta;         // asustado hasta este momento (la roca lo viene empujando)
     float sustoGiro;          // cuenta para el proximo giro del susto
-    bool muerto;                  // se esta muriendo o ya murio (queda apagado)
+    bool avisado;             // ya sono el "!" de esta vez que te vio
+    float proximaAlerta;      // el "!" no vuelve a sonar antes de este momento
+    float proximoSusto;       // idem el susto
+    bool muerto;                 // se esta muriendo o ya murio (queda apagado)
     Color colorBase = Color.white;
     Collider2D[] colliders;
     Vector3 posInicial, escalaInicial;
@@ -148,6 +155,7 @@ public class Enemy : MonoBehaviour, IStunnable
         if (Asustado && !isStunned && !isRecovering)
         {
             if (alertIcon != null) alertIcon.SetActive(true);
+            avisado = true;   // el susto ya tiene su sonido: al pasar no suena tambien el "!"
             sustoGiro -= Time.deltaTime;
             if (sustoGiro <= 0f) { Flip(); sustoGiro = 0.12f; }
             if (current != walk) SetAnim(walk);   // patalea en el lugar
@@ -161,6 +169,12 @@ public class Enemy : MonoBehaviour, IStunnable
         else if (recuerdo > 0f) recuerdo -= Time.deltaTime;
         isAlerted = !isStunned && !isRecovering && recuerdo > 0f;
         if (alertIcon != null) alertIcon.SetActive(isAlerted);
+        if (isAlerted && !avisado && Time.time >= proximaAlerta)
+        {
+            proximaAlerta = Time.time + 3f;   // si te pierde y te vuelve a ver enseguida, no repite
+            Sonidos.PlayEn(alertSound, "enemigo_alerta", transform.position);
+        }
+        avisado = isAlerted;
 
         // parado apuntando: dispara repetido mientras te VE (de memoria no tira)
         if (ve && isAlerted && !isShooting && canShoot && shootCdTimer <= 0f && !enElAire)   // cayendo no dispara
@@ -275,6 +289,11 @@ public class Enemy : MonoBehaviour, IStunnable
         {
             StopAllCoroutines();
             isShooting = false;
+        }
+        if (!Asustado && Time.time >= proximoSusto)
+        {
+            proximoSusto = Time.time + 1.5f;
+            Sonidos.PlayEn(scareSound, "enemigo_susto", transform.position);
         }
         sustoHasta = Time.time + 0.3f;
     }

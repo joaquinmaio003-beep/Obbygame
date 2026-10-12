@@ -245,6 +245,7 @@ public class PlayerRespawn : MonoBehaviour
         RockPile.ResetAll();           // montones de piedras repuestos
         Destructible.ResetAll();       // lo que rompio la sierra (la roca grande incluida)
         PushableBox.ResetAll();        // rocas empujables en su lugar (si no, podias quedar trabado)
+        Emboscada.ResetAll();          // los enemigos de las emboscadas desaparecen y las zonas se rearman
         FallingSpike.ResetAll();       // los pinchos que cayeron vuelven a colgar
         Enemy.ResetAll();              // enemigos: los muertos reaparecen y todos vuelven a su lugar
         WarriorEnemy.ResetAll();

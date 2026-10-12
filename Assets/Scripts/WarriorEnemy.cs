@@ -75,6 +75,10 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     public AudioClip stunSound;
     [Tooltip("Sonido al morir (aplastado por la roca, un pincho, etc). Opcional.")]
     public AudioClip deathSound;
+    [Tooltip("Cuando te ve (se le prende el '!'). Vacio = el de fabrica.")]
+    public AudioClip alertSound;
+    [Tooltip("Cuando se asusta porque la roca lo viene empujando. Vacio = el de fabrica.")]
+    public AudioClip scareSound;
     [Tooltip("Lejos de Obby (mas que esto) se pausa: no piensa ni se mueve. Ahorra rendimiento y evita que se vaya caminando a donde no lo esperas. 0 = nunca se pausa.")]
     public float sleepDistance = 25f;
     [Tooltip("Color con el que titila durante el amague del golpe (aviso para que el jugador esquive).")]
@@ -89,7 +93,11 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     PlayerRespawn playerHealth;
     int dir = 1;
     bool enElAire;      // cayendo (no hay piso debajo)
-    float fallVel;      // velocidad de caida acumulada
+    float fallVel;      // velocidad de caida acumulada (negativa = subiendo, en un saltito)
+    float aireVelX;     // avance de costado mientras dura un saltito
+    float atravesarHastaY = float.PositiveInfinity;   // saliendo de un techo: no busca piso hasta quedar por debajo
+    float quietoHasta;  // espera parado (mirando a Obby) hasta este momento
+    bool amenaza;       // camina hacia Obby revoleando la espada (solo se ve: no pega)
     bool isAttacking;
     bool isStunned;
     bool isRecovering;
@@ -100,6 +108,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     bool atento;    // te ve o te vio hace un momento
     float sustoHasta;   // asustado hasta este momento (la roca lo viene empujando)
     float sustoGiro;    // cuenta para el proximo giro del susto
+    bool avisado;         // ya sono el "!" de esta vez que te vio
+    float proximaAlerta;  // el "!" no vuelve a sonar antes de este momento
+    float proximoSusto;   // idem el susto
     bool muerto;                  // se esta muriendo o ya murio (queda apagado)
     Color colorBase = Color.white;
     Collider2D[] colliders;
@@ -146,6 +157,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         if (Asustado && !isStunned && !isRecovering)
         {
             if (alertIcon != null) alertIcon.SetActive(true);
+            avisado = true;   // el susto ya tiene su sonido: al pasar no suena tambien el "!"
             sustoGiro -= Time.deltaTime;
             if (sustoGiro <= 0f) { Flip(); sustoGiro = 0.12f; }
             if (current != walk) SetAnim(walk);   // patalea en el lugar
@@ -155,15 +167,22 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar
         bool detecta = !isStunned && !isRecovering && atento;
         if (alertIcon != null) alertIcon.SetActive(detecta);
+        if (detecta && !avisado && Time.time >= proximaAlerta)
+        {
+            proximaAlerta = Time.time + 3f;   // si te pierde y te vuelve a ver enseguida, no repite
+            Sonidos.PlayEn(alertSound, "enemigo_alerta", transform.position);
+        }
+        avisado = detecta;
 
         if (!isStunned && !isRecovering && !isAttacking && !enElAire && attackCdTimer <= 0f   // cayendo no pega
+            && Time.time >= quietoHasta
             && InRange(attackRange) && Reachable() && CanSeePlayer())
             StartCoroutine(AttackRoutine());
 
         Anim target = isStunned ? stun
                      : isRecovering ? stunRecover
                      : isAttacking ? attack
-                     : Mathf.Abs(rb.linearVelocity.x) > 0.05f ? walk
+                     : Mathf.Abs(rb.linearVelocity.x) > 0.05f ? (amenaza && atento ? attack : walk)   // amenaza: revolea la espada caminando
                      : idle;
         if (target != current) SetAnim(target);
         Advance();
@@ -182,6 +201,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         if (enElAire) { rb.linearVelocity = Vector2.zero; return; }
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
+
+        // esperando (ver Esperar): parado en el lugar, mirando a Obby
+        if (Time.time < quietoHasta) { EncararConCalma(); rb.linearVelocity = Vector2.zero; return; }
 
         // te ve (o te vio hace un momento) y podes alcanzarlo: te persigue, pero NO se trepa ni se cae.
         // Si Obby esta colgado muy arriba de una pared, no lo persigue (no gira como loco debajo).
@@ -269,6 +291,43 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
     public bool IsStunned => isStunned || isRecovering;
 
+    // ---- entrada en escena (los usa la Emboscada) ----
+
+    /// <summary>Camina hacia Obby revoleando la espada. Solo se ve: pega recien cuando llega, como siempre.</summary>
+    public bool Amenaza { get => amenaza; set => amenaza = value; }
+
+    /// <summary>Se queda parado mirando a Obby estos segundos (caer y saltar puede; caminar y pegar no).</summary>
+    public void Esperar(float segundos) { quietoHasta = Time.time + segundos; }
+
+    /// <summary>
+    /// Aparecio metido adentro de un techo: cae atravesandolo y recien busca piso cuando todo el
+    /// cuerpo quedo por debajo de 'techoY'. Como el piso se dibuja delante, se lo ve salir del techo.
+    /// </summary>
+    public void SalirDelTecho(float techoY)
+    {
+        atravesarHastaY = techoY;
+        enElAire = true;
+        fallVel = 0f;
+    }
+
+    /// <summary>
+    /// Saltito hacia Obby: sube 'altura' y avanza 'avance' unidades. Si adelante no hay piso salta
+    /// en el lugar. En el aire, aturdido o muerto no hace nada.
+    /// </summary>
+    public void Saltito(float altura, float avance)
+    {
+        if (muerto || isStunned || isRecovering || isAttacking || enElAire || altura <= 0f) return;
+        FacePlayer();
+        float subida = Mathf.Sqrt(2f * fallGravity * altura);
+        float tiempo = 2f * subida / fallGravity;   // lo que tarda en subir y volver a bajar
+        Bounds b = col.bounds;
+        var adelante = new Vector2(b.center.x + dir * avance, b.min.y + maxStepHeight);
+        bool hayPiso = Physics2D.Raycast(adelante, Vector2.down, maxStepHeight + maxDropHeight, groundLayer);
+        aireVelX = hayPiso ? dir * avance / tiempo : 0f;
+        fallVel = -subida;
+        enElAire = true;
+    }
+
     // ---- la roca lo viene empujando: se asusta ----
     bool Asustado => Time.time < sustoHasta;
 
@@ -284,6 +343,11 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
             StopAllCoroutines();
             isAttacking = false;
             sr.color = colorBase;
+        }
+        if (!Asustado && Time.time >= proximoSusto)
+        {
+            proximoSusto = Time.time + 1.5f;
+            Sonidos.PlayEn(scareSound, "enemigo_susto", transform.position);
         }
         sustoHasta = Time.time + 0.3f;
     }
@@ -368,6 +432,10 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         isRecovering = false;
         enElAire = false;
         fallVel = 0f;
+        aireVelX = 0f;
+        atravesarHastaY = float.PositiveInfinity;
+        quietoHasta = 0f;
+        amenaza = false;
         attackCdTimer = 0f;
         flipCd = 0f;
         giroCd = 0f;
@@ -537,19 +605,40 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     // Antes no tenia caida: sin piso quedaba flotando en el aire y dandose vuelta.
     void SnapToGround()
     {
-        if (SuperficieDebajo(out float superficieY))
+        float dt = Time.fixedDeltaTime;
+        Bounds b = col.bounds;
+
+        // saliendo de un techo (emboscada): hasta que todo el cuerpo quede por debajo no busca piso
+        bool atravesando = b.max.y > atravesarHastaY;
+        if (!atravesando) atravesarHastaY = float.PositiveInfinity;
+
+        // Subiendo (saltito) tampoco busca piso. Y en el aire aterriza recien cuando los pies LLEGAN
+        // al piso: si no, un saltito bajito se cortaba en lo mas alto, porque el piso ya estaba
+        // dentro del alcance del apoyo.
+        if (!atravesando && fallVel >= 0f && SuperficieDebajo(out float superficieY)
+            && (!enElAire || b.min.y - superficieY <= fallVel * dt + 0.03f))
         {
             enElAire = false;
             fallVel = 0f;
-            float pivotToFoot = transform.position.y - col.bounds.min.y; // pivote respecto a la base del collider
+            aireVelX = 0f;
+            float pivotToFoot = transform.position.y - b.min.y; // pivote respecto a la base del collider
             transform.position = new Vector3(transform.position.x, superficieY + pivotToFoot, transform.position.z);
             return;
         }
 
         // nada abajo: se cae acelerando, como la sierra
         enElAire = true;
-        fallVel = Mathf.Min(fallVel + fallGravity * Time.fixedDeltaTime, maxFallSpeed);
-        transform.position += Vector3.down * (fallVel * Time.fixedDeltaTime);
+        fallVel = Mathf.Min(fallVel + fallGravity * dt, maxFallSpeed);
+        Vector3 paso = Vector3.down * (fallVel * dt);
+        if (aireVelX != 0f)
+        {
+            // saltito: avanza mientras esta en el aire, salvo que tenga una pared adelante
+            var ojo = new Vector2(b.center.x, b.min.y + maxStepHeight + 0.05f);
+            var hacia = new Vector2(Mathf.Sign(aireVelX), 0f);
+            if (ParedAdelante(ojo, hacia, b.extents.x + Mathf.Abs(aireVelX) * dt + 0.05f, false)) aireVelX = 0f;
+            else paso.x = aireVelX * dt;
+        }
+        transform.position += paso;
         if (transform.position.y < killY) { EmpezarMuerte(); Desaparecer(); }   // se fue al pozo (fuera de pantalla: sin efectos)
     }
 
