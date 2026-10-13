@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Taladro que apunta para abajo. Obby se puede parar arriba, en la tapa (es una plataforma).
 /// Cada tanto (5 segundos) prende fuego por arriba y BAJA: si Obby esta parado encima mientras
-/// hay fuego, se quema y pierde una vida. Mientras baja, la PUNTA tambien lastima al que toque.
+/// hay fuego, se quema y pierde una vida. La PUNTA (la parte de abajo) lastima siempre al que la toque.
 /// El fuego y la punta MATAN a los enemigos que agarren.
 /// Abajo se apaga, vuelve solo a su lugar y empieza de nuevo.
 ///
@@ -49,9 +49,9 @@ public class Taladro : MonoBehaviour
     public float soundDistance = 14f;
 
     [Header("Punta")]
-    [Tooltip("Centro de la zona de la punta que lastima al bajar (relativo al taladro; se escala con el objeto).")]
+    [Tooltip("Centro de la zona de la punta que lastima (relativo al taladro; se escala con el objeto).")]
     public Vector2 tipOffset = new Vector2(-0.0625f, -0.47f);
-    [Tooltip("Tamano de la zona de la punta que lastima al bajar.")]
+    [Tooltip("Tamano de la zona de la punta que lastima.")]
     public Vector2 tipSize = new Vector2(0.7f, 0.75f);
 
     [Header("Luz del fuego")]
@@ -75,7 +75,6 @@ public class Taladro : MonoBehaviour
     BoxCollider2D col;
     Vector2 inicio;
     bool fuego;          // hay fuego arriba: quema
-    bool bajando;        // mientras baja, la punta lastima
     float animT;
     int cuadro = -1;
     static readonly Collider2D[] s_buf = new Collider2D[16];
@@ -222,9 +221,7 @@ public class Taladro : MonoBehaviour
             PonerFuego(true);
             if (fireSound != null && AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(fireSound, VolumenPorDistancia());   // solo cerca: lejos no suena
-            bajando = true;
             yield return Mover(inicio + Vector2.down * dropDistance, dropSpeed);
-            bajando = false;
 
             // 3) abajo se apaga un toque
             PonerFuego(false);
@@ -278,7 +275,7 @@ public class Taladro : MonoBehaviour
     void FixedUpdate()
     {
         if (fuego) Quemar();
-        if (bajando) PuntaPega();
+        PuntaPega();   // la parte de abajo lastima siempre: bajando, quieta abajo, volviendo o arriba
     }
 
     // Zona del fuego, arriba de la tapa (mientras hay fuego).
@@ -289,7 +286,7 @@ public class Taladro : MonoBehaviour
         Golpear(new Vector2(b.center.x, b.max.y + alto * 0.5f), new Vector2(b.size.x, alto));
     }
 
-    // Zona de la punta (mientras baja).
+    // Zona de la punta, la parte de abajo (lastima siempre).
     void PuntaPega()
     {
         Vector3 escala = transform.lossyScale;
@@ -334,7 +331,7 @@ public class Taladro : MonoBehaviour
         Gizmos.color = new Color(1f, 0.4f, 0.1f, 0.8f);
         Gizmos.DrawWireCube(new Vector3(b.center.x, b.max.y + alto * 0.5f, 0f), new Vector3(b.size.x, alto, 0f));
 
-        // zona de la punta que lastima al bajar
+        // zona de la punta que lastima
         Vector3 e = transform.lossyScale;
         Gizmos.color = new Color(1f, 0.1f, 0.1f, 0.8f);
         Gizmos.DrawWireCube(transform.TransformPoint(tipOffset),

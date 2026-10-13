@@ -265,8 +265,7 @@ public class Enemy : MonoBehaviour, IStunnable
                                              : new Vector2(dir, 0f);
                 proj.Launch(aim);
             }
-            if (shootSound != null && AudioManager.Instance != null)
-                AudioManager.Instance.PlaySFX(shootSound);
+            Sonidos.PlayEn(shootSound, transform.position, Sonidos.EnPantalla);
         }
 
         shootCdTimer = shootCooldown;
@@ -302,8 +301,7 @@ public class Enemy : MonoBehaviour, IStunnable
     public void HitByRock(Vector2 fromPos)
     {
         if (hitFX != null) hitFX.Flash();
-        if (stunSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(stunSound);
+        Sonidos.PlayEn(stunSound, transform.position, Sonidos.EnPantalla);
         Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)
     }
 
@@ -319,8 +317,7 @@ public class Enemy : MonoBehaviour, IStunnable
     IEnumerator MuerteRoutine(Bounds b)
     {
         if (hitFX != null) hitFX.Flash();
-        if (deathSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(deathSound);
+        Sonidos.PlayEn(deathSound, "muerte_enemigo", transform.position, Sonidos.EnPantalla);
         EnemigoFX.Polvo(b, sr, 6);
         yield return new WaitForSeconds(0.08f);   // que se alcance a ver el destello
         // se deshace en cuadraditos de su propio dibujo (con sus colores, no los del destello);

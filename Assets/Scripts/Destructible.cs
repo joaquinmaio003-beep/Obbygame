@@ -68,8 +68,7 @@ public class Destructible : MonoBehaviour
         if (broken) return;
         broken = true;
 
-        if (breakSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(breakSound);
+        Sonidos.PlayEn(breakSound, transform.position, Sonidos.EnPantalla);
 
         // ANTES de apagarlo, para tener los bounds validos
         bool pixelado = pixelBreak && EnemigoFX.Pixelar(GetComponent<SpriteRenderer>(), null, 0.8f);

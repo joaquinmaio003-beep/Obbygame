@@ -132,8 +132,7 @@ public class BreakablePlatform : MonoBehaviour
 
     IEnumerator BreakRoutine()
     {
-        if (crackSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(crackSound);
+        Sonidos.PlayEn(crackSound, "plataforma_cruje", transform.position, Sonidos.EnPantalla);
 
         // aviso: parpadea de color (NO mueve el collider, asi no vibra Obby ni recalcula fisica)
         float t = 0f;
@@ -185,8 +184,7 @@ public class BreakablePlatform : MonoBehaviour
         else if (spawnPieces) SpawnPieces();
         if (defeatEnemiesOnBreak) DefeatEnemiesOnTop();
         if (col != null) col.enabled = false;   // ya no sostiene a Obby
-        if (breakSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(breakSound);
+        Sonidos.PlayEn(breakSound, "plataforma_rompe", transform.position, Sonidos.EnPantalla);
     }
 
 

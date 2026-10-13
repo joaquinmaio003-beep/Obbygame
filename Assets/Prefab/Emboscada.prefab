@@ -97,17 +97,17 @@ MonoBehaviour:
   maxAlive: 10
   interval: 1
   aggroRange: 18
-  enemySpeed: 0.6
+  enemySpeed: 0.72
   spawnPoints:
   - {fileID: 0}
-  behindDistance: 8
+  behindDistance: 5.5
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
   rock: {fileID: 0}
   endPoint: {fileID: 0}
   killRemaining: 0
-  introTime: 1.6
+  introTime: 2
   cameraReturnTime: 0.4
   startSound: {fileID: 0}
   cameraShake: 1

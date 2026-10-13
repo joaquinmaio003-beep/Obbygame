@@ -349,8 +349,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         Bounds b = col.bounds;   // antes de apagar los colliders
         EmpezarMuerte();
         sobrecargado = false;
-        if (deathSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(deathSound);
+        Sonidos.PlayEn(deathSound, "muerte_sierra", transform.position, Sonidos.EnPantalla);
         EnemigoFX.Polvo(b, sr, 12);
         EnemigoFX.Pixelar(sr, hitFX != null ? hitFX.NormalMaterial : null, 2.2f);
         Desaparecer();
@@ -361,8 +360,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     {
         if (muerto) return;
         tiempoCorte = Mathf.Max(tiempoCorte, segundos);
-        if (attackSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(attackSound);
+        Sonidos.PlayEn(attackSound, "sierra_ataque", transform.position, Sonidos.EnPantalla);
     }
 
     /// <summary>Vuelve a su lugar y a su estado del principio del nivel (queda prendido).</summary>
@@ -439,8 +437,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         // se queda mirando hacia donde iba.
         if (InRange(attackRange) && Reachable() && CanSeePlayer()) FacePlayer();
         SetAnim(attack);
-        if (attackSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(attackSound);
+        Sonidos.PlayEn(attackSound, "sierra_ataque", transform.position, Sonidos.EnPantalla);
 
         yield return EnemigoFX.Amague(sr, colorBase, attackWarnColor, attackWindup);   // titila: aviso para esquivar
 
@@ -485,8 +482,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         if (fromPos.y < corte) return;                           // pego en el carro: rebota y listo
 
         if (hitFX != null) hitFX.Flash();
-        if (stunSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(stunSound);
+        Sonidos.PlayEn(stunSound, "sierra_stun", transform.position, Sonidos.EnPantalla);
         Stun(); // la piedra NUNCA lo mata, solo lo aturde
     }
 
@@ -502,8 +498,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
     IEnumerator MuerteRoutine(Bounds b)
     {
         if (hitFX != null) hitFX.Flash();
-        if (deathSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(deathSound);
+        Sonidos.PlayEn(deathSound, "muerte_sierra", transform.position, Sonidos.EnPantalla);
         EnemigoFX.Polvo(b, sr, 6);
         yield return new WaitForSeconds(0.08f);   // que se alcance a ver el destello
         // se deshace en cuadraditos de su propio dibujo (con sus colores, no los del destello);
@@ -827,8 +822,7 @@ public class EnemigoSierra : MonoBehaviour, IStunnable
         if (SuperficieDebajo(out float superficieY))
         {
             // apoyado: se pega al piso
-            if (enElAire && landSound != null && AudioManager.Instance != null)
-                AudioManager.Instance.PlaySFX(landSound);   // golpe al aterrizar
+            if (enElAire) Sonidos.PlayEn(landSound, "sierra_aterriza", transform.position, Sonidos.EnPantalla);   // golpe al aterrizar
             enElAire = false;
             fallVel = 0f;
             float pivotToFoot = transform.position.y - col.bounds.min.y;

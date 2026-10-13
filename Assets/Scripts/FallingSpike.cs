@@ -157,8 +157,7 @@ public class FallingSpike : MonoBehaviour
     IEnumerator DropRoutine()
     {
         triggered = true;
-        if (warnSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(warnSound);
+        Sonidos.PlayEn(warnSound, transform.position, Sonidos.EnPantalla);
 
         // aviso: tiembla en el lugar
         float t = 0f;
@@ -211,8 +210,7 @@ public class FallingSpike : MonoBehaviour
     void Land()
     {
         falling = false; // ya clavado: deja de hacer dano
-        if (impactSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(impactSound);
+        Sonidos.PlayEn(impactSound, transform.position, Sonidos.EnPantalla);
         rb.linearVelocity = Vector2.zero;
         rb.bodyType = RigidbodyType2D.Kinematic;
         clavado = true;

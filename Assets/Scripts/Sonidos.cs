@@ -10,6 +10,12 @@ using UnityEngine;
 public static class Sonidos
 {
     const string Carpeta = "refe_claud/";
+
+    /// <summary>
+    /// Alcance para lo que pasa en el nivel (enemigos, rocas, plataformas): entero en toda la
+    /// pantalla, se va apagando hasta una pantalla mas alla, y mas lejos no suena.
+    /// </summary>
+    public const float EnPantalla = 22f;
     static readonly Dictionary<string, AudioClip> cache = new();
 
     /// <summary>El clip asignado; si esta vacio, el de fabrica con ese nombre (null si no existe).</summary>
@@ -38,12 +44,21 @@ public static class Sonidos
     /// </summary>
     public static void PlayEn(AudioClip asignado, string deFabrica, Vector2 lugar, float alcance = 16f)
     {
-        float volumen = 1f;
-        if (alcance > 0f && Camera.main != null)
-        {
-            float d = Vector2.Distance(Camera.main.transform.position, lugar);
-            volumen = 1f - Mathf.InverseLerp(alcance * 0.5f, alcance, d);
-        }
-        Play(asignado, deFabrica, volumen);
+        Play(asignado, deFabrica, Volumen(lugar, alcance));
+    }
+
+    /// <summary>Igual, para un sonido que no tiene uno de fabrica: suena el asignado, segun lo lejos que este.</summary>
+    public static void PlayEn(AudioClip clip, Vector2 lugar, float alcance = 16f)
+    {
+        if (clip != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(clip, Volumen(lugar, alcance));
+    }
+
+    // Que tan fuerte se escucha algo desde donde esta la camara: 1 cerca, 0 mas alla de 'alcance'.
+    static float Volumen(Vector2 lugar, float alcance)
+    {
+        if (alcance <= 0f || Camera.main == null) return 1f;
+        float d = Vector2.Distance(Camera.main.transform.position, lugar);
+        return 1f - Mathf.InverseLerp(alcance * 0.5f, alcance, d);
     }
 }

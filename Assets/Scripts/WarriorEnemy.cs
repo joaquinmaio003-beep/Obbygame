@@ -97,7 +97,23 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     float aireVelX;     // avance de costado mientras dura un saltito
     float atravesarHastaY = float.PositiveInfinity;   // saliendo de un techo: no busca piso hasta quedar por debajo
     float quietoHasta;  // espera parado (mirando a Obby) hasta este momento
-    bool amenaza;       // camina hacia Obby revoleando la espada (solo se ve: no pega)
+    bool amenaza;       // mientras te ve revolea la espada (solo se ve: no pega)
+    float separacion;   // > 0: no se encima con el guerrero que tiene adelante (ver MantenerDistancia)
+    int turno;          // orden de llegada a la fila (0 = un guerrero comun del nivel: estaba desde antes)
+    static int s_turnos;
+    bool acomodado = true;   // ya tiene su lugar en la fila (un recien llegado todavia no: ver MirarFila)
+    float acomodarAntesDe;   // si para este momento no encontro lugar, se da por acomodado igual
+    float saltoAltura;  // persiguiendo avanza a los saltitos de esta altura (ver Saltarin)
+    float saltoCada;    // cada cuantos segundos, mas o menos (0 = no salta)
+    float saltoLejosDe; // a menos de esto de Obby no salta
+    float proximoSalto;
+    bool caminando;     // en el paso de fisica anterior venia caminando hacia Obby
+    bool retirada;      // se esta yendo (ver Retirarse)
+    float retiradaVel;
+    float retiradaTope; // si para este momento no salio de la pantalla, se desvanece
+    float trabadoDesde = -1f;   // desde cuando no puede avanzar en la retirada (-1 = puede)
+    int ordenNormal;    // su orden de dibujo de siempre
+    bool porDelante;    // dibujado por delante de todo (entrando en escena a traves del techo o del piso)
     bool isAttacking;
     bool isStunned;
     bool isRecovering;
@@ -140,6 +156,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
         colliders = GetComponentsInChildren<Collider2D>(true);
         colorBase = sr.color;
+        ordenNormal = sr.sortingOrder;
         posInicial = transform.position;
         escalaInicial = transform.localScale;
         dirInicial = dir;
@@ -164,8 +181,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
             Advance();
             return;
         }
-        // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar
-        bool detecta = !isStunned && !isRecovering && atento;
+        // alerta: "!" cuando te ve (con linea de vision) y te puede alcanzar (yendose no: ya no viene por vos)
+        bool detecta = !isStunned && !isRecovering && atento && !retirada;
         if (alertIcon != null) alertIcon.SetActive(detecta);
         if (detecta && !avisado && Time.time >= proximaAlerta)
         {
@@ -175,14 +192,15 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         avisado = detecta;
 
         if (!isStunned && !isRecovering && !isAttacking && !enElAire && attackCdTimer <= 0f   // cayendo no pega
-            && Time.time >= quietoHasta
+            && Time.time >= quietoHasta && !retirada
             && InRange(attackRange) && Reachable() && CanSeePlayer())
             StartCoroutine(AttackRoutine());
 
         Anim target = isStunned ? stun
                      : isRecovering ? stunRecover
                      : isAttacking ? attack
-                     : Mathf.Abs(rb.linearVelocity.x) > 0.05f ? (amenaza && atento ? attack : walk)   // amenaza: revolea la espada caminando
+                     : amenaza && atento ? attack   // amenaza: mientras te ve revolea la espada (camine, salte o espere)
+                     : Mathf.Abs(rb.linearVelocity.x) > 0.05f ? walk
                      : idle;
         if (target != current) SetAnim(target);
         Advance();
@@ -192,6 +210,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     {
         if (muerto) return;
         if (Dormido()) { rb.linearVelocity = Vector2.zero; return; }
+        bool veniaCaminando = caminando;   // para saber si recien arranca a caminar (ver los saltitos)
+        caminando = false;
 
         SnapToGround();
         ActualizarAtencion();
@@ -202,6 +222,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
         if (isStunned || isRecovering || isAttacking) { rb.linearVelocity = Vector2.zero; return; }
 
+        // se va (ver Retirarse): corre alejandose de Obby hasta salir de la pantalla
+        if (retirada) { Retirada(); return; }
+
         // esperando (ver Esperar): parado en el lugar, mirando a Obby
         if (Time.time < quietoHasta) { EncararConCalma(); rb.linearVelocity = Vector2.zero; return; }
 
@@ -210,8 +233,33 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         if (atento)
         {
             EncararConCalma();
-            if (InRange(attackRange) || !CanAdvance()) rb.linearVelocity = Vector2.zero; // se frena, te sigue encarando
-            else rb.linearVelocity = new Vector2(dir * chaseSpeed, 0f);
+            // se frena (y te sigue encarando) si ya te tiene a tiro, si no puede avanzar, o si
+            // adelante tiene a otro guerrero: hacen fila en vez de encimarse
+            MirarFila(out bool frenar, out bool apurar);
+            // recien llegado con lugar libre adelante y atras (o que ya espero bastante): ya es uno mas de la fila
+            if (!acomodado && ((!frenar && !apurar) || Time.time >= acomodarAntesDe)) acomodado = true;
+            if (InRange(attackRange) || !CanAdvance() || frenar)
+            {
+                rb.linearVelocity = Vector2.zero;
+                return;
+            }
+            // Saltarin: cada tanto avanza con un saltito, al mismo paso que camina. Cada uno a su
+            // tiempo: cuando arranca a caminar (despues de esperar, de un salto, de estar frenado)
+            // sortea de nuevo cuando le toca; si no, los que esperaban juntos saltaban todos juntos.
+            // Cerca de Obby no salta: ahi solo revolea la espada.
+            if (saltoCada > 0f)
+            {
+                if (!veniaCaminando) proximoSalto = Time.time + saltoCada * Random.Range(0.3f, 1.7f);
+                else if (Time.time >= proximoSalto)
+                {
+                    proximoSalto = Time.time + saltoCada * Random.Range(0.3f, 1.7f);
+                    if (!InRange(saltoLejosDe)) Saltar(saltoAltura, chaseSpeed);
+                }
+            }
+            caminando = true;
+            // recien llegado con otro pegado atras: se apura hasta sacarle distancia (en vez de frenarlo a el)
+            float paso = apurar ? chaseSpeed * 1.5f : chaseSpeed;
+            rb.linearVelocity = enElAire ? Vector2.zero : new Vector2(dir * paso, 0f);   // en el aire lo mueve el salto
             return;
         }
 
@@ -268,8 +316,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         rb.linearVelocity = Vector2.zero;
         FacePlayer();
         SetAnim(attack);
-        if (attackSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(attackSound);
+        Sonidos.PlayEn(attackSound, transform.position, Sonidos.EnPantalla);
 
         yield return EnemigoFX.Amague(sr, colorBase, attackWarnColor, attackWindup);   // titila: aviso para esquivar
 
@@ -293,21 +340,167 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
     // ---- entrada en escena (los usa la Emboscada) ----
 
-    /// <summary>Camina hacia Obby revoleando la espada. Solo se ve: pega recien cuando llega, como siempre.</summary>
+    /// <summary>Esta en el aire: cayendo o en medio de un saltito.</summary>
+    public bool EnElAire => enElAire;
+
+    /// <summary>Mientras te ve revolea la espada. Solo se ve: pega recien cuando llega, como siempre.</summary>
     public bool Amenaza { get => amenaza; set => amenaza = value; }
+
+    /// <summary>
+    /// No se encima con otros guerreros: guarda 'distancia' con el que tiene adelante. Entra a la
+    /// fila como recien llegado: no frena a los que ya venian, se acomoda el (ver MirarFila).
+    /// </summary>
+    public void MantenerDistancia(float distancia)
+    {
+        separacion = distancia;
+        turno = ++s_turnos;
+        acomodado = false;
+        acomodarAntesDe = Time.time + 6f;
+    }
+
+    /// <summary>
+    /// Persiguiendo a Obby avanza a los saltitos de 'altura', uno cada 'cada' segundos mas o menos
+    /// (cada uno a su tiempo). A menos de 'noCercaDe' de Obby no salta. Con cada en 0 no salta nunca.
+    /// </summary>
+    public void Saltarin(float altura, float cada, float noCercaDe)
+    {
+        saltoAltura = altura;
+        saltoCada = cada;
+        saltoLejosDe = noCercaDe;
+    }
+
+    // LA FILA. Para no encimarse, el que tiene a otro guerrero adelante a menos de 'separacion'
+    // frena. Pero un RECIEN LLEGADO no frena a nadie: los que ya venian caminando lo ignoran hasta
+    // que encuentre su lugar. Es el el que se acomoda: si tiene a uno pegado atras (o encima) se
+    // apura hasta sacarle distancia, y si lo tiene adelante espera a que se aleje. Cuando queda
+    // con lugar libre adelante y atras ya es uno mas de la fila. Entre dos recien llegados se
+    // acomoda el mas nuevo.
+    // (Antes cualquiera que tuviera adelante lo frenaba: cada vez que llegaba uno nuevo en el
+    // medio se paraban todos los de atras.)
+    void MirarFila(out bool frenar, out bool apurar)
+    {
+        frenar = apurar = false;
+        if (separacion <= 0f) return;
+        float x = CentroX(), y = transform.position.y;
+        for (int i = 0; i < todos.Count; i++)
+        {
+            WarriorEnemy o = todos[i];
+            if (o == this || o.muerto || !o.gameObject.activeInHierarchy) continue;
+            if (!o.acomodado && (acomodado || o.turno > turno)) continue;   // recien llegado: se acomoda el, no yo
+            if (Mathf.Abs(o.transform.position.y - y) > 1.2f) continue;     // en otro piso, o todavia cayendo: no estorba
+            float dx = (o.CentroX() - x) * dir;
+            if (dx > 0.01f && dx < separacion) frenar = true;
+            else if (!acomodado && dx <= 0.01f && dx > -separacion) apurar = true;
+        }
+    }
 
     /// <summary>Se queda parado mirando a Obby estos segundos (caer y saltar puede; caminar y pegar no).</summary>
     public void Esperar(float segundos) { quietoHasta = Time.time + segundos; }
 
     /// <summary>
-    /// Aparecio metido adentro de un techo: cae atravesandolo y recien busca piso cuando todo el
-    /// cuerpo quedo por debajo de 'techoY'. Como el piso se dibuja delante, se lo ve salir del techo.
+    /// SE RETIRA: deja de pelear, le da la espalda a Obby, se va corriendo a 'velocidad' y
+    /// desaparece cuando sale de la pantalla. Si no puede seguir (una pared, un pozo) o tarda
+    /// demasiado, se desvanece donde esta. No vuelve (salvo que el nivel lo reponga).
     /// </summary>
-    public void SalirDelTecho(float techoY)
+    public void Retirarse(float velocidad)
     {
-        atravesarHastaY = techoY;
+        if (muerto || retirada) return;
+        // todavia venia entrando y no se lo llego a ver: directamente no aparece
+        if (enElAire && !ALaVista()) { EmpezarMuerte(); Desaparecer(); return; }
+
+        retirada = true;
+        retiradaVel = velocidad;
+        retiradaTope = Time.time + 8f;
+        trabadoDesde = -1f;
+        // ya no amenaza, ni salta, ni espera, ni hace fila: se va
+        amenaza = false;
+        saltoCada = 0f;
+        quietoHasta = 0f;
+        separacion = 0f;
+        if (isAttacking)   // corta el golpe que estaba por dar
+        {
+            StopAllCoroutines();
+            isAttacking = false;
+            sr.color = colorBase;
+        }
+        if (alertIcon != null) alertIcon.SetActive(false);
+    }
+
+    // Se ve en pantalla (el dibujo entero, con un poquito de margen)?
+    bool ALaVista()
+    {
+        Bounds d = sr.bounds;
+        return Pantalla.Ve(d.center, d.extents, 0.5f);
+    }
+
+    // Un paso de la retirada (ver Retirarse).
+    void Retirada()
+    {
+        if (!ALaVista()) { EmpezarMuerte(); Desaparecer(); return; }   // ya nadie lo ve: se fue
+
+        // de espaldas a Obby
+        if (player != null)
+        {
+            int lejos = CentroX() >= player.position.x ? 1 : -1;
+            if (lejos != dir) { dir = lejos; ApplyFacing(); }
+        }
+
+        bool puede = CanAdvance();
+        rb.linearVelocity = puede ? new Vector2(dir * retiradaVel, 0f) : Vector2.zero;
+        if (puede) trabadoDesde = -1f;
+        else if (trabadoDesde < 0f) trabadoDesde = Time.time;
+
+        // no tiene por donde irse, o ya tardo mucho: se desvanece ahi
+        if ((trabadoDesde >= 0f && Time.time - trabadoDesde > 0.5f) || Time.time >= retiradaTope)
+        {
+            EmpezarMuerte();   // deja de hacer todo y ya no lo toca nadie
+            StartCoroutine(Desvanecer());
+        }
+    }
+
+    IEnumerator Desvanecer()
+    {
+        Color c = sr.color;
+        for (float t = 0f; t < 0.35f; t += Time.deltaTime)
+        {
+            sr.color = new Color(c.r, c.g, c.b, c.a * (1f - t / 0.35f));
+            yield return null;
+        }
+        Desaparecer();
+    }
+
+    /// <summary>
+    /// Entra en escena CAYENDO desde arriba de la pantalla. Si en el camino hay un techo lo
+    /// atraviesa, dibujado por delante para que se lo vea venir, y recien busca piso cuando todo
+    /// el cuerpo quedo por debajo de 'techoY'. A cielo abierto: float.PositiveInfinity.
+    /// </summary>
+    public void EntrarCayendo(float techoY)
+    {
         enElAire = true;
         fallVel = 0f;
+        if (float.IsPositiveInfinity(techoY)) return;   // cielo abierto: cae como cualquiera
+        atravesarHastaY = techoY;
+        PonerDelante(true);
+    }
+
+    /// <summary>
+    /// Entra en escena SALTANDO desde abajo de la pantalla: sube atravesando el piso, dibujado por
+    /// delante, hasta que los pies llegan a 'piesHasta'; de ahi cae y se apoya como siempre.
+    /// </summary>
+    public void EntrarSaltando(float piesHasta)
+    {
+        float sube = Mathf.Max(0.1f, piesHasta - col.bounds.min.y);
+        fallVel = -Mathf.Sqrt(2f * fallGravity * sube);
+        aireVelX = 0f;
+        enElAire = true;
+        PonerDelante(true);
+    }
+
+    // Se dibuja por delante de todo mientras atraviesa el techo o el piso al entrar.
+    void PonerDelante(bool delante)
+    {
+        porDelante = delante;
+        sr.sortingOrder = delante ? ordenNormal + 10 : ordenNormal;
     }
 
     /// <summary>
@@ -316,14 +509,22 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     /// </summary>
     public void Saltito(float altura, float avance)
     {
+        if (altura <= 0f) return;
+        float tiempo = 2f * Mathf.Sqrt(2f * altura / fallGravity);   // lo que tarda en subir y volver a bajar
+        Saltar(altura, avance / tiempo);
+    }
+
+    // Salta 'altura' hacia Obby avanzando a 'velX' (unidades por segundo) mientras dura.
+    void Saltar(float altura, float velX)
+    {
         if (muerto || isStunned || isRecovering || isAttacking || enElAire || altura <= 0f) return;
         FacePlayer();
         float subida = Mathf.Sqrt(2f * fallGravity * altura);
-        float tiempo = 2f * subida / fallGravity;   // lo que tarda en subir y volver a bajar
+        float tiempo = 2f * subida / fallGravity;
         Bounds b = col.bounds;
-        var adelante = new Vector2(b.center.x + dir * avance, b.min.y + maxStepHeight);
+        var adelante = new Vector2(b.center.x + dir * velX * tiempo, b.min.y + maxStepHeight);
         bool hayPiso = Physics2D.Raycast(adelante, Vector2.down, maxStepHeight + maxDropHeight, groundLayer);
-        aireVelX = hayPiso ? dir * avance / tiempo : 0f;
+        aireVelX = hayPiso ? dir * velX : 0f;
         fallVel = -subida;
         enElAire = true;
     }
@@ -356,8 +557,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     public void HitByRock(Vector2 fromPos)
     {
         if (hitFX != null) hitFX.Flash();
-        if (stunSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(stunSound);
+        Sonidos.PlayEn(stunSound, transform.position, Sonidos.EnPantalla);
         Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)
     }
 
@@ -373,8 +573,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     IEnumerator MuerteRoutine(Bounds b)
     {
         if (hitFX != null) hitFX.Flash();
-        if (deathSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(deathSound);
+        Sonidos.PlayEn(deathSound, "muerte_enemigo", transform.position, Sonidos.EnPantalla);
         EnemigoFX.Polvo(b, sr, 6);
         yield return new WaitForSeconds(0.08f);   // que se alcance a ver el destello
         // se deshace en cuadraditos de su propio dibujo (con sus colores, no los del destello);
@@ -408,6 +607,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         isRecovering = false;
         rb.linearVelocity = Vector2.zero;
         sr.color = colorBase;
+        if (porDelante) PonerDelante(false);
         if (alertIcon != null) alertIcon.SetActive(false);
         foreach (var c in colliders) if (c != null) c.enabled = false;
     }
@@ -434,8 +634,10 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         fallVel = 0f;
         aireVelX = 0f;
         atravesarHastaY = float.PositiveInfinity;
+        PonerDelante(false);
         quietoHasta = 0f;
         amenaza = false;
+        retirada = false;
         attackCdTimer = 0f;
         flipCd = 0f;
         giroCd = 0f;
@@ -611,6 +813,8 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         // saliendo de un techo (emboscada): hasta que todo el cuerpo quede por debajo no busca piso
         bool atravesando = b.max.y > atravesarHastaY;
         if (!atravesando) atravesarHastaY = float.PositiveInfinity;
+        // ya paso el techo (cayendo) o ya dejo de subir (saltando desde abajo): vuelve a su orden de dibujo
+        if (porDelante && !atravesando && fallVel >= 0f) PonerDelante(false);
 
         // Subiendo (saltito) tampoco busca piso. Y en el aire aterriza recien cuando los pies LLEGAN
         // al piso: si no, un saltito bajito se cortaba en lo mas alto, porque el piso ya estaba
@@ -632,10 +836,11 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         Vector3 paso = Vector3.down * (fallVel * dt);
         if (aireVelX != 0f)
         {
-            // saltito: avanza mientras esta en el aire, salvo que tenga una pared adelante
+            // saltito: avanza mientras esta en el aire, salvo que tenga adelante una pared u otro guerrero
             var ojo = new Vector2(b.center.x, b.min.y + maxStepHeight + 0.05f);
             var hacia = new Vector2(Mathf.Sign(aireVelX), 0f);
-            if (ParedAdelante(ojo, hacia, b.extents.x + Mathf.Abs(aireVelX) * dt + 0.05f, false)) aireVelX = 0f;
+            MirarFila(out bool frenar, out _);
+            if (ParedAdelante(ojo, hacia, b.extents.x + Mathf.Abs(aireVelX) * dt + 0.05f, false) || frenar) aireVelX = 0f;
             else paso.x = aireVelX * dt;
         }
         transform.position += paso;

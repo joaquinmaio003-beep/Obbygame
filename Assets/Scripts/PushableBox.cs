@@ -397,9 +397,10 @@ public class PushableBox : MonoBehaviour
     void Aplastar(IStunnable enemy)
     {
         enemy.Defeat();
-        if (runOverSound != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(runOverSound);
-        if (shakeOnCrush && cam != null) cam.Shake(crushShakeDuration, crushShakeIntensity); // temblor al aplastar
+        Sonidos.PlayEn(runOverSound, "aplastar", rb.position, Sonidos.EnPantalla);
+        // temblor al aplastar, solo si pasa a la vista (lejos de la camara no tiene por que temblar)
+        if (shakeOnCrush && cam != null && Pantalla.Ve(rb.position, col.bounds.extents, 3f))
+            cam.Shake(crushShakeDuration, crushShakeIntensity);
     }
 
     // Corre al bicho lo que la roca se le metio, DE A POCO (lo va empujando). Si detras tiene una
