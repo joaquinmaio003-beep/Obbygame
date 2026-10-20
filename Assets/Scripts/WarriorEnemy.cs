@@ -236,29 +236,33 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
             // se frena (y te sigue encarando) si ya te tiene a tiro, si no puede avanzar, o si
             // adelante tiene a otro guerrero: hacen fila en vez de encimarse
             MirarFila(out bool frenar, out bool apurar);
-            // recien llegado con lugar libre adelante y atras (o que ya espero bastante): ya es uno mas de la fila
-            if (!acomodado && ((!frenar && !apurar) || Time.time >= acomodarAntesDe)) acomodado = true;
-            if (InRange(attackRange) || !CanAdvance() || frenar)
+            bool quieto = InRange(attackRange) || !CanAdvance();   // ya te tiene a tiro, o adelante hay pared o pozo
+            // Recien llegado que ya es uno mas de la fila: con lugar libre adelante y atras, o que ya
+            // espero bastante, o que quedo primero (a tiro de Obby o contra una pared): ahi ya no puede
+            // adelantarse, asi que los de atras lo tienen que respetar. Si no, caminaban hasta su mismo
+            // lugar y quedaban encimados atacando a Obby.
+            if (!acomodado && ((!frenar && !apurar) || quieto || Time.time >= acomodarAntesDe)) acomodado = true;
+            if (quieto || frenar)
             {
                 rb.linearVelocity = Vector2.zero;
                 return;
             }
-            // Saltarin: cada tanto avanza con un saltito, al mismo paso que camina. Cada uno a su
-            // tiempo: cuando arranca a caminar (despues de esperar, de un salto, de estar frenado)
-            // sortea de nuevo cuando le toca; si no, los que esperaban juntos saltaban todos juntos.
-            // Cerca de Obby no salta: ahi solo revolea la espada.
+            // recien llegado con otro pegado atras: se apura hasta sacarle distancia (en vez de frenarlo a el)
+            float paso = apurar ? chaseSpeed * 1.5f : chaseSpeed;
+            // Saltarin: cada tanto avanza con un saltito, al mismo paso que camina (apurado tambien).
+            // Cada uno a su tiempo: cuando arranca a caminar (despues de esperar, de un salto, de estar
+            // frenado) sortea de nuevo cuando le toca; si no, los que esperaban juntos saltaban todos
+            // juntos. Cerca de Obby no salta: ahi solo revolea la espada.
             if (saltoCada > 0f)
             {
                 if (!veniaCaminando) proximoSalto = Time.time + saltoCada * Random.Range(0.3f, 1.7f);
                 else if (Time.time >= proximoSalto)
                 {
                     proximoSalto = Time.time + saltoCada * Random.Range(0.3f, 1.7f);
-                    if (!InRange(saltoLejosDe)) Saltar(saltoAltura, chaseSpeed);
+                    if (!InRange(saltoLejosDe)) Saltar(saltoAltura, paso);
                 }
             }
             caminando = true;
-            // recien llegado con otro pegado atras: se apura hasta sacarle distancia (en vez de frenarlo a el)
-            float paso = apurar ? chaseSpeed * 1.5f : chaseSpeed;
             rb.linearVelocity = enElAire ? Vector2.zero : new Vector2(dir * paso, 0f);   // en el aire lo mueve el salto
             return;
         }

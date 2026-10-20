@@ -22,7 +22,9 @@ public static class Sonidos
     public static AudioClip O(AudioClip asignado, string deFabrica)
     {
         if (asignado != null) return asignado;
-        if (!cache.TryGetValue(deFabrica, out AudioClip clip) || clip == null)
+        // Se busca una sola vez por nombre: si no existe queda anotado como que no hay (antes lo
+        // volvia a buscar en cada reproduccion). Solo se busca de nuevo si el clip que habia se descargo.
+        if (!cache.TryGetValue(deFabrica, out AudioClip clip) || (clip == null && !ReferenceEquals(clip, null)))
         {
             clip = Resources.Load<AudioClip>(Carpeta + deFabrica);
             cache[deFabrica] = clip;

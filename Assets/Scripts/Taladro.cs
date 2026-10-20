@@ -305,7 +305,9 @@ public class Taladro : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             var c = s_buf[i];
-            if (c == null) continue;
+            // Obby y los enemigos siempre tienen Rigidbody2D: el piso, las paredes y el propio taladro
+            // se saltean sin buscarles nada (la punta pasa todo el ciclo tocando alguno)
+            if (c == null || c.attachedRigidbody == null || c.attachedRigidbody == rb) continue;
             if (!obbyGolpeado)
             {
                 var resp = c.GetComponentInParent<PlayerRespawn>();
