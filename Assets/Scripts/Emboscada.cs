@@ -62,6 +62,9 @@ public class Emboscada : MonoBehaviour
     public float hopMinDistance = 4f;
     [Tooltip("Todos revolean la espada mientras ven a Obby (solo se ve: pegan recien al llegar).")]
     public bool swingSwords = true;
+    [Tooltip("Las piedras de Obby los aturden. Destildado (de fabrica): les rebotan sin hacerles nada, " +
+             "asi Obby no puede darse vuelta y frenarlos: tiene que empujar la roca.")]
+    public bool rocksStun = false;
     [Tooltip("Distancia que se guardan entre ellos: hacen fila en vez de encimarse. 0 = se enciman.")]
     public float separation = 1.3f;
 
@@ -170,6 +173,7 @@ public class Emboscada : MonoBehaviour
 
         Sonidos.Play(startSound, "emboscada");   // vacio = el de fabrica
         if (cameraShake && cam != null) cam.Shake(0.3f, 0.18f);
+        obby.Susto();   // Obby pega un saltito de susto
         onStart?.Invoke();
 
         // CINEMATICA: llegan los primeros, uno atras del otro; la camara los muestra y vuelve a Obby.
@@ -294,6 +298,7 @@ public class Emboscada : MonoBehaviour
             guerrero.patrolSpeed *= enemySpeed;
             if (Time.time < esperarHasta) guerrero.Esperar(esperarHasta - Time.time);
             guerrero.Amenaza = swingSwords;
+            guerrero.InmuneAPiedras = !rocksStun;
             // cada uno con su distancia, para que la fila no quede pareja como una regla
             if (separation > 0f) guerrero.MantenerDistancia(separation * Random.Range(0.85f, 1.15f));
             if (hopHeight > 0f) guerrero.Saltarin(hopHeight, hopEvery, hopMinDistance);

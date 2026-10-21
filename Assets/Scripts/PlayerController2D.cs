@@ -27,6 +27,8 @@ public class PlayerController2D : MonoBehaviour
     public float gravityDown = 42f;
     [Tooltip("Velocidad de caida maxima (terminal).")]
     public float maxFallSpeed = 18f;
+    [Tooltip("Alto del salto de susto (cuando aparece la sierra o arranca la emboscada).")]
+    public float scareJumpHeight = 1.1f;
 
     [Header("Asistencias")]
     [Tooltip("Tiempo tras dejar el piso en el que todavia podes saltar (coyote time).")]
@@ -79,6 +81,8 @@ public class PlayerController2D : MonoBehaviour
     public float stepInterval = 0.3f;
     [Tooltip("Sonido del dash. Vacio = el de fabrica.")]
     public AudioClip dashSound;
+    [Tooltip("Gritito del salto de susto (aparece la sierra, arranca la emboscada). Vacio = el de fabrica.")]
+    public AudioClip scareSound;
 
     // --- estado interno ---
     Rigidbody2D rb;
@@ -86,6 +90,7 @@ public class PlayerController2D : MonoBehaviour
     float moveInput;
     float coyoteCounter;
     float bufferCounter;
+    float sustoHasta;    // > 0: tiene un salto de susto pendiente hasta este momento (ver Susto)
     bool isGrounded;
     int facing = 1;
 
@@ -133,6 +138,13 @@ public class PlayerController2D : MonoBehaviour
     // Sin control del jugador (festejo en la meta): no camina, no salta ni dashea, pero la fisica
     // sigue (cae con su gravedad). Apagar el script entero lo dejaba flotando: la gravedad es de aca.
     public bool ControlBloqueado { get; set; }
+
+    /// <summary>
+    /// SALTO DE SUSTO: un saltito bajo en el lugar (aparece la sierra, arranca la emboscada).
+    /// Salta aunque tenga el control bloqueado por la cinematica. Si justo esta en el aire, lo hace
+    /// apenas toca el piso (si tarda demasiado, no lo hace).
+    /// </summary>
+    public void Susto() { sustoHasta = Time.time + 0.8f; }
 
     void Awake()
     {
@@ -293,6 +305,19 @@ public class PlayerController2D : MonoBehaviour
             wallGrip = Mathf.Max(0f, wallGrip - wallJumpGripCost); // el wall jump gasta stamina
             bufferCounter = 0f;
             PlayJumpSound();
+        }
+
+        // --- salto de susto (ver Susto): saltito en el lugar apenas esta en el piso ---
+        if (sustoHasta > 0f)
+        {
+            if (Time.time > sustoHasta) sustoHasta = 0f;   // nunca toco el piso a tiempo: no salta
+            else if (isGrounded)
+            {
+                vel.y = Mathf.Sqrt(2f * gravityUp * scareJumpHeight);
+                coyoteCounter = 0f;
+                sustoHasta = 0f;
+                Sonidos.Play(scareSound, "obby_susto");   // gritito de susto (vacio = el de fabrica)
+            }
         }
 
         // --- gravedad (salto fijo, sin altura variable) ---

@@ -109,6 +109,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     float proximoSalto;
     bool caminando;     // en el paso de fisica anterior venia caminando hacia Obby
     bool retirada;      // se esta yendo (ver Retirarse)
+    bool inmunePiedras; // las piedras de Obby no lo aturden (ver InmuneAPiedras)
     float retiradaVel;
     float retiradaTope; // si para este momento no salio de la pantalla, se desvanece
     float trabadoDesde = -1f;   // desde cuando no puede avanzar en la retirada (-1 = puede)
@@ -344,6 +345,9 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
     // ---- entrada en escena (los usa la Emboscada) ----
 
+    /// <summary>Las piedras de Obby no lo aturden: le rebotan sin hacerle nada (los de la emboscada).</summary>
+    public bool InmuneAPiedras { get => inmunePiedras; set => inmunePiedras = value; }
+
     /// <summary>Esta en el aire: cayendo o en medio de un saltito.</summary>
     public bool EnElAire => enElAire;
 
@@ -560,6 +564,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     // ---- la piedra de Obby: flash + knockback chico + stun ----
     public void HitByRock(Vector2 fromPos)
     {
+        if (inmunePiedras) return;   // ni lo aturde ni parpadea: la piedra le rebota sin hacerle nada
         if (hitFX != null) hitFX.Flash();
         Sonidos.PlayEn(stunSound, transform.position, Sonidos.EnPantalla);
         Stun(); // solo stunea, sin moverlo (para no buguearlo contra paredes/bordes)

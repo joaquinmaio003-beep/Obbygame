@@ -161,6 +161,7 @@ public class PersecucionSierra : MonoBehaviour
         sierra.AlAtrapar = Matar;   // si agarra a Obby, lo mata (no le saca una vida y sigue)
         Sonidos.Play(appearSound, "sierra_aparece");
         if (cameraShake && cam != null) cam.Shake(0.35f, 0.2f);
+        obby.Susto();   // Obby pega un saltito de susto (si cayo justo, apenas toca la copa)
         onStart?.Invoke();
 
         // CINEMATICA: Obby quieto y la camara va a mostrar la sierra SALIENDO de su escondite:
