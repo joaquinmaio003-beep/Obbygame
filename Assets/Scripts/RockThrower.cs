@@ -60,6 +60,19 @@ public class RockThrower : MonoBehaviour
         // muerto (control apagado) o festejando en la meta: no tira
         bool puedeTirar = controller == null || (controller.enabled && !controller.ControlBloqueado);
 
+        // llevando una roca grande (la del jefe): el ataque tira esa, no una piedrita
+        if (rocaGrande != null)
+        {
+            if (puedeTirar && attackAction != null && attackAction.WasPressedThisFrame())
+            {
+                if (animator != null) animator.PlayAttack();
+                if (dustFX != null) dustFX.ThrowPuff();
+                rocaGrande.TirarDeObby(controller != null ? controller.Facing : 1);
+                rocaGrande = null;
+            }
+            return;
+        }
+
         // apreto Attack y tengo piedras -> animacion + preparar tiro.
         // Solo si no hay otro tiro esperando a salir: apretando dos veces rapido se descontaban
         // 2 piedras (o se perdia la manzana) y salia una sola.
@@ -97,6 +110,27 @@ public class RockThrower : MonoBehaviour
         if (dustFX != null) dustFX.ThrowPuff();   // bocanada de polvo al tirar
         if (throwSound != null && AudioManager.Instance != null)
             AudioManager.Instance.PlaySFX(throwSound);
+    }
+
+    // ---- roca grande (la del jefe) ----
+    RocaGrande rocaGrande;
+
+    /// <summary>Lleva una roca grande arriba de la cabeza.</summary>
+    public bool LlevaRocaGrande => rocaGrande != null;
+
+    /// <summary>La llama RocaGrande al pasarle por encima. Devuelve false si ya lleva una.</summary>
+    public bool AgarrarRocaGrande(RocaGrande roca)
+    {
+        if (rocaGrande != null || roca == null) return false;
+        if (controller != null && !controller.enabled) return false;   // muerto no agarra nada
+        rocaGrande = roca;
+        return true;
+    }
+
+    /// <summary>La roca que llevaba se rompio o desaparecio.</summary>
+    public void SoltarRocaGrande(RocaGrande roca)
+    {
+        if (rocaGrande == roca) rocaGrande = null;
     }
 
     // ---- lo llama RockPile ----

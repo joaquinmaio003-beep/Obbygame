@@ -146,6 +146,16 @@ public class PlayerController2D : MonoBehaviour
     /// </summary>
     public void Susto() { sustoHasta = Time.time + 0.8f; }
 
+    /// <summary>
+    /// PILOTO AUTOMATICO para cinematicas: con el control bloqueado, Obby camina solo para este
+    /// lado (-1 izquierda, 1 derecha, 0 quieto). Sin el control bloqueado no hace nada.
+    /// </summary>
+    public float MoverSolo { get; set; }
+
+    /// <summary>Piloto automatico: salta una vez (como si se apretara el boton de salto).</summary>
+    public void SaltarSolo() { saltoSolo = true; }
+    bool saltoSolo;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -190,12 +200,14 @@ public class PlayerController2D : MonoBehaviour
     {
         // --- lectura de input ---
         bool conControl = !ControlBloqueado;
-        Vector2 mv = conControl && moveAction != null ? moveAction.ReadValue<Vector2>() : Vector2.zero;
+        Vector2 mv = conControl && moveAction != null ? moveAction.ReadValue<Vector2>()
+                   : new Vector2(conControl ? 0f : MoverSolo, 0f);   // en una cinematica, el piloto automatico
         moveInput = mv.x;
 
         // saltar SOLO con la accion Jump (Espacio). Antes W/flecha arriba tambien saltaba y,
         // al apretar los dos juntos, metia el salto (y el sonido) dos veces seguidas.
-        bool jumpDown = conControl && jumpAction != null && jumpAction.WasPressedThisFrame();
+        bool jumpDown = (conControl && jumpAction != null && jumpAction.WasPressedThisFrame()) || (!conControl && saltoSolo);
+        saltoSolo = false;
         if (jumpDown) bufferCounter = jumpBuffer;
 
         // dash (Shift): dispara si no estamos ya dasheando y paso el cooldown

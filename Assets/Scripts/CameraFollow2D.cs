@@ -73,11 +73,20 @@ public class CameraFollow2D : MonoBehaviour
     /// <summary>Vuelve al zoom normal.</summary>
     public void SoltarZoom() { zoomFijo = 0f; }
 
-    /// <summary>La camara deja de seguir al jugador y se va a mirar esto (cinematica). Hasta SoltarFoco.</summary>
-    public void Enfocar(Transform t) { foco = t; }
+    /// <summary>La camara deja de seguir al jugador y se va a mirar esto (cinematica). Hasta SoltarFoco.
+    /// 'deCerca' = lo sigue rapido (algo que vuela, como una roca).</summary>
+    public void Enfocar(Transform t, bool deCerca = false) { foco = t; foco2 = null; focoRapido = deCerca; }
+
+    /// <summary>Mira a los dos a la vez: se pone en el medio y se aleja lo que haga falta para que entren.</summary>
+    public void EnfocarDos(Transform a, Transform b) { foco = a; foco2 = b; focoRapido = false; }
 
     /// <summary>La camara vuelve a seguir al jugador.</summary>
-    public void SoltarFoco() { foco = null; }
+    public void SoltarFoco() { foco = null; foco2 = null; focoRapido = false; }
+
+    Transform foco2;     // con EnfocarDos: el otro que tiene que entrar en cuadro
+    bool focoRapido;
+    [Tooltip("Cuanto se puede alejar como mucho para que entren dos cosas en cuadro (cinematicas).")]
+    public float maxTwoShotZoom = 1.8f;
 
     void LateUpdate()
     {
@@ -85,7 +94,7 @@ public class CameraFollow2D : MonoBehaviour
         if (cam == null) cam = GetComponent<Camera>();
         ActualizarZoom();   // antes de ubicarla: los limites dependen de cuanto se ve
 
-        float suave = foco != null ? focusSmooth : smooth;
+        float suave = foco != null ? (focoRapido ? Mathf.Max(smooth, 12f) : focusSmooth) : smooth;
         Vector3 pos = Vector3.Lerp(transform.position, TargetPosition(), suave * Time.deltaTime);
         pos = ClampToBounds(pos);
 
@@ -107,7 +116,14 @@ public class CameraFollow2D : MonoBehaviour
         if (baseSize <= 0f) baseSize = cam.orthographicSize;
 
         float objetivo = 1f;
-        if (zoomFijo > 0f) objetivo = zoomFijo;
+        if (foco != null && foco2 != null)
+        {
+            // los dos en cuadro, con un margen alrededor
+            Vector2 d = foco.position - foco2.position;
+            float alto = Mathf.Max(Mathf.Abs(d.y) * 0.5f + 3f, (Mathf.Abs(d.x) * 0.5f + 3f) / Mathf.Max(0.1f, cam.aspect));
+            objetivo = Mathf.Clamp(alto / baseSize, 1f, maxTwoShotZoom);
+        }
+        else if (zoomFijo > 0f) objetivo = zoomFijo;
         else if (targetRb != null)
         {
             if (targetRb.linearVelocity.y < -2f) tiempoCayendo += Time.deltaTime;
@@ -128,8 +144,10 @@ public class CameraFollow2D : MonoBehaviour
     Vector3 TargetPosition()
     {
         Transform t = foco != null ? foco : target;   // en una cinematica mira a otra cosa
-        return new Vector3(t.position.x + offset.x,
-                           t.position.y + offset.y,
+        Vector3 p = t.position;
+        if (foco != null && foco2 != null) p = (foco.position + foco2.position) * 0.5f;   // en el medio de los dos
+        return new Vector3(p.x + offset.x,
+                           p.y + offset.y,
                            transform.position.z);
     }
 

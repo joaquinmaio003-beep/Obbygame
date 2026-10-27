@@ -124,7 +124,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -0.06650829, y: -0.25232983}
+  m_Offset: {x: -0.061562598, y: -0.25232983}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -134,7 +134,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.2068281, y: 1.1898954}
+  m_Size: {x: 1.1969367, y: 1.1898954}
   m_EdgeRadius: 0
 --- !u!50 &112365808105401558
 Rigidbody2D:
@@ -188,5 +188,13 @@ MonoBehaviour:
   returnSpeed: 2
   burnHeight: 0.5625
   fireSound: {fileID: 8300000, guid: 4b4b3a63642e86d42836a15c92d58856, type: 3}
+  soundDistance: 14
   tipOffset: {x: -0.0625, y: -0.47}
   tipSize: {x: 0.7, y: 0.75}
+  fireLight: 1
+  fireLightColor: {r: 1, g: 0.55, b: 0.15, a: 1}
+  fireLightIntensity: 1.3
+  fireLightRadius: 3
+  heatHaze: 1
+  heatStrength: 0.004
+  heatHeight: 1.6

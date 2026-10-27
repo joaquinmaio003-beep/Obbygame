@@ -101,6 +101,7 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
     float separacion;   // > 0: no se encima con el guerrero que tiene adelante (ver MantenerDistancia)
     int turno;          // orden de llegada a la fila (0 = un guerrero comun del nivel: estaba desde antes)
     static int s_turnos;
+    const float AlcanceEspada = 0.35f;   // cuanto mas alla de Attack Range llega la espada al pegar
     bool acomodado = true;   // ya tiene su lugar en la fila (un recien llegado todavia no: ver MirarFila)
     float acomodarAntesDe;   // si para este momento no encontro lugar, se da por acomodado igual
     float saltoAltura;  // persiguiendo avanza a los saltitos de esta altura (ver Saltarin)
@@ -200,7 +201,10 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
         Anim target = isStunned ? stun
                      : isRecovering ? stunRecover
                      : isAttacking ? attack
-                     : amenaza && atento ? attack   // amenaza: mientras te ve revolea la espada (camine, salte o espere)
+                     // amenaza: mientras te ve revolea la espada (camine, salte o espere), pero pegado a
+                     // Obby no: ahi cada espadazo que se ve es uno de verdad (si no, parecia que le
+                     // pegaban y no le hacian nada)
+                     : amenaza && atento && !InRange(attackRange + 1.5f) ? attack
                      : Mathf.Abs(rb.linearVelocity.x) > 0.05f ? walk
                      : idle;
         if (target != current) SetAnim(target);
@@ -325,11 +329,14 @@ public class WarriorEnemy : MonoBehaviour, IStunnable
 
         yield return EnemigoFX.Amague(sr, colorBase, attackWarnColor, attackWindup);   // titila: aviso para esquivar
 
-        // momento del golpe: si Obby sigue en rango y adelante -> le pega
-        if (player != null && InRange(attackRange) && playerHealth != null)
+        // Momento del golpe: si Obby sigue al alcance de la espada y adelante -> le pega. La espada
+        // llega un poco mas lejos que la distancia a la que arranca el golpe (si no, con que Obby se
+        // corriera un pelito durante el aviso el espadazo lo atravesaba sin hacerle nada), y si Obby
+        // esta practicamente encima del guerrero tambien le pega, para el lado que sea.
+        if (player != null && InRange(attackRange + AlcanceEspada) && playerHealth != null)
         {
             float dx = player.position.x - CentroX();   // adelante del CUERPO, no del centro del dibujo
-            if ((int)Mathf.Sign(dx) == dir)
+            if ((int)Mathf.Sign(dx) == dir || Mathf.Abs(dx) < 0.35f)
                 playerHealth.Hurt(transform.position);
         }
 
