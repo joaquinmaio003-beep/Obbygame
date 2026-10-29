@@ -124,8 +124,15 @@ public class RockThrower : MonoBehaviour
         if (rocaGrande != null || roca == null) return false;
         if (controller != null && !controller.enabled) return false;   // muerto no agarra nada
         rocaGrande = roca;
+        if (animator != null) animator.PlayLift();   // la levanta del piso (despues corre con ella)
         return true;
     }
+
+    /// <summary>El animador de Obby (para la animacion de tironear la roca).</summary>
+    public PlayerAnimator Animador => animator;
+
+    /// <summary>El SpriteRenderer que dibuja a Obby (para poner la roca grande justo atras).</summary>
+    public SpriteRenderer DibujoDeObby => animator != null ? animator.Dibujo : GetComponentInChildren<SpriteRenderer>();
 
     /// <summary>La roca que llevaba se rompio o desaparecio.</summary>
     public void SoltarRocaGrande(RocaGrande roca)

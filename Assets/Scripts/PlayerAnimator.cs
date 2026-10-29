@@ -32,6 +32,10 @@ public class PlayerAnimator : MonoBehaviour
     public SpriteAnim wave;     // wave_00..02    (un tiro, secreta)
     public SpriteAnim swim;     // swim_00..02
     public SpriteAnim ship;     // ship_00
+    [Tooltip("Levanta la roca grande del piso (un tiro). obby_lift_00, 01")]
+    public SpriteAnim lift;
+    [Tooltip("Corre con la roca grande arriba de la cabeza. obby_carry_00, 01. Quieto o en el aire usa el primer cuadro.")]
+    public SpriteAnim carry;
 
     [Header("Comportamiento")]
     [Tooltip("Umbral de velocidad horizontal para considerar que camina.")]
@@ -101,7 +105,7 @@ public class PlayerAnimator : MonoBehaviour
     int proximaCopia;
     float timerEstela;
 
-    enum State { Idle, Walk, Air, WallSlide, Push, Attack, Death, Wave, Swim, Ship }
+    enum State { Idle, Walk, Air, WallSlide, Push, Attack, Death, Wave, Swim, Ship, Lift, Carry, CarryStill }
     State state = State.Idle;
     SpriteAnim current;
     int frame;
@@ -302,9 +306,60 @@ public class PlayerAnimator : MonoBehaviour
         return false;
     }
 
+    // ---- roca grande (la del jefe) ----
+
+    /// <summary>Tiene dibujos de llevar la roca arriba de la cabeza.</summary>
+    public bool HasCarryArt => carry != null && carry.frames != null && carry.frames.Length > 0;
+
+    /// <summary>El SpriteRenderer que dibuja a Obby (el hijo que se estira y aplasta).</summary>
+    public SpriteRenderer Dibujo => sr;
+
+    RockThrower tirador;
+    SpriteAnim carryStill;   // el primer cuadro de carry, quieto
+
+    bool LlevaRoca
+    {
+        get
+        {
+            if (tirador == null) tirador = GetComponent<RockThrower>();
+            return tirador != null && tirador.LlevaRocaGrande;
+        }
+    }
+
+    /// <summary>Esta tironeando la roca clavada: hace la animacion de levantar mientras sea true.</summary>
+    public bool Pulling { get; set; }
+
+    /// <summary>Levanta la roca grande del piso (despues pasa solo a correr con ella).</summary>
+    public void PlayLift()
+    {
+        if (isDead || lift == null || lift.frames == null || lift.frames.Length == 0) return;
+        isWaving = false;
+        oneShotPlaying = true;
+        Play(lift, State.Lift, false);
+    }
+
     void DecideLocomotion()
     {
         if (player == null) { SwitchLoop(idle, State.Idle); return; }
+
+        // tironeando la roca clavada: hace fuerza con la animacion de levantar
+        if (Pulling && lift != null && lift.frames != null && lift.frames.Length > 0)
+        {
+            SwitchLoop(lift, State.Lift);
+            idleTimer = 0f;
+            return;
+        }
+
+        // con la roca grande arriba de la cabeza: corriendo la anima, quieto o en el aire la sostiene
+        if (LlevaRoca && HasCarryArt && !InWater)
+        {
+            idleTimer = 0f;
+            bool corre = player.IsGrounded && (Mathf.Abs(player.Velocity.x) > walkThreshold || player.IsDashing);
+            if (corre) { SwitchLoop(carry, State.Carry); return; }
+            if (carryStill == null) carryStill = new SpriteAnim { frames = new[] { carry.frames[0] }, fps = 1f };
+            SwitchLoop(carryStill, State.CarryStill);
+            return;
+        }
 
         // en el agua: nadar
         if (InWater)

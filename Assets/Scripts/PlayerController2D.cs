@@ -152,6 +152,21 @@ public class PlayerController2D : MonoBehaviour
     /// </summary>
     public float MoverSolo { get; set; }
 
+    /// <summary>
+    /// EMPUJON: un golpe fuerte (la pina del jefe) lo manda volando con esta velocidad. Durante
+    /// 'duracion' segundos no se puede frenar con el control. En el dash (invulnerable) no le hace nada.
+    /// </summary>
+    public void Empujar(Vector2 velocidad, float duracion)
+    {
+        if (rb == null || IsDashInvulnerable || !enabled) return;   // muerto (control apagado): no lo empuja
+        rb.linearVelocity = velocidad;
+        empujonTimer = duracion;
+    }
+    float empujonTimer;
+
+    /// <summary>Lo da vuelta para que mire a ese lado (1 derecha, -1 izquierda).</summary>
+    public void MirarHacia(int lado) { if (lado != 0) SetFacing(lado > 0 ? 1 : -1); }
+
     /// <summary>Piloto automatico: salta una vez (como si se apretara el boton de salto).</summary>
     public void SaltarSolo() { saltoSolo = true; }
     bool saltoSolo;
@@ -179,6 +194,46 @@ public class PlayerController2D : MonoBehaviour
                 frictionCombine = PhysicsMaterialCombine2D.Minimum   // contra cualquier piso: 0
             };
         }
+    }
+
+    // Al empezar el nivel arranca parado en el piso (no cayendo desde donde lo pusiste en la escena).
+    void Start()
+    {
+        ApoyarEnElPiso();
+    }
+
+    static readonly RaycastHit2D[] s_piso = new RaycastHit2D[6];
+
+    /// <summary>
+    /// Baja a Obby hasta el piso que tenga abajo (a menos de 'hasta' unidades). Si abajo no hay
+    /// piso, lo deja donde esta.
+    /// </summary>
+    public void ApoyarEnElPiso(float hasta = 15f)
+    {
+        if (col == null || rb == null) return;
+        Physics2D.SyncTransforms();
+        Bounds b = col.bounds;
+        var filtro = LayerFilter(groundLayer);
+        filtro.useTriggers = false;
+        const float arriba = 0.05f;   // los rayos salen un poquito arriba de los pies
+        float menor = float.MaxValue;
+        // tres rayos (talon, centro y punta): apoya en lo mas alto que haya abajo
+        foreach (float x in new[] { b.min.x + 0.02f, b.center.x, b.max.x - 0.02f })
+        {
+            int n = Physics2D.Raycast(new Vector2(x, b.min.y + arriba), Vector2.down, filtro, s_piso, hasta);
+            for (int i = 0; i < n; i++)
+                if (s_piso[i].collider != col && s_piso[i].distance > 0f && s_piso[i].distance < menor)
+                    menor = s_piso[i].distance;
+        }
+        if (menor == float.MaxValue) return;
+        float baja = menor - arriba - 0.01f;
+        if (baja <= 0f) return;   // ya esta apoyado
+        transform.position += Vector3.down * baja;
+        rb.position = transform.position;
+        rb.linearVelocity = Vector2.zero;
+        Physics2D.SyncTransforms();
+        var camara = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
+        if (camara != null && camara.target == transform) camara.SnapToTarget();
     }
 
     void OnEnable()
@@ -284,7 +339,13 @@ public class PlayerController2D : MonoBehaviour
         // contra la misma pared (para no re-pegarse); podes ir arriba o al otro lado.
         if (wallJumpLockTimer > 0f) wallJumpLockTimer -= Time.fixedDeltaTime;
         bool blockHoriz = wallJumpLockTimer > 0f && lastWallSide != 0 && inputDir == lastWallSide;
-        if (!blockHoriz)
+        if (empujonTimer > 0f)
+        {
+            // empujado por un golpe: vuela para atras sin poder frenarse (se va frenando solo)
+            empujonTimer -= Time.fixedDeltaTime;
+            vel.x = Mathf.MoveTowards(vel.x, 0f, 8f * Time.fixedDeltaTime);
+        }
+        else if (!blockHoriz)
         {
             float target = moveInput * moveSpeed;
             float rate = Mathf.Abs(target) > 0.01f ? acceleration : deceleration;

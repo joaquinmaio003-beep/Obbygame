@@ -227,15 +227,35 @@ MonoBehaviour:
   introJumpAt: {fileID: 0}
   door: {fileID: 0}
   doorRockSize: 2.6
+  doorRockFlightTime: 2
+  introOnLevelStart: 1
+  uiFont: {fileID: 11400000, guid: bcefacc2d10ba59458e83ae3cf74b3e7, type: 2}
+  bossName: LEBOSS
+  showHealthBar: 1
   laughTime: 1.8
   lives: 3
   angerPerLife: 0.3
   walkSpeed: 4.2
   punchRange: 1.2
+  punchKnockback: 13
+  punchKnockUp: 6
+  showHitWords: 1
+  hitWordSize: 3
   swordLunge: 1.2
   swordReach: 1.8
   dashDistance: 8
   dashSpeed: 22
+  stompDistance: 12
+  stompCharge: 0.6
+  stompTime: 1
+  stompGravity: 60
+  stompReach: 1
+  stompLead: 0.35
+  stompMaxLead: 2.5
+  showLandingMarks: 1
+  hitStopOnBoss: 0.12
+  hitStopOnObby: 0.06
+  lastLifeTint: {r: 1, g: 0.72, b: 0.72, a: 1}
   attacksBeforeTired: 5
   rocksBeforeTired: 3
   tiredTime: 4
@@ -246,8 +266,18 @@ MonoBehaviour:
   rockSprite: {fileID: 21300000, guid: 5cf4f4543d684913a16b4d31bb01e366, type: 3}
   rockScale: 0.6
   rockFlightTime: 1
-  carriedRockSize: 1.6
+  carriedRockScale: 0.7
   obbyThrowSpeed: 20
+  obbyLift:
+    frames:
+    - {fileID: 21300000, guid: 9b402ddf678a491584c924461a1b6798, type: 3}
+    - {fileID: 21300000, guid: 7bbd7613f97c45f78cb91a4e8f74b254, type: 3}
+    fps: 6
+  obbyCarry:
+    frames:
+    - {fileID: 21300000, guid: 2dabac61659e4d2b8ba08fee2bb80f52, type: 3}
+    - {fileID: 21300000, guid: 0c67aa2a08664dbc8120b7d9a78ec38f, type: 3}
+    fps: 8
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
@@ -269,3 +299,8 @@ MonoBehaviour:
   tiredSound: {fileID: 0}
   bounceSound: {fileID: 0}
   deathSound: {fileID: 0}
+  punchHitSound: {fileID: 0}
+  warnSound: {fileID: 0}
+  dashSound: {fileID: 0}
+  stompSound: {fileID: 0}
+  rockHitSound: {fileID: 0}

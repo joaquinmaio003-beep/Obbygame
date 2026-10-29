@@ -30,6 +30,10 @@ public class RocaGrande : MonoBehaviour
         get { foreach (var r in enElPiso) if (r != null) return true; return false; }
     }
 
+    /// <summary>El jefe que la tiro (para el POW cuando le pega a Obby).</summary>
+    public JefeCaballero Duenio { get; set; }
+    bool yaPegoAObby;
+
     /// <summary>Ya cayo y quedo quieta (clavada o tapando la puerta).</summary>
     public bool Asentada => estado == Estado.Tapon || estado == Estado.EnElPiso;
 
@@ -62,14 +66,20 @@ public class RocaGrande : MonoBehaviour
 
     // en las manos de Obby: mas chica, y la tira rapido
     float tamano;
-    float tamanoEnMano = 1.6f;
+    float fraccionEnMano = 0.7f;   // en las manos: esta parte del tamano que tenia
+    float levantadaEn;             // cuando la saco del piso (sube hasta las manos en LevantarEn seg)
+    Vector3 desdeElPiso;
+    const float LevantarEn = 0.3f;
+    const float ManosArriba = 0.34f;   // alto de las manos levantadas de Obby sobre su centro
+    int ordenOriginal;
     float velocidadTiro = 20f;
     Vector3 escalaEnMano;
 
-    /// <summary>Tamano que tiene en las manos de Obby y velocidad con la que la tira.</summary>
-    public void ParaObby(float tamanoEnLasManos, float velocidad)
+    /// <summary>En las manos de Obby: que parte de su tamano conserva (0.7 = un poco mas chica) y
+    /// velocidad con la que la tira.</summary>
+    public void ParaObby(float fraccionEnLasManos, float velocidad)
     {
-        tamanoEnMano = Mathf.Max(0.2f, tamanoEnLasManos);
+        fraccionEnMano = Mathf.Clamp(fraccionEnLasManos, 0.1f, 2f);
         velocidadTiro = Mathf.Max(1f, velocidad);
     }
 
@@ -211,7 +221,12 @@ public class RocaGrande : MonoBehaviour
                 if (esTapon) return;   // la de la puerta es parte de la cinematica: no lastima
                 // la del jefe lastima a Obby
                 var obby = other.GetComponentInParent<PlayerRespawn>();
-                if (obby != null) obby.Hurt(transform.position);
+                if (obby != null && !yaPegoAObby)
+                {
+                    yaPegoAObby = true;   // una sola vez por roca (el trigger avisa en cada cuadro)
+                    obby.Hurt(transform.position);
+                    if (Duenio != null) Duenio.Texto("POW");
+                }
             }
             else
             {
@@ -231,14 +246,60 @@ public class RocaGrande : MonoBehaviour
         if (estado == Estado.EnElPiso)
         {
             var tirador = other.GetComponentInParent<RockThrower>();
-            if (tirador != null) { obbyCerca = tirador; obbyCercaHasta = Time.time + 0.15f; }
+            if (tirador != null)
+            {
+                obbyCerca = tirador; obbyCercaHasta = Time.time + 0.15f;
+                PonerAtrasDe(tirador);   // Obby se ve adelante de la roca (si no, quedaba tapado al sacarla)
+            }
         }
+    }
+
+    // Mientras Obby tironea se queda quieto (si no, se iba moviendo y la soltaba). Si deja de
+    // apretar E un ratito, vuelve a poder moverse.
+    const float QuietoTrasTiron = 0.6f;
+    PlayerController2D obbyQuieto;
+    float quietoHasta;
+
+    void FrenarObby(RockThrower quien)
+    {
+        var ctrl = quien != null ? quien.GetComponent<PlayerController2D>() : null;
+        if (ctrl == null) return;
+        if (obbyQuieto == null && ctrl.ControlBloqueado) return;   // ya lo tiene frenado otra cosa (cinematica)
+        obbyQuieto = ctrl;
+        obbyQuieto.ControlBloqueado = true;
+        quietoHasta = Time.time + QuietoTrasTiron;
+        // mira a la roca y hace fuerza con la animacion de levantar
+        obbyQuieto.MirarHacia(transform.position.x >= obbyQuieto.transform.position.x ? 1 : -1);
+        animTironea = quien.Animador;
+        if (animTironea != null) animTironea.Pulling = true;
+    }
+    PlayerAnimator animTironea;
+
+    bool SeTocan(RockThrower quien)
+    {
+        var c = quien.GetComponent<Collider2D>();
+        if (c == null) return false;
+        Bounds b = circulo.bounds;
+        b.Expand(0.3f);
+        return b.Intersects(c.bounds);
+    }
+
+    void SoltarObby()
+    {
+        if (animTironea != null) { animTironea.Pulling = false; animTironea = null; }
+        if (obbyQuieto == null) return;
+        obbyQuieto.ControlBloqueado = false;
+        obbyQuieto = null;
     }
 
     void Update()
     {
-        bool obbyAca = estado == Estado.EnElPiso && obbyCerca != null && Time.time < obbyCercaHasta
-                       && !obbyCerca.LlevaRocaGrande;
+        if (obbyQuieto != null && (Time.time > quietoHasta || estado != Estado.EnElPiso)) SoltarObby();
+
+        // al lado: lo avisa el trigger; y si esta quieto tironeando (su cuerpo puede "dormirse" y
+        // el trigger deja de avisar), alcanza con que se toquen
+        bool tocando = obbyCerca != null && (Time.time < obbyCercaHasta || (obbyQuieto != null && SeTocan(obbyCerca)));
+        bool obbyAca = estado == Estado.EnElPiso && tocando && !obbyCerca.LlevaRocaGrande;
         MostrarTecla(obbyAca);
         if (!obbyAca || Time.time < sinAgarrarHasta) return;
         if (ApretoE()) Tiron();
@@ -255,6 +316,8 @@ public class RocaGrande : MonoBehaviour
     {
         tirones++;
         sacudida = 0.14f;
+        FrenarObby(obbyCerca);
+        Sonidos.Play(null, "obby_fuerza");   // Obby haciendo fuerza
         asentada += Vector3.up * (radio * 0.55f / TironesParaSacar);
         EnemigoFX.Polvo(sr.bounds, sr, 2);
         if (tirones < TironesParaSacar)
@@ -263,17 +326,30 @@ public class RocaGrande : MonoBehaviour
             return;
         }
         if (!obbyCerca.AgarrarRocaGrande(this)) return;
+        SoltarObby();   // ya la saco: se puede mover con ella
         estado = Estado.Cargada;
         enElPiso.Remove(this);
         quienLaLleva = obbyCerca;
         cuerpoObby = obbyCerca.GetComponent<Collider2D>();
         circulo.enabled = false;
         MostrarTecla(false);
+        PonerAtrasDe(obbyCerca);   // las manos de Obby por delante de la roca
         Sonidos.Play(null, "roca_grande_agarra");
-        // en las manos queda mas chica (se achica rapidito al levantarla)
-        escalaEnMano = transform.localScale * (tamanoEnMano / Mathf.Max(0.01f, tamano));
-        tamano = tamanoEnMano;
+        // sube del piso a las manos y se achica un poco
+        levantadaEn = Time.time;
+        desdeElPiso = transform.position;
+        escalaEnMano = transform.localScale * fraccionEnMano;
+        tamano *= fraccionEnMano;
         radio = tamano * 0.42f;
+    }
+
+    // La roca se dibuja justo atras de Obby.
+    void PonerAtrasDe(RockThrower quien)
+    {
+        var dibujo = quien.DibujoDeObby;
+        if (dibujo == null || sr.sortingLayerID != dibujo.sortingLayerID || sr.sortingOrder < dibujo.sortingOrder) return;
+        ordenOriginal = sr.sortingOrder;
+        sr.sortingOrder = dibujo.sortingOrder - 1;
     }
 
     void LateUpdate()
@@ -300,12 +376,21 @@ public class RocaGrande : MonoBehaviour
 
         // cargada: va arriba de la cabeza de Obby
         if (estado != Estado.Cargada || quienLaLleva == null) return;
-        Vector3 cabeza = cuerpoObby != null
-            ? new Vector3(cuerpoObby.bounds.center.x, cuerpoObby.bounds.max.y + radio * 0.9f, transform.position.z)
-            : quienLaLleva.transform.position + Vector3.up * 1.2f;
-        transform.position = cabeza;
         transform.rotation = Quaternion.identity;
         transform.localScale = Vector3.MoveTowards(transform.localScale, escalaEnMano, 8f * Time.deltaTime * Mathf.Max(1f, transform.localScale.x));
+        // apoyada en las manos levantadas (en el dibujo de Obby estan 0.34 arriba de su centro)
+        Vector3 obby = quienLaLleva.transform.position;
+        float medioAlto = sr.bounds.extents.y;
+        Vector3 manos = new Vector3(obby.x, obby.y + ManosArriba + medioAlto, transform.position.z);
+        float k = Mathf.Clamp01((Time.time - levantadaEn) / LevantarEn);   // recien sacada: sube desde el piso
+        transform.position = Vector3.Lerp(desdeElPiso, manos, k * k * (3f - 2f * k));
+    }
+
+    /// <summary>El tapon cae ya mismo en la puerta (al saltear la cinematica).</summary>
+    public void AterrizarYa()
+    {
+        if (estado != Estado.Volando || !esTapon) return;
+        Apoyar(destino - Vector2.up * radio);
     }
 
     /// <summary>Obby la tira hacia donde mira (lo llama RockThrower con el boton de ataque).</summary>
@@ -321,6 +406,7 @@ public class RocaGrande : MonoBehaviour
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.gravityScale = 0f;
         transform.localScale = escalaEnMano;   // por si la tira antes de terminar de achicarse
+        if (ordenOriginal != 0) sr.sortingOrder = ordenOriginal;   // vuela por delante de todo otra vez
         vel = new Vector2(direccion * velocidadTiro, 3.5f);
         sinAgarrarHasta = Time.time + 0.5f;
         Sonidos.Play(null, "roca_grande_tira");
@@ -345,6 +431,7 @@ public class RocaGrande : MonoBehaviour
 
     void OnDestroy()
     {
+        SoltarObby();
         enElPiso.Remove(this);
         if (tecla != null) Destroy(tecla.gameObject);
     }

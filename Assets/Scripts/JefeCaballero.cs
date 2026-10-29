@@ -2,6 +2,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Tilemaps;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// JEFE DEL NIVEL 4: EL CABALLERO NEGRO.
@@ -17,7 +20,7 @@ using UnityEngine.Tilemaps;
 /// - Las rocas grandes quedan por el mapa: Obby las agarra pasandoles por encima y las tira con
 ///   el boton de ataque. Las piedritas de Obby no le hacen nada.
 /// - Despues de varios ataques SE CANSA: se queda quieto PARPADEANDO EN BLANCO. Ese es el momento:
-///   si le pegas con una roca grande le sacas una vida (los corazones sobre su cabeza). Cansado o
+///   si le pegas con una roca grande le sacas una vida (la barra de vida de arriba). Cansado o
 ///   no, si no le pegas a tiempo se recupera y vuelve a atacar, cada vez mas rapido.
 /// - Sin vidas: se deshace en pixeles y aparece la meta del nivel.
 ///
@@ -60,6 +63,16 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     public Transform door;
     [Tooltip("Tamano de la roca que tapa la puerta, en unidades.")]
     public float doorRockSize = 2.6f;
+    [Tooltip("Segundos que tarda en volar la roca que tapa la puerta (mas = mas lenta).")]
+    public float doorRockFlightTime = 2f;
+    [Tooltip("La cinematica arranca apenas empieza el nivel: Obby sale caminando solo hacia la arena.")]
+    public bool introOnLevelStart = true;
+    [Tooltip("Fuente (pixel) de los carteles: el nombre arriba de la barra de vida y ESPACIO: SALTAR CINEMATICA.")]
+    public TMP_FontAsset uiFont;
+    [Tooltip("Nombre del jefe (arriba de la barra de vida).")]
+    public string bossName = "LEBOSS";
+    [Tooltip("Barra de vida arriba de la pantalla, con el nombre.")]
+    public bool showHealthBar = true;
     [Tooltip("Segundos que se rie.")]
     public float laughTime = 1.8f;
 
@@ -74,6 +87,14 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     public float walkSpeed = 4.2f;
     [Tooltip("Hasta donde llega la pina, contando desde el borde del cuerpo.")]
     public float punchRange = 1.2f;
+    [Tooltip("Que tan fuerte empuja la pina a Obby para atras.")]
+    public float punchKnockback = 13f;
+    [Tooltip("Que tan alto lo levanta la pina al empujarlo.")]
+    public float punchKnockUp = 6f;
+    [Tooltip("Cuando le pega a Obby aparece una palabra grande en letras pixel: PUM (pina), SLASH (espada), POW (roca).")]
+    public bool showHitWords = true;
+    [Tooltip("Tamano de esas palabras (lo que mide de ancho una de 3 letras, como PUM), en unidades.")]
+    public float hitWordSize = 3f;
     [Tooltip("Cuanto avanza con el espadazo de cerca.")]
     public float swordLunge = 1.2f;
     [Tooltip("Hasta donde llega la espada, contando desde el borde del cuerpo.")]
@@ -82,6 +103,33 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     public float dashDistance = 8f;
     [Tooltip("Velocidad del espadazo dash.")]
     public float dashSpeed = 22f;
+    [Tooltip("Pisoton: lo usa si Obby esta a esta distancia o menos.")]
+    public float stompDistance = 12f;
+    [Tooltip("Pisoton: segundos agachado cargando el salto (titila avisando).")]
+    public float stompCharge = 0.6f;
+    [Tooltip("Pisoton: segundos que tarda en caer donde calculo que va a estar Obby (menos = mas rapido).")]
+    public float stompTime = 1f;
+    [Tooltip("Pisoton: gravedad del salto (mas = sube y baja mas de golpe).")]
+    public float stompGravity = 60f;
+    [Tooltip("Pisoton: cuanto mas alla de su cuerpo lastima al caer.")]
+    public float stompReach = 1f;
+    [Tooltip("Pisoton: cuanto se adelanta a donde corre Obby (0 = donde esta, 1 = donde va a estar si sigue corriendo derecho).")]
+    public float stompLead = 0.35f;
+    [Tooltip("Pisoton: como mucho se adelanta esto (en unidades).")]
+    public float stompMaxLead = 2.5f;
+
+    [Tooltip("Marca roja en el piso donde van a caer el pisoton y las rocas (para esquivar viendo).")]
+    public bool showLandingMarks = true;
+
+    [Header("Golpes fuertes")]
+    [Tooltip("Segundos que se congela todo cuando le pegas con la roca (el golpe se siente pesado).")]
+    public float hitStopOnBoss = 0.12f;
+    [Tooltip("Segundos que se congela todo cuando el te pega fuerte (pina o pisoton).")]
+    public float hitStopOnObby = 0.06f;
+
+    [Header("Ultima vida")]
+    [Tooltip("Con una sola vida se pone mas bravo: dash ida y vuelta, y pisoton + roca. Tambien se tine de este color.")]
+    public Color lastLifeTint = new Color(1f, 0.72f, 0.72f, 1f);
     [Tooltip("Cuantos ataques hace antes de cansarse (mas o menos uno).")]
     public int attacksBeforeTired = 5;
     [Tooltip("Rocas que tira antes de cansarse. Una (al azar) queda clavada en el piso: Obby la saca apretando E varias veces.")]
@@ -106,8 +154,12 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     public float rockScale = 0.6f;
     [Tooltip("Segundos que tarda la roca en llegar adonde estaba Obby.")]
     public float rockFlightTime = 1f;
-    [Tooltip("Tamano (en unidades) de la roca cuando Obby la saca del piso y la lleva en las manos.")]
-    public float carriedRockSize = 1.6f;
+    [Tooltip("En las manos de Obby la roca se achica a esta parte de su tamano (0.7 = un poco mas chica que la que tira el jefe).")]
+    public float carriedRockScale = 0.7f;
+    [Tooltip("Animacion de Obby levantando la roca (se la pasa a Obby si el no tiene una puesta).")]
+    public PlayerAnimator.SpriteAnim obbyLift;
+    [Tooltip("Animacion de Obby corriendo con la roca arriba de la cabeza (se la pasa a Obby si el no tiene una puesta).")]
+    public PlayerAnimator.SpriteAnim obbyCarry;
     [Tooltip("Velocidad de la roca que tira Obby.")]
     public float obbyThrowSpeed = 20f;
 
@@ -140,6 +192,16 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     [Tooltip("Cuando una roca de Obby le rebota sin hacerle nada (no estaba cansado).")]
     public AudioClip bounceSound;
     public AudioClip deathSound;
+    [Tooltip("La pina le pega a Obby y lo manda volando.")]
+    public AudioClip punchHitSound;
+    [Tooltip("Titila avisando que va a atacar.")]
+    public AudioClip warnSound;
+    [Tooltip("Sale disparado con el espadazo dash.")]
+    public AudioClip dashSound;
+    [Tooltip("Cae el pisoton.")]
+    public AudioClip stompSound;
+    [Tooltip("La roca de Obby se le estrella encima estando cansado.")]
+    public AudioClip rockHitSound;
 
     SpriteRenderer sr;
     Collider2D col;
@@ -156,13 +218,12 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     int vidas;
     bool despierto, muerto, cansado;
     bool enElAire;          // cayendo o saltando
+    bool pisoteando;        // el salto en curso es un pisoton (al caer hace temblar todo y lastima)
     float velY;             // velocidad vertical (positiva = sube)
     float velX;             // avance de costado mientras salta
     Anim anim;
     float animT;
     bool animLoop = true;
-    SpriteRenderer[] corazones;
-    static Sprite s_corazon;
     static readonly RaycastHit2D[] s_hits = new RaycastHit2D[8];
 
     float Furia => 1f + angerPerLife * (lives - vidas);   // 1, 1.3, 1.6...
@@ -194,6 +255,13 @@ public class JefeCaballero : MonoBehaviour, IStunnable
             obbyCol = obby.GetComponent<Collider2D>();
             obbyVidas = obby.GetComponent<PlayerRespawn>();
             obbyTira = obby.GetComponent<RockThrower>();
+            // las animaciones de Obby con la roca: si Obby no tiene puestas, se las paso yo
+            var animObby = obby.GetComponent<PlayerAnimator>();
+            if (animObby != null)
+            {
+                if (Vacia(animObby.lift)) animObby.lift = obbyLift;
+                if (Vacia(animObby.carry)) animObby.carry = obbyCarry;
+            }
         }
         if (Camera.main != null) cam = Camera.main.GetComponent<CameraFollow2D>();
 
@@ -207,13 +275,13 @@ public class JefeCaballero : MonoBehaviour, IStunnable
 
         // de espaldas a Obby, esperando
         if (player != null) Mirar(player.position.x > transform.position.x ? -1 : 1);
-        CrearCorazones();
         StartCoroutine(Pelear());
     }
 
     void Update()
     {
-        if (muerto || anim == null || anim.frames == null || anim.frames.Length == 0) return;
+        // (sigue animando aunque le hayas ganado: sale corriendo y rompe la pared)
+        if (anim == null || anim.frames == null || anim.frames.Length == 0) return;
         animT += Time.deltaTime;
         int n = Mathf.FloorToInt(animT * Mathf.Max(1f, anim.fps));
         n = animLoop ? n % anim.frames.Length : Mathf.Min(n, anim.frames.Length - 1);
@@ -234,7 +302,8 @@ public class JefeCaballero : MonoBehaviour, IStunnable
             else { Apoyar(y); return; }
         }
 
-        velY -= gravity * dt;
+        velY -= (pisoteando ? stompGravity : gravity) * dt;   // el pisoton es un salto mas rapido
+        if (pisoteando && velY < 0f) AplastarSiToca();
         if (velX != 0f && !Mover(velX * dt)) velX = 0f;   // contra una pared deja de avanzar
         float bajada = -velY * dt;
         if (velY <= 0f && Suelo(bajada + 0.02f, out float piso))
@@ -242,6 +311,7 @@ public class JefeCaballero : MonoBehaviour, IStunnable
             enElAire = false;
             velY = 0f; velX = 0f;
             Apoyar(piso);
+            if (pisoteando) { pisoteando = false; Pisada(); return; }
             Sonidos.PlayEn(landSound, "jefe_aterriza", transform.position, Sonidos.EnPantalla);
             if (cam != null) cam.Shake(0.12f, 0.1f);
             return;
@@ -280,17 +350,17 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     }
 
     // Salta para caer en 'destino' (pasando un poco por arriba).
-    IEnumerator SaltarHacia(Vector2 destino)
+    IEnumerator SaltarHacia(Vector2 destino, float altoExtra = 1.6f)
     {
         if (enElAire) yield break;
         Encarar();
         float dy = destino.y - PiesY;
-        float alto = Mathf.Clamp(Mathf.Max(dy, 0f) + 1.6f, 1.2f, maxJumpHeight);
+        float alto = Mathf.Clamp(Mathf.Max(dy, 0f) + altoExtra, 1.2f, Mathf.Max(maxJumpHeight, altoExtra));
         float subida = Mathf.Sqrt(2f * gravity * alto);
         float tSubir = subida / gravity;
         float tBajar = Mathf.Sqrt(2f * Mathf.Max(0.05f, alto - dy) / gravity);
         float dx = destino.x - transform.position.x;
-        velX = Mathf.Clamp(dx / (tSubir + tBajar), -10f, 10f);
+        velX = Mathf.Clamp(dx / (tSubir + tBajar), -14f, 14f);
         velY = subida;
         enElAire = true;
         Poner(jump, true);
@@ -303,7 +373,12 @@ public class JefeCaballero : MonoBehaviour, IStunnable
 
     IEnumerator Pelear()
     {
-        if (!despierto) { yield return Cinematica(); despierto = true; }
+        if (!despierto)
+        {
+            yield return CinematicaSalteable();
+            despierto = true;
+            if (showHealthBar && barra == null) barra = BarraJefe.Crear(bossName, uiFont, Mathf.Max(1, lives));
+        }
 
         while (!muerto)
         {
@@ -316,9 +391,12 @@ public class JefeCaballero : MonoBehaviour, IStunnable
                 bool aMiAltura = Mathf.Abs(ObbyPies() - PiesY) < 1.3f;
 
                 float cerca = col.bounds.extents.x + punchRange;
-                if (aMiAltura && dx <= cerca) { if (Random.value < 0.55f) yield return Espadazo(); else yield return Pina(); }
-                else if (aMiAltura && dx > cerca + 1.5f && dx <= dashDistance + cerca && Random.value < 0.7f) yield return EspadazoDash();
-                else yield return Seguir(4f);   // va hasta vos y te pega
+                float r = Random.value;
+                bool lejos = dx > cerca + 4f;   // lejos: ahi si se larga con el dash
+                if (aMiAltura && dx <= cerca) yield return GolpeDeCerca();
+                else if (aMiAltura && lejos && r < 0.7f) yield return UltimaVida ? DashIdaYVuelta() : EspadazoDash();
+                else if (dx > cerca + 1f && dx <= stompDistance && r < 0.5f) yield return UltimaVida ? PisotonYRoca() : Pisoton();
+                else yield return Seguir(2.2f);   // va hasta vos y te pega (camina un rato corto y vuelve a elegir)
 
                 Poner(idle, true);
                 yield return new WaitForSeconds(restTime / Furia);
@@ -361,7 +439,7 @@ public class JefeCaballero : MonoBehaviour, IStunnable
             {
                 proximoDash = t + 0.6f;
                 float lejos = Mathf.Abs(dx), cerca = col.bounds.extents.x + punchRange;
-                if (Mathf.Abs(dy) < 1.3f && lejos > cerca + 1.5f && lejos <= dashDistance + cerca && Random.value < 0.5f)
+                if (Mathf.Abs(dy) < 1.3f && lejos > cerca + 4f && Random.value < 0.5f)   // solo si estas lejos
                 { yield return EspadazoDash(); yield break; }
             }
             if (anim != walk) Poner(walk, true);
@@ -375,22 +453,153 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         }
         if (!muerto && !enElAire && Mathf.Abs(player.position.x - transform.position.x) <= col.bounds.extents.x + punchRange
             && Mathf.Abs(ObbyPies() - PiesY) < 1.3f)
-            yield return Pina();
+            yield return GolpeDeCerca();
     }
+
+    // Titila avisando que va a atacar (con el crujido de la armadura).
+    IEnumerator Avisar(float duracion)
+    {
+        Sonidos.PlayEn(warnSound, "jefe_aviso", transform.position, Sonidos.EnPantalla);
+        yield return EnemigoFX.Amague(sr, colorBase, warnColor, duracion);
+    }
+
+    /// <summary>Palabra de historieta arriba de Obby (PUM, SLASH, POW). La usa tambien la roca.</summary>
+    public void Texto(string palabra)
+    {
+        if (showHitWords && player != null) TextoGolpe.Mostrar(palabra, player.position + Vector3.up * 1.4f, hitWordSize);
+    }
+
+    // ULTIMA VIDA: dash, y apenas termina se da vuelta y vuelve con otro dash.
+    IEnumerator DashIdaYVuelta()
+    {
+        yield return EspadazoDash();
+        if (muerto) yield break;
+        yield return new WaitForSeconds(0.12f);
+        yield return EspadazoDash();   // Encarar() adentro: vuelve para donde esta Obby
+    }
+
+    // ULTIMA VIDA: pisoton y, apenas cae, una roca adonde este Obby.
+    IEnumerator PisotonYRoca()
+    {
+        yield return Pisoton();
+        if (muerto) yield break;
+        yield return TirarRoca(ApuntarAObby(), false);
+    }
+
+    // De cerca: mitad espadazo, mitad pina.
+    IEnumerator GolpeDeCerca()
+    {
+        if (Random.value < 0.5f) yield return Espadazo();
+        else yield return Pina();
+    }
+
+    // PISOTON: se agacha avisando, salta alto adonde esta Obby y cae con todo: la camara tiembla
+    // y si Obby esta abajo o al lado, le saca una vida.
+    IEnumerator Pisoton()
+    {
+        yield return EsperarApoyado();
+        Encarar();
+        // se agacha y CARGA el salto (titilando y crujiendo)
+        Anim agachado = lift != null && lift.frames != null && lift.frames.Length > 0
+            ? new Anim { frames = new[] { lift.frames[0] }, fps = 1f } : jump;
+        Poner(agachado, true);
+        yield return Avisar(stompCharge / Furia);
+
+        // calcula donde va a estar Obby cuando caiga (si corre, adelante suyo) y salta RAPIDO
+        float T = Mathf.Max(0.25f, stompTime / Mathf.Sqrt(Furia));
+        Vector2 destino = ObbyPiesPunto();
+        // se adelanta un poco a donde corre Obby (si se adelantaba todo, Obby frenaba y erraba lejisimo)
+        if (obby != null) destino.x += Mathf.Clamp(obby.Velocity.x * T * stompLead, -stompMaxLead, stompMaxLead);
+        destino = PisoDeLaArena(destino.x, destino.y);
+        if (showLandingMarks) MarcaDeCaida.Crear(destino, col.bounds.size.x + stompReach * 2f, T);   // donde va a caer
+        Mirar(destino.x >= transform.position.x ? 1 : -1);
+        float dy = destino.y - PiesY;
+        velX = (destino.x - transform.position.x) / T;
+        velY = (dy + 0.5f * stompGravity * T * T) / T;   // llega justo en T segundos
+        enElAire = true;
+        pisoteando = true;
+        aplastoEsteSalto = false;
+        Poner(jump, true);
+        Sonidos.PlayEn(jumpSound, "jefe_salta", transform.position, Sonidos.EnPantalla);
+        for (float t = 0f; enElAire && t < 3f; t += Time.deltaTime) yield return null;
+        pisoteando = false;
+        Poner(idle, true);
+        yield return new WaitForSeconds(0.25f);
+    }
+
+    // El piso de la arena en esa x (sin pasarse de las paredes): adonde cae el pisoton.
+    Vector2 PisoDeLaArena(float x, float yObby)
+    {
+        Bounds b = col.bounds;
+        Vector2 ojo = new Vector2(b.center.x, b.min.y + 1f);
+        RaycastHit2D izq = Physics2D.Raycast(ojo, Vector2.left, 25f, groundLayer);
+        RaycastHit2D der = Physics2D.Raycast(ojo, Vector2.right, 25f, groundLayer);
+        float minX = (izq.collider != null ? izq.point.x : ojo.x - 25f) + b.extents.x + 0.2f;
+        float maxX = (der.collider != null ? der.point.x : ojo.x + 25f) - b.extents.x - 0.2f;
+        if (minX < maxX) x = Mathf.Clamp(x, minX, maxX);
+        RaycastHit2D h = Physics2D.Raycast(new Vector2(x, Mathf.Max(yObby, PiesY) + 3f), Vector2.down, 20f, groundLayer);
+        return new Vector2(x, h.collider != null ? h.point.y : PiesY);
+    }
+
+    // Cae el pisoton.
+    void Pisada()
+    {
+        Sonidos.PlayEn(stompSound, "jefe_pisoton", transform.position, Sonidos.EnPantalla);
+        if (cam != null) cam.Shake(0.45f, 0.4f);
+        EnemigoFX.Polvo(sr.bounds, sr, 10);
+        if (player == null || obbyVidas == null) return;
+        // la onda del golpe: el cuerpo de Obby (no su centro) al lado o abajo del jefe
+        Bounds b = col.bounds;
+        Bounds o = obbyCol != null ? obbyCol.bounds : new Bounds(player.position, Vector3.one * 0.5f);
+        bool deCostado = o.max.x >= b.min.x - stompReach && o.min.x <= b.max.x + stompReach;
+        bool deAlto = o.min.y <= b.min.y + 1.5f && o.max.y >= b.min.y - 0.5f;
+        if (((deCostado && deAlto) || b.Intersects(o)) && !aplastoEsteSalto)
+        {
+            aplastoEsteSalto = true;
+            obbyVidas.Hurt(transform.position);
+            HitStop.Congelar(hitStopOnObby);
+        }
+    }
+
+    // Cayendo con el pisoton: si le cae encima a Obby, lo aplasta (antes solo contaba al tocar el piso).
+    void AplastarSiToca()
+    {
+        if (obbyVidas == null || obbyCol == null || aplastoEsteSalto) return;
+        if (col.bounds.Intersects(obbyCol.bounds)) { aplastoEsteSalto = true; obbyVidas.Hurt(transform.position); HitStop.Congelar(hitStopOnObby); }
+    }
+    bool aplastoEsteSalto;   // un solo aplastamiento (y un solo freno) por pisoton
 
     IEnumerator Pina()
     {
         Encarar();
         Poner(punch, false);
-        yield return EnemigoFX.Amague(sr, colorBase, warnColor, 0.3f / Furia);   // aviso
+        yield return Avisar(0.3f / Furia);   // aviso
         animT = 10f;   // brazo estirado (ultimo cuadro)
         Sonidos.PlayEn(punchSound, "jefe_pina", transform.position, Sonidos.EnPantalla);
         if (cam != null) cam.Shake(0.12f, 0.08f);
-        Golpear(punchRange + 0.3f);
-        yield return new WaitForSeconds(0.35f);
+        // el brazo queda estirado un ratito: pega en cualquier momento de ese rato (no en un solo cuadro)
+        bool pego = false;
+        for (float t = 0f; t < 0.15f; t += Time.deltaTime)
+        {
+            if (!pego)
+            {
+                pego = Golpear(punchRange + 0.3f);
+                // la pina lo manda volando lejos
+                if (pego)
+                {
+                    Sonidos.PlayEn(punchHitSound, "pina_impacto", player.position, Sonidos.EnPantalla);   // PUM y sale volando
+                    Texto("PUM");
+                    HitStop.Congelar(hitStopOnObby);
+                    if (cam != null) cam.Shake(0.2f, 0.18f);
+                    if (obby != null) obby.Empujar(new Vector2(dir * punchKnockback, punchKnockUp), 0.45f);
+                }
+            }
+            yield return null;
+        }
+        yield return new WaitForSeconds(0.2f);
     }
 
-    // Tira varias rocas a lugares al azar cerca de Obby. Una sola (al azar) queda clavada en el
+    // Tira varias rocas, cada una adonde esta Obby. Una sola (al azar) queda clavada en el
     // piso; las demas se rompen al caer. Si Obby ya tiene una (en la mano o clavada), no clava otra.
     IEnumerator LluviaDeRocas()
     {
@@ -399,32 +608,17 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         bool yaTiene = RocaGrande.HayEnElPiso || (obbyTira != null && obbyTira.LlevaRocaGrande);
         int clavada = yaTiene ? -1 : Random.Range(0, cuantas);
         for (int i = 0; i < cuantas && !muerto; i++)
-            yield return TirarRoca(LugarAlAzar(), i == clavada);
+            yield return TirarRoca(ApuntarAObby(), i == clavada);
     }
 
-    // Un punto del piso de la arena al azar, lejos del jefe (para que las rocas caigan por cualquier lado).
-    Vector2 LugarAlAzar()
+    // Adonde tirarle la roca a Obby: donde va a estar cuando la roca llegue (si corre, adelante
+    // suyo), sobre el piso que tenga abajo y sin pasarse de las paredes de la arena.
+    Vector2 ApuntarAObby()
     {
-        Bounds b = col.bounds;
-        // los bordes de la arena: hasta donde hay pared a cada lado (como mucho 25)
-        Vector2 ojo = new Vector2(b.center.x, b.min.y + 1f);
-        RaycastHit2D izq = Physics2D.Raycast(ojo, Vector2.left, 25f, groundLayer);
-        RaycastHit2D der = Physics2D.Raycast(ojo, Vector2.right, 25f, groundLayer);
-        float minX = (izq.collider != null ? izq.point.x : ojo.x - 25f) + 1.5f;
-        float maxX = (der.collider != null ? der.point.x : ojo.x + 25f) - 1.5f;
-
-        Vector2 mejor = ObbyPiesPunto();
-        for (int k = 0; k < 12; k++)
-        {
-            float x = Random.Range(minX, maxX);
-            if (Mathf.Abs(x - b.center.x) < b.extents.x + 3f) continue;   // no a sus pies
-            RaycastHit2D h = Physics2D.Raycast(new Vector2(x, b.max.y + 4f), Vector2.down, 20f, groundLayer);
-            if (h.collider == null || Mathf.Abs(h.point.y - PiesY) > 4f) continue;   // fuera de la arena
-            return new Vector2(x, h.point.y);
-        }
-        return mejor;
+        Vector2 p = ObbyPiesPunto();
+        if (obby != null) p.x += obby.Velocity.x * rockFlightTime / Mathf.Sqrt(Furia);
+        return PisoDeLaArena(p.x, p.y);
     }
-
     // La roca de la puerta: bastante mas alta que el hueco, para que lo tape bien.
     float TamanoTapon(Vector2 puerta)
     {
@@ -439,11 +633,13 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         Encarar();
         Poner(lift, false);   // agarra la roca y la levanta
         yield return new WaitForSeconds(DuracionDe(lift) / Furia);
-        yield return EnemigoFX.Amague(sr, colorBase, warnColor, 0.2f / Furia);
+        yield return Avisar(0.2f / Furia);
         Lanzar(hasta, TamanoRoca(), rockFlightTime / Mathf.Sqrt(Furia), false, clavada);
         Poner(idle, true);
         yield return new WaitForSeconds(0.25f);
     }
+
+    static bool Vacia(PlayerAnimator.SpriteAnim a) { return a == null || a.frames == null || a.frames.Length == 0; }
 
     float TamanoRoca() { return Mathf.Max(0.5f, col.bounds.size.y * rockScale); }
 
@@ -453,7 +649,9 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         Vector2 desde = new Vector2(b.center.x, b.max.y + tamano * 0.6f);
         Sonidos.PlayEn(throwSound, "jefe_tira", transform.position, Sonidos.EnPantalla);
         var roca = RocaGrande.TirarDelJefe(rockSprite, tamano, desde, hasta, tiempo, groundLayer, sr.sortingOrder + 1, tapon, clavada);
-        roca.ParaObby(carriedRockSize, obbyThrowSpeed);
+        if (showLandingMarks && !tapon) MarcaDeCaida.Crear(hasta, tamano * 1.1f, tiempo);   // donde va a caer la roca
+        roca.ParaObby(carriedRockScale, obbyThrowSpeed);
+        roca.Duenio = this;
         return roca;
     }
 
@@ -463,7 +661,7 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         Poner(sword, false);
         // saca la espada y la levanta (todo menos los dos ultimos cuadros), titilando de aviso
         int preparar = sword.frames != null ? Mathf.Max(0, sword.frames.Length - 2) : 0;
-        yield return EnemigoFX.Amague(sr, colorBase, warnColor, preparar / Mathf.Max(1f, sword.fps) / Furia);
+        yield return Avisar(preparar / Mathf.Max(1f, sword.fps) / Furia);
         // estocada: avanza de golpe pegando lo que tenga adelante
         animT = preparar / Mathf.Max(1f, sword.fps);
         Sonidos.PlayEn(swordSound, "jefe_espadazo", transform.position, Sonidos.EnPantalla);
@@ -472,7 +670,7 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         for (float t = 0f; t < dur; t += Time.deltaTime)
         {
             Mover(dir * swordLunge / dur * Time.deltaTime);
-            if (!pego) pego = Golpear(swordReach);
+            if (!pego && (pego = Golpear(swordReach))) Texto("SLASH");
             yield return null;
         }
         if (cam != null) cam.Shake(0.15f, 0.12f);
@@ -486,10 +684,10 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         Encarar();
         Poner(sword, false);
         int preparar = sword.frames != null ? Mathf.Max(0, sword.frames.Length - 2) : 0;
-        yield return EnemigoFX.Amague(sr, colorBase, warnColor, Mathf.Max(0.35f, preparar / Mathf.Max(1f, sword.fps)) / Furia);
+        yield return Avisar(Mathf.Max(0.35f, preparar / Mathf.Max(1f, sword.fps)) / Furia);
         animT = preparar / Mathf.Max(1f, sword.fps);   // estocada
         Sonidos.PlayEn(swordSound, "jefe_espadazo", transform.position, Sonidos.EnPantalla);
-        Sonidos.PlayEn(null, "roca_grande_tira", transform.position, Sonidos.EnPantalla);   // el soplido de la carrera
+        Sonidos.PlayEn(dashSound, "jefe_dash", transform.position, Sonidos.EnPantalla);   // el zumbido de la carrera
         bool pego = false;
         float recorrido = 0f, proximaEstela = 0f;
         while (recorrido < dashDistance && !muerto)
@@ -497,7 +695,7 @@ public class JefeCaballero : MonoBehaviour, IStunnable
             float paso = dashSpeed * Furia * Time.deltaTime;
             if (!Mover(dir * paso)) break;   // choco una pared
             recorrido += paso;
-            if (!pego) pego = Golpear(swordReach * 0.6f);
+            if (!pego && (pego = Golpear(swordReach * 0.6f))) Texto("SLASH");
             if (recorrido >= proximaEstela) { proximaEstela = recorrido + 0.6f; Estela(); }
             yield return null;
         }
@@ -543,15 +741,30 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     }
 
     // Le pega a Obby si esta adelante, al alcance y a la altura del cuerpo.
+    // Llega hasta donde llega el DIBUJO del cuadro actual (la estocada de la espada llega mucho mas
+    // lejos que el cuerpo): si se ve que te pega, te pega. Mide contra el cuerpo de Obby, no su centro.
     bool Golpear(float alcance)
     {
         if (player == null || obbyVidas == null) return false;
         Bounds b = col.bounds;
-        float dx = (player.position.x - b.center.x) * dir;
-        float dy = player.position.y - b.center.y;
-        if (dx < -0.4f || dx > alcance + b.extents.x || Mathf.Abs(dy) > b.extents.y + 0.8f) return false;
+        float frente = Mathf.Max(alcance + b.extents.x, AlcanceDelDibujo() + 0.15f);
+        Bounds o = obbyCol != null ? obbyCol.bounds : new Bounds(player.position, Vector3.one * 0.5f);
+        float bordeCerca = dir > 0 ? o.min.x - b.center.x : b.center.x - o.max.x;   // lo mas cerca de Obby, hacia adelante
+        float bordeLejos = dir > 0 ? o.max.x - b.center.x : b.center.x - o.min.x;
+        if (bordeLejos < -0.4f || bordeCerca > frente) return false;
+        float arriba = Mathf.Max(b.max.y, sr.bounds.max.y);
+        if (o.min.y > arriba || o.max.y < b.min.y - 0.3f) return false;
         obbyVidas.Hurt(transform.position);
         return true;
+    }
+
+    // Hasta donde llega para adelante el dibujo del cuadro actual (desde el centro del cuerpo).
+    float AlcanceDelDibujo()
+    {
+        if (sr == null || sr.sprite == null) return 0f;
+        float max = 0f;
+        foreach (var v in sr.sprite.vertices) max = Mathf.Max(max, spriteFacesRight ? v.x : -v.x);
+        return max * Mathf.Abs(transform.lossyScale.x);
     }
 
     // Avanza de costado si no hay una pared adelante. Devuelve false si choco.
@@ -611,12 +824,14 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     {
         // espera a que Obby llegue (o arranca enseguida)
         // espera a que Obby llegue cerca (y pase Intro From, si pusiste uno)
-        while (player == null || !ObbyLlego())
+        while (player == null || (!introOnLevelStart && !ObbyLlego()))
             yield return null;
 
         if (obby != null) obby.ControlBloqueado = true;
         Vector2 entrada = player.position;   // por donde entro Obby: ahi va la roca que tapa la entrada
         entradaX = entrada.x;
+        entradaCinematica = entrada;
+        cinematicaArranco = true;
 
         // Obby camina solo hasta la arena: siempre hacia el jefe (nunca para atras), salta al
         // llegar al borde y para cuando paso el ultimo punto de la intro y esta en el piso.
@@ -654,13 +869,14 @@ public class JefeCaballero : MonoBehaviour, IStunnable
 
         // La PRIMERA roca le tapa la entrada: en la puerta que marcaste o, si no marcaste ninguna,
         // atras de donde entro Obby.
-        if (door != null || EntradaDetras(entrada, out _))
+        if (PuertaDeLaCinematica(out Vector2 puerta))
         {
-            Vector2 puerta = door != null ? (Vector2)door.position : Vector2.zero;
-            if (door == null) EntradaDetras(entrada, out puerta);
-            Poner(lift, false);
-            yield return new WaitForSeconds(DuracionDe(lift));
-            RocaGrande tapon = Lanzar(puerta, TamanoTapon(puerta), 1.1f, true);
+            // levanta la roca despacio (con todo el peso) y la tira en un arco lento
+            var levantaLento = new Anim { frames = lift.frames, fps = lift.fps * 0.5f };
+            Poner(levantaLento, false);
+            yield return new WaitForSeconds(DuracionDe(levantaLento) + 0.3f);
+            RocaGrande tapon = Lanzar(puerta, TamanoTapon(puerta), doorRockFlightTime, true);
+            taponCinematica = tapon;
             Poner(idle, true);
             // la camara se va con la roca hasta que se estrella
             if (cam != null && tapon != null) cam.Enfocar(tapon.transform, true);
@@ -678,6 +894,127 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         yield return new WaitForSeconds(0.4f);
         if (obby != null) obby.ControlBloqueado = false;
         Poner(idle, true);
+        cinematicaTermino = true;
+    }
+
+    // ---------------- saltear la cinematica ----------------
+    // La primera vez se ve entera. Si moris y el nivel vuelve a empezar, abajo a la derecha aparece
+    // "ESPACIO: SALTAR CINEMATICA" y con espacio (o el boton de saltar del joystick) se saltea.
+
+    static bool s_cinematicaVista;   // sobrevive al reinicio del nivel (no al cerrar el juego)
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void OlvidarCinematica() { s_cinematicaVista = false; }
+
+    bool cinematicaArranco, cinematicaTermino;
+    Vector2 entradaCinematica;
+    RocaGrande taponCinematica;
+
+    IEnumerator CinematicaSalteable()
+    {
+        if (!s_cinematicaVista)
+        {
+            yield return Cinematica();
+            s_cinematicaVista = true;
+            yield break;
+        }
+
+        cinematicaArranco = cinematicaTermino = false;
+        Coroutine corriendo = StartCoroutine(Cinematica());
+        TextMeshProUGUI cartel = null;
+        while (!cinematicaTermino)
+        {
+            if (cinematicaArranco)
+            {
+                if (cartel == null) cartel = CrearCartelSaltar();
+                var c = cartel.color; c.a = 0.65f + 0.35f * Mathf.Sin(Time.time * 5f); cartel.color = c;   // titila suave
+                if (ApretoSaltar())
+                {
+                    StopCoroutine(corriendo);
+                    yield return SaltarCinematica();
+                    break;
+                }
+            }
+            yield return null;
+        }
+        if (cartel != null) Destroy(cartel.canvas.gameObject);
+    }
+
+    static bool ApretoSaltar()
+    {
+        return (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+            || (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
+    }
+
+    // Deja todo como al final de la cinematica: Obby en la arena, la puerta tapada, a pelear.
+    IEnumerator SaltarCinematica()
+    {
+        if (obby != null)
+        {
+            obby.MoverSolo = 0f;
+            if (introWalkTo != null || introJumpAt != null)
+            {
+                float x = UltimoPuntoIntro();
+                RaycastHit2D h = Physics2D.Raycast(new Vector2(x, PiesY + 6f), Vector2.down, 20f, groundLayer);
+                if (h.collider != null)
+                {
+                    float pies = obbyCol != null ? player.position.y - obbyCol.bounds.min.y : 0.4f;
+                    player.position = new Vector3(x, h.point.y + pies + 0.02f, player.position.z);
+                    var rbObby = obby.GetComponent<Rigidbody2D>();
+                    if (rbObby != null) { rbObby.position = player.position; rbObby.linearVelocity = Vector2.zero; }
+                    Physics2D.SyncTransforms();
+                }
+            }
+        }
+
+        // la puerta queda tapada
+        if (taponCinematica != null) taponCinematica.AterrizarYa();
+        else if (PuertaDeLaCinematica(out Vector2 puerta))
+        {
+            var r = RocaGrande.TirarDelJefe(rockSprite, TamanoTapon(puerta), puerta + Vector2.up * 3f, puerta, 0.5f,
+                                            groundLayer, sr.sortingOrder + 1, true, false);
+            r.AterrizarYa();
+        }
+
+        Encarar();
+        Poner(idle, true);
+        sr.color = colorBase;
+        if (cam != null) { cam.SoltarFoco(); cam.SnapToTarget(); }
+        yield return null;   // un cuadro: que el mismo ESPACIO no lo haga saltar
+        if (obby != null) obby.ControlBloqueado = false;
+    }
+
+    // La puerta que tapa la roca: la que marcaste o, si no, atras de donde entro Obby.
+    bool PuertaDeLaCinematica(out Vector2 puerta)
+    {
+        if (door != null) { puerta = door.position; return true; }
+        return EntradaDetras(entradaCinematica, out puerta);
+    }
+
+    TextMeshProUGUI CrearCartelSaltar()
+    {
+        var go = new GameObject("Saltar cinematica");
+        var canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 400;
+        var escala = go.AddComponent<CanvasScaler>();
+        escala.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        escala.referenceResolution = new Vector2(1920, 1080);
+        escala.matchWidthOrHeight = 0.5f;
+
+        var txt = new GameObject("Texto");
+        txt.transform.SetParent(go.transform, false);
+        var t = txt.AddComponent<TextMeshProUGUI>();
+        if (uiFont != null) t.font = uiFont;
+        t.text = "ESPACIO: SALTAR CINEMATICA";
+        t.fontSize = 30;
+        t.color = Color.white;
+        t.alignment = TextAlignmentOptions.BottomRight;
+        t.raycastTarget = false;
+        var rt = t.rectTransform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 0f);
+        rt.anchoredPosition = new Vector2(-40f, 36f);
+        rt.sizeDelta = new Vector2(1100f, 80f);
+        return t;
     }
 
     // Obby llego: esta cerca del jefe o paso el primer punto de la intro (y Intro From, si hay).
@@ -742,7 +1079,9 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         }
         cansado = false;
         vidas--;
-        ActualizarCorazones();
+        Sonidos.PlayEn(rockHitSound, "roca_impacto", transform.position, Sonidos.EnPantalla);   // se la estrella encima
+        HitStop.Congelar(hitStopOnBoss);
+        if (barra != null) barra.Poner((float)vidas / Mathf.Max(1, lives));
         StopAllCoroutines();
         sr.color = colorBase;
         StartCoroutine(vidas <= 0 ? Morir() : Herido());
@@ -755,12 +1094,16 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         for (int i = 0; i < 4; i++) { hitFX.Flash(); yield return new WaitForSeconds(0.12f); }
         yield return EsperarApoyado();
         // se rie de nuevo, enojado: desde ahora es mas rapido
+        if (UltimaVida) { colorBase = lastLifeTint; sr.color = colorBase; }   // ultima vida: se pone rojo de bronca
         Encarar();
         Poner(laugh, true);
         Sonidos.PlayEn(laughSound, "jefe_risa", transform.position, Sonidos.EnPantalla);
         yield return new WaitForSeconds(1f);
         StartCoroutine(Pelear());
     }
+
+    BarraJefe barra;
+    bool UltimaVida => vidas == 1 && lives > 1;
 
     float entradaX = float.NaN;   // por donde entro Obby a la arena (la huida va para el otro lado)
 
@@ -773,7 +1116,6 @@ public class JefeCaballero : MonoBehaviour, IStunnable
         Vector3 centroLocal = col.bounds.center - transform.position;
         Vector3 medio = col.bounds.extents;
         foreach (var c in GetComponentsInChildren<Collider2D>()) c.enabled = false;
-        foreach (var c in corazones) if (c != null) c.enabled = false;
         RocaGrande.RomperTodas();
 
         Poner(laugh, false);
@@ -784,6 +1126,7 @@ public class JefeCaballero : MonoBehaviour, IStunnable
             hitFX.Flash();
             yield return new WaitForSeconds(0.1f);
         }
+
 
         // para que lado se va
         int lado = escapeSide != 0 ? (int)Mathf.Sign(escapeSide)
@@ -852,6 +1195,7 @@ public class JefeCaballero : MonoBehaviour, IStunnable
 
         if (cam != null) cam.SoltarFoco();
         sr.enabled = false;
+        if (barra != null) barra.Romper();   // ya se escapo: recien ahora la barra de vida se hace pedazos
         if (enableOnDefeat != null) enableOnDefeat.SetActive(true);
         onDefeated?.Invoke();
     }
@@ -937,64 +1281,6 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     public void Defeat() { }
     public void CaerYMorir(float gravedad, float tiempo) { }
     public void Asustar() { }
-
-    // ---------------- corazones sobre la cabeza ----------------
-
-    void CrearCorazones()
-    {
-        corazones = new SpriteRenderer[vidas];
-        Bounds b = col.bounds;
-        float escala = Mathf.Abs(transform.lossyScale.x);
-        for (int i = 0; i < vidas; i++)
-        {
-            var go = new GameObject("Corazon");
-            go.transform.SetParent(transform, false);
-            float x = (i - (vidas - 1) * 0.5f) * 0.42f;
-            go.transform.position = new Vector3(b.center.x + x, b.max.y + 0.45f, transform.position.z);
-            go.transform.localScale = Vector3.one * (0.3f / escala);
-            var c = go.AddComponent<SpriteRenderer>();
-            c.sprite = Corazon();
-            c.sortingOrder = sr.sortingOrder + 2;
-            corazones[i] = c;
-        }
-    }
-
-    void ActualizarCorazones()
-    {
-        if (corazones == null) return;
-        for (int i = 0; i < corazones.Length; i++)
-            if (corazones[i] != null) corazones[i].color = i < vidas ? Color.white : new Color(0.25f, 0.25f, 0.25f, 0.6f);
-    }
-
-    // Corazon pixel art de 7 x 6, rojo con brillo.
-    static Sprite Corazon()
-    {
-        if (s_corazon != null) return s_corazon;
-        string[] filas =
-        {
-            ".RR.RR.",
-            "RWRRRRR",
-            "RRRRRRR",
-            ".RRRRR.",
-            "..RRR..",
-            "...R...",
-        };
-        int alto = filas.Length, ancho = filas[0].Length;
-        var tex = new Texture2D(ancho, alto, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Point;
-        tex.wrapMode = TextureWrapMode.Clamp;
-        for (int f = 0; f < alto; f++)
-        for (int x = 0; x < ancho; x++)
-        {
-            char c = filas[f][x];
-            Color col = c == 'R' ? new Color(0.9f, 0.15f, 0.2f, 1f) : c == 'W' ? new Color(1f, 0.8f, 0.8f, 1f) : new Color(0f, 0f, 0f, 0f);
-            tex.SetPixel(x, alto - 1 - f, col);
-        }
-        tex.Apply();
-        s_corazon = Sprite.Create(tex, new Rect(0, 0, ancho, alto), new Vector2(0.5f, 0.5f), ancho);
-        s_corazon.name = "Corazon jefe";
-        return s_corazon;
-    }
 
     void OnDrawGizmosSelected()
     {

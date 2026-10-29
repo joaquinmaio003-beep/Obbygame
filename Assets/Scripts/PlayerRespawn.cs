@@ -40,6 +40,8 @@ public class PlayerRespawn : MonoBehaviour
     public AudioClip hurtSound;   // golpe.ogg
     [Tooltip("Al morir (perder la ultima vida).")]
     public AudioClip deathSound;
+    [Tooltip("Gravedad del cuerpo al morir (para que caiga al piso en vez de quedar flotando).")]
+    public float deadGravity = 4f;
 
     int lives;
     Vector3 checkpoint;
@@ -197,6 +199,9 @@ public class PlayerRespawn : MonoBehaviour
         CortarInvuln();   // si estaba titilando, que la muerte se vea entera
         rb.linearVelocity = Vector2.zero;
         if (controller != null) controller.enabled = false;
+        // la gravedad de Obby la pone su control (que se acaba de apagar): sin esto el cuerpo
+        // quedaba flotando donde murio. Ahora cae al piso.
+        rb.gravityScale = deadGravity;
         if (anim != null) anim.PlayDeath();
         if (cam != null) { cam.Shake(0.4f, 0.25f); cam.Acercar(); } // temblor mas fuerte y se acerca
         if (deathSound != null && AudioManager.Instance != null)
@@ -219,6 +224,7 @@ public class PlayerRespawn : MonoBehaviour
         // revive en el ultimo checkpoint con las vidas llenas, como antes
         Debug.LogWarning("PlayerRespawn: la escena no esta en File > Build Profiles > Scene List; no se puede reiniciar el nivel.");
         lives = maxLives;
+        rb.gravityScale = 0f;   // la gravedad vuelve a manejarla el control
         if (controller != null) controller.enabled = true;
         if (anim != null) anim.Revive();
         if (cam != null) cam.SoltarZoom();

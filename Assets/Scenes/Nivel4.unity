@@ -1850,6 +1850,12 @@ MonoBehaviour:
     frames:
     - {fileID: 21300000, guid: 3e0db6e603e291a4495f5af5f51b67a3, type: 3}
     fps: 1
+  lift:
+    frames: []
+    fps: 8
+  carry:
+    frames: []
+    fps: 8
   walkThreshold: 0.3
   waveAfterIdle: 6
   jumpSprite: {fileID: 0}
@@ -20814,7 +20820,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 34.59
+      value: 23.44
       objectReference: {fileID: 0}
     - target: {fileID: 4301466450823834203, guid: cc81b0506d9c42fd8fc0fd829a0be977, type: 3}
       propertyPath: m_LocalPosition.y
