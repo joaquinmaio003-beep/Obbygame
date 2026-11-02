@@ -229,6 +229,7 @@ MonoBehaviour:
   doorRockSize: 2.6
   doorRockFlightTime: 2
   introOnLevelStart: 1
+  cheatKillWithJ: 1
   uiFont: {fileID: 11400000, guid: bcefacc2d10ba59458e83ae3cf74b3e7, type: 2}
   bossName: LEBOSS
   showHealthBar: 1

@@ -148,6 +148,13 @@ public class ScreenFader : MonoBehaviour
         AsyncOperation carga = string.IsNullOrEmpty(escena)
             ? SceneManager.LoadSceneAsync(indice)
             : SceneManager.LoadSceneAsync(escena);
+        if (carga == null && !string.IsNullOrEmpty(escena))
+        {
+            // el nombre no esta en la lista (o esta mal escrito): pasa igual al nivel siguiente,
+            // en vez de quedarse con la pantalla negra para siempre
+            Debug.LogWarning("CambiadorDeNivel: la escena '" + escena + "' no esta en File > Build Profiles > Scene List; paso al nivel siguiente de la lista.");
+            carga = SceneManager.LoadSceneAsync(indice);
+        }
         if (carga == null)
             Debug.LogWarning("CambiadorDeNivel: esa escena no esta en File > Build Profiles > Scene List.");
         while (carga != null && !carga.isDone) yield return null;

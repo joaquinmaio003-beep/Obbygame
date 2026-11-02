@@ -416,7 +416,27 @@ public class PlayerController2D : MonoBehaviour
         }
         wasWallSliding = isWallSliding;
 
+        // parado en una pendiente sin apretar nada: no resbala. Obby no tiene friccion (asi no se
+        // pega a las paredes), y la gravedad lo hacia deslizar para abajo en cualquier piso inclinado.
+        if (isGrounded && inputDir == 0 && vel.y <= 0f && empujonTimer <= 0f && EnPendiente())
+            vel = Vector2.zero;
+
         rb.linearVelocity = vel;
+    }
+
+    // El piso de abajo esta inclinado (no plano, pero tampoco una pared).
+    bool EnPendiente()
+    {
+        if (col == null) return false;
+        Bounds b = col.bounds;
+        int n = Physics2D.Raycast(new Vector2(b.center.x, b.min.y + 0.05f), Vector2.down, LayerFilter(groundLayer), s_hitBuf, 0.4f);
+        for (int i = 0; i < n; i++)
+        {
+            var h = s_hitBuf[i];
+            if (h.collider == null || h.collider.isTrigger) continue;
+            return h.normal.y < 0.995f && h.normal.y > 0.35f;
+        }
+        return false;
     }
 
     // Piso: 3 rayos hacia ABAJO (izq/centro/der), pero SIEMPRE dentro del cuerpo de Obby

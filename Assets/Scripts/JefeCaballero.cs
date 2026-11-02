@@ -67,6 +67,8 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     public float doorRockFlightTime = 2f;
     [Tooltip("La cinematica arranca apenas empieza el nivel: Obby sale caminando solo hacia la arena.")]
     public bool introOnLevelStart = true;
+    [Tooltip("Truco de prueba: con J le ganas de una (solo en el editor y en builds de desarrollo, nunca en el juego final).")]
+    public bool cheatKillWithJ = true;
     [Tooltip("Fuente (pixel) de los carteles: el nombre arriba de la barra de vida y ESPACIO: SALTAR CINEMATICA.")]
     public TMP_FontAsset uiFont;
     [Tooltip("Nombre del jefe (arriba de la barra de vida).")]
@@ -280,6 +282,11 @@ public class JefeCaballero : MonoBehaviour, IStunnable
 
     void Update()
     {
+        // TRUCO DE PRUEBA: con J le ganas de una (solo en el editor y en builds de desarrollo)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (cheatKillWithJ && despierto && !muerto && Keyboard.current != null && Keyboard.current.jKey.wasPressedThisFrame)
+            GanarYa();
+#endif
         // (sigue animando aunque le hayas ganado: sale corriendo y rompe la pared)
         if (anim == null || anim.frames == null || anim.frames.Length == 0) return;
         animT += Time.deltaTime;
@@ -1065,6 +1072,19 @@ public class JefeCaballero : MonoBehaviour, IStunnable
     }
 
     // ---------------- lo que le hacen ----------------
+
+    // Truco de prueba (J): le saca todas las vidas de una y arranca la huida, como el ultimo golpe.
+    void GanarYa()
+    {
+        cansado = false;
+        pisoteando = false;
+        vidas = 0;
+        Sonidos.PlayEn(rockHitSound, "roca_impacto", transform.position, Sonidos.EnPantalla);
+        if (barra != null) barra.Poner(0f);
+        StopAllCoroutines();
+        sr.color = colorBase;
+        StartCoroutine(Morir());
+    }
 
     /// <summary>
     /// Le pego una roca grande que tiro Obby. Cansado: pierde una vida. Si no: no le hace nada.
