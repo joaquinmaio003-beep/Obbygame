@@ -6,7 +6,8 @@ using UnityEngine.Rendering.Universal;
 /// poquito alrededor (cada una tiene su propia luz 2D). Lucen mas en las zonas oscuras.
 ///
 /// Setup: arrastra el prefab Prefab/Luciernagas al nivel y ajusta el Area (el recuadro amarillo).
-/// El puntito se dibuja solo por codigo: no hace falta ningun sprite.
+/// Los cuadros del dibujo van en "Frames" (Art/Bichos/luciernaga_N) y se pasan en loop; el
+/// tamano sale de su Pixels Per Unit.
 /// </summary>
 public class Luciernagas : MonoBehaviour
 {
@@ -15,10 +16,12 @@ public class Luciernagas : MonoBehaviour
     public int count = 8;
     [Tooltip("Zona donde deambulan (ancho x alto), centrada en este objeto.")]
     public Vector2 area = new Vector2(10f, 4f);
-    [Tooltip("Color de la luz (verde amarillento, como las de verdad).")]
+    [Tooltip("Color de la luz que tira cada una alrededor.")]
     public Color color = new Color(0.8f, 1f, 0.35f, 1f);
-    [Tooltip("Tamano del puntito, en unidades.")]
-    public float size = 0.12f;
+    [Tooltip("Los cuadros del dibujo, se pasan en loop.")]
+    public Sprite[] frames;
+    [Tooltip("Cuadros por segundo del dibujo.")]
+    public float frameRate = 10f;
 
     [Header("Luz")]
     [Tooltip("Cada una alumbra un poquito alrededor.")]
@@ -38,9 +41,6 @@ public class Luciernagas : MonoBehaviour
     [Header("Orden de dibujo")]
     public int sortingOrder = 5;
 
-    static Material s_aditivo;
-    static Sprite s_punto;
-
     Transform[] bichos;
     SpriteRenderer[] puntos;
     Light2D[] luces;
@@ -52,10 +52,11 @@ public class Luciernagas : MonoBehaviour
 
     void Start()
     {
-        if (s_aditivo == null)
+        if (frames == null || frames.Length == 0)
         {
-            var sh = Shader.Find("Obby/SpriteAdditive");   // brillan (suman luz), como el polvo de los rayos
-            if (sh != null) s_aditivo = new Material(sh);
+            Debug.LogWarning("Luciernagas: no tiene dibujos en Frames.", this);
+            enabled = false;
+            return;
         }
 
         count = Mathf.Max(0, count);
@@ -77,11 +78,10 @@ public class Luciernagas : MonoBehaviour
             go.transform.SetParent(transform, false);
             go.transform.localPosition = casa[i];
             var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = Punto();
-            if (s_aditivo != null) sr.sharedMaterial = s_aditivo;
+            sr.sprite = frames[0];
             sr.sortingOrder = sortingOrder;
-            sr.color = new Color(color.r, color.g, color.b, 0f);   // apagada hasta que le toque prenderse
-            float escala = size / Mathf.Max(0.0001f, Mathf.Abs(transform.lossyScale.x));
+            sr.color = new Color(1f, 1f, 1f, 0f);   // apagada hasta que le toque prenderse
+            float escala = 1f / Mathf.Max(0.0001f, Mathf.Abs(transform.lossyScale.x));
             go.transform.localScale = new Vector3(escala, escala, 1f);
 
             bichos[i] = go.transform;
@@ -127,8 +127,9 @@ public class Luciernagas : MonoBehaviour
             float fase = t * blinkSpeed * ritmo[i] + s;
             float brillo = Mathf.Clamp01(Mathf.Sin(fase * Mathf.PI * 2f) * 1.4f + 0.15f);
 
-            Color c = color; c.a *= brillo;
-            puntos[i].color = c;
+            puntos[i].color = new Color(1f, 1f, 1f, brillo);
+            int cuadro = (int)((t + s) * frameRate) % frames.Length;
+            puntos[i].sprite = frames[cuadro];
             var luz = luces[i];
             if (luz != null)
             {
@@ -136,27 +137,6 @@ public class Luciernagas : MonoBehaviour
                 luz.intensity = lightIntensity * brillo;
             }
         }
-    }
-
-    // Puntito pixel art de 5x5: centro lleno, cruz media y esquinas tenues (brilla hacia afuera).
-    static Sprite Punto()
-    {
-        if (s_punto != null) return s_punto;
-        const int N = 5;
-        var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Point;
-        tex.wrapMode = TextureWrapMode.Clamp;
-        for (int y = 0; y < N; y++)
-        for (int x = 0; x < N; x++)
-        {
-            int d = Mathf.Abs(x - 2) + Mathf.Abs(y - 2);   // distancia al centro (en rombo)
-            float a = d == 0 ? 1f : d == 1 ? 0.7f : d == 2 ? 0.25f : 0f;
-            tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
-        }
-        tex.Apply();
-        s_punto = Sprite.Create(tex, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), N);   // 1 x 1 unidad
-        s_punto.name = "Luciernaga";
-        return s_punto;
     }
 
     void OnDrawGizmosSelected()

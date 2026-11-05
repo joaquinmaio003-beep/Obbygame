@@ -101,12 +101,6 @@ public partial class JefeCaballero
         yield return EnemigoFX.Amague(sr, colorBase, warnColor, duracion);
     }
 
-    /// <summary>Palabra de historieta arriba de Obby (PUM, SLASH, POW). La usa tambien la roca.</summary>
-    public void Texto(string palabra)
-    {
-        if (showHitWords && player != null) TextoGolpe.Mostrar(palabra, player.position + Vector3.up * 1.4f, hitWordSize);
-    }
-
     // ULTIMA VIDA: dash, y apenas termina se da vuelta y vuelve con otro dash.
     IEnumerator DashIdaYVuelta()
     {
@@ -225,8 +219,7 @@ public partial class JefeCaballero
                 // la pina lo manda volando lejos
                 if (pego)
                 {
-                    Sonidos.PlayEn(punchHitSound, "pina_impacto", player.position, Sonidos.EnPantalla);   // PUM y sale volando
-                    Texto("PUM");
+                    Sonidos.PlayEn(punchHitSound, "pina_impacto", player.position, Sonidos.EnPantalla);   // golpe y sale volando
                     HitStop.Congelar(hitStopOnObby);
                     if (cam != null) cam.Shake(0.2f, 0.18f);
                     if (obby != null) obby.Empujar(new Vector2(dir * punchKnockback, punchKnockUp), 0.45f);
@@ -308,7 +301,7 @@ public partial class JefeCaballero
         for (float t = 0f; t < dur; t += Time.deltaTime)
         {
             Mover(dir * swordLunge / dur * Time.deltaTime);
-            if (!pego && (pego = Golpear(swordReach))) Texto("SLASH");
+            if (!pego) pego = Golpear(swordReach);
             yield return null;
         }
         if (cam != null) cam.Shake(0.15f, 0.12f);
@@ -333,7 +326,7 @@ public partial class JefeCaballero
             float paso = dashSpeed * Furia * Time.deltaTime;
             if (!Mover(dir * paso)) break;   // choco una pared
             recorrido += paso;
-            if (!pego && (pego = Golpear(swordReach * 0.6f))) Texto("SLASH");
+            if (!pego) pego = Golpear(swordReach * 0.6f);
             if (recorrido >= proximaEstela) { proximaEstela = recorrido + 0.6f; Estela(); }
             yield return null;
         }

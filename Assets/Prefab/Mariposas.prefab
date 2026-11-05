@@ -46,13 +46,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   count: 4
   area: {x: 10, y: 4}
-  colors:
-  - {r: 1, g: 0.62, b: 0.2, a: 1}
-  - {r: 1, g: 0.9, b: 0.3, a: 1}
-  - {r: 0.55, g: 0.8, b: 1, a: 1}
-  - {r: 1, g: 0.6, b: 0.85, a: 1}
-  - {r: 0.95, g: 0.95, b: 0.95, a: 1}
-  size: 0.32
+  butterflies:
+  - {fileID: 21300000, guid: 8b253b804eaa4061940724417af72c87, type: 3}
+  - {fileID: 21300000, guid: 9dbaa544a94c4738a01eb8580f5988eb, type: 3}
+  - {fileID: 21300000, guid: 71c222406338497b9b618d735ab39991, type: 3}
+  - {fileID: 21300000, guid: 9adb410bac9744bb98c0b4fd98c19559, type: 3}
+  - {fileID: 21300000, guid: 7b9e2593d66243828abf817a7b734e3d, type: 3}
+  closedWidth: 0.35
   speed: 1.2
   flutter: 0.18
   flapSpeed: 9

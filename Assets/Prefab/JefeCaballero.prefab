@@ -240,8 +240,6 @@ MonoBehaviour:
   punchRange: 1.2
   punchKnockback: 13
   punchKnockUp: 6
-  showHitWords: 1
-  hitWordSize: 3
   swordLunge: 1.2
   swordReach: 1.8
   dashDistance: 8

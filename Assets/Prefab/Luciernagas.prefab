@@ -47,7 +47,10 @@ MonoBehaviour:
   count: 8
   area: {x: 10, y: 4}
   color: {r: 0.8, g: 1, b: 0.35, a: 1}
-  size: 0.12
+  frames:
+  - {fileID: 21300000, guid: 7e634a1004af4b7aa0d767c6d56de501, type: 3}
+  - {fileID: 21300000, guid: 9aec394ab78545efb885b87a25847093, type: 3}
+  frameRate: 10
   withLight: 1
   lightIntensity: 0.6
   lightRadius: 0.9

@@ -93,10 +93,6 @@ public partial class JefeCaballero : MonoBehaviour, IStunnable
     public float punchKnockback = 13f;
     [Tooltip("Que tan alto lo levanta la pina al empujarlo.")]
     public float punchKnockUp = 6f;
-    [Tooltip("Cuando le pega a Obby aparece una palabra grande en letras pixel: PUM (pina), SLASH (espada), POW (roca).")]
-    public bool showHitWords = true;
-    [Tooltip("Tamano de esas palabras (lo que mide de ancho una de 3 letras, como PUM), en unidades.")]
-    public float hitWordSize = 3f;
     [Tooltip("Cuanto avanza con el espadazo de cerca.")]
     public float swordLunge = 1.2f;
     [Tooltip("Hasta donde llega la espada, contando desde el borde del cuerpo.")]

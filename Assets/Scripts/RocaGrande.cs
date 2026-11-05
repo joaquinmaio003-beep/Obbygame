@@ -225,7 +225,6 @@ public class RocaGrande : MonoBehaviour
                 {
                     yaPegoAObby = true;   // una sola vez por roca (el trigger avisa en cada cuadro)
                     obby.Hurt(transform.position);
-                    if (Duenio != null) Duenio.Texto("POW");
                 }
             }
             else
