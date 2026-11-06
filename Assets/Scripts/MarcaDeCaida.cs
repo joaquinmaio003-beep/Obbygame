@@ -1,9 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// MARCA EN EL PISO donde va a caer algo (el pisoton del jefe, sus rocas): una sombra ovalada con
-/// borde rojo que titila y se va agrandando hasta que cae. Asi se esquiva viendo, no adivinando.
-/// Se borra sola cuando pasa el tiempo (o con Quitar()).
+/// MARCA EN EL PISO donde va a caer algo (el pisoton del jefe, sus rocas): un ovalo que alterna
+/// rojo y blanco cada vez mas rapido y se va agrandando hasta que cae. Asi se esquiva viendo, no
+/// adivinando. Se borra sola cuando pasa el tiempo (o con Quitar()).
+/// Los dibujos son Resources/Dibujos/marca_caida_0 y _1 (para cambiarlos, reemplaza esos archivos).
 ///
 /// Uso: MarcaDeCaida.Crear(puntoEnElPiso, ancho, segundosHastaQueCae);
 /// </summary>
@@ -14,11 +15,12 @@ public class MarcaDeCaida : MonoBehaviour
 
     public static MarcaDeCaida Crear(Vector2 piso, float ancho, float segundos, int orden = 3)
     {
+        if (!Cargar()) return null;
         var go = new GameObject("Marca de caida");
         go.transform.position = new Vector3(piso.x, piso.y + 0.04f, 0f);
         var m = go.AddComponent<MarcaDeCaida>();
         m.sr = go.AddComponent<SpriteRenderer>();
-        m.sr.sprite = Ovalo();
+        m.sr.sprite = s_cuadros[0];
         m.sr.sortingOrder = orden;
         m.duracion = Mathf.Max(0.1f, segundos);
         m.ancho = Mathf.Max(0.3f, ancho);
@@ -38,34 +40,25 @@ public class MarcaDeCaida : MonoBehaviour
     void Actualizar()
     {
         float k = Mathf.Clamp01(edad / duracion);
-        // crece del 40% al 100% y se va oscureciendo; titila cada vez mas rapido
+        // crece del 40% al 100% y se va haciendo mas visible; alterna rojo/blanco cada vez mas rapido
         float tam = Mathf.Lerp(0.4f, 1f, k);
         float lado = sr.sprite.bounds.size.x;
         transform.localScale = new Vector3(ancho * tam / lado, ancho * tam / lado, 1f);
-        float titila = 0.75f + 0.25f * Mathf.Sin(edad * Mathf.Lerp(10f, 30f, k));
-        sr.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.35f, 0.95f, k) * titila);
+        fase += Time.deltaTime * Mathf.Lerp(5f, 15f, k);   // cambios de cuadro por segundo
+        sr.sprite = s_cuadros[(int)fase % s_cuadros.Length];
+        sr.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.5f, 1f, k));
     }
 
-    static Sprite s_ovalo;
+    float fase;
+    static Sprite[] s_cuadros;
 
-    // Ovalo pixel de 32 x 8: sombra oscura con borde rojo.
-    static Sprite Ovalo()
+    static bool Cargar()
     {
-        if (s_ovalo != null) return s_ovalo;
-        const int W = 32, H = 8;
-        var tex = new Texture2D(W, H) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
-        Color sombra = new Color(0.05f, 0.02f, 0.03f, 0.55f), rojo = new Color(0.95f, 0.15f, 0.12f, 1f), nada = new Color(0, 0, 0, 0);
-        for (int y = 0; y < H; y++)
-            for (int x = 0; x < W; x++)
-            {
-                float dx = (x + 0.5f - W / 2f) / (W / 2f), dy = (y + 0.5f - H / 2f) / (H / 2f);
-                float d = dx * dx + dy * dy;
-                Color c = nada;
-                if (d <= 1f) c = d > 0.62f ? rojo : sombra;
-                tex.SetPixel(x, y, c);
-            }
-        tex.Apply();
-        s_ovalo = Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 16f);
-        return s_ovalo;
+        if (s_cuadros != null) return true;
+        var a = Resources.Load<Sprite>("Dibujos/marca_caida_0");
+        var b = Resources.Load<Sprite>("Dibujos/marca_caida_1");
+        if (a == null) { Debug.LogWarning("MarcaDeCaida: falta Resources/Dibujos/marca_caida_0."); return false; }
+        s_cuadros = b != null ? new[] { a, b } : new[] { a };
+        return true;
     }
 }

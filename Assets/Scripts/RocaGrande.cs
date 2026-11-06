@@ -371,6 +371,7 @@ public class RocaGrande : MonoBehaviour
             float arriba = sr.bounds.max.y + 0.45f + Mathf.Sin(Time.time * 6f) * 0.08f;
             tecla.transform.position = new Vector3(transform.position.x, arriba, transform.position.z);
             tecla.transform.localScale = Vector3.one * (sacudida > 0f ? 0.85f : 1f);   // se "aprieta"
+            if (s_teclas.Length > 1) tecla.sprite = s_teclas[(int)(Time.time * 10f) % s_teclas.Length];   // titila negra/blanca
         }
 
         // cargada: va arriba de la cabeza de Obby
@@ -442,46 +443,25 @@ public class RocaGrande : MonoBehaviour
         if (!ver) { if (tecla != null) tecla.enabled = false; return; }
         if (tecla == null)
         {
+            if (!CargarTeclas()) return;
             var go = new GameObject("Tecla E");
             tecla = go.AddComponent<SpriteRenderer>();
-            tecla.sprite = SpriteTecla();
+            tecla.sprite = s_teclas[0];
             tecla.sortingOrder = sr.sortingOrder + 5;
         }
         tecla.enabled = true;
     }
 
-    static Sprite s_tecla;
+    // Los dibujos de la tecla: Resources/Dibujos/tecla_e_0 y _1 (para cambiarlos, reemplaza esos archivos).
+    static Sprite[] s_teclas = new Sprite[0];
 
-    // Tecla de 11x11 pixeles dibujada por codigo: borde blanco, fondo oscuro y una E.
-    static Sprite SpriteTecla()
+    static bool CargarTeclas()
     {
-        if (s_tecla != null) return s_tecla;
-        string[] dibujo =
-        {
-            ".#########.",
-            "#.........#",
-            "#..#####..#",
-            "#..#......#",
-            "#..#......#",
-            "#..####...#",
-            "#..#......#",
-            "#..#......#",
-            "#..#####..#",
-            "#.........#",
-            ".#########.",
-        };
-        int n = dibujo.Length;
-        var tex = new Texture2D(n, n) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
-        Color blanco = Color.white, fondo = new Color(0.12f, 0.12f, 0.16f, 0.9f), nada = new Color(0, 0, 0, 0);
-        for (int y = 0; y < n; y++)
-            for (int x = 0; x < n; x++)
-            {
-                char c = dibujo[n - 1 - y][x];
-                bool esquina = (x == 0 || x == n - 1) && (y == 0 || y == n - 1);
-                tex.SetPixel(x, y, c == '#' ? blanco : esquina ? nada : fondo);
-            }
-        tex.Apply();
-        s_tecla = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 16f);
-        return s_tecla;
+        if (s_teclas.Length > 0) return true;
+        var a = Resources.Load<Sprite>("Dibujos/tecla_e_0");
+        var b = Resources.Load<Sprite>("Dibujos/tecla_e_1");
+        if (a == null) { Debug.LogWarning("RocaGrande: falta Resources/Dibujos/tecla_e_0."); return false; }
+        s_teclas = b != null ? new[] { a, b } : new[] { a };
+        return true;
     }
 }

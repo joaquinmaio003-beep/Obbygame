@@ -6,21 +6,15 @@ using UnityEngine;
 /// o por un costado vuelve a entrar por arriba o por el otro lado.
 ///
 /// La camara las agrega sola (opcion Falling Leaves del CameraFollow2D). Para ajustarlas, agrega
-/// vos este componente a la camara y cambia los valores. La hoja se dibuja por codigo: no hace
-/// falta ningun sprite.
+/// vos este componente a la camara y cambia los valores. El dibujo de la hoja es
+/// Resources/Dibujos/hoja (para cambiarlo, reemplaza ese archivo).
 /// </summary>
 public class HojasCayendo : MonoBehaviour
 {
     [Header("Hojas")]
     [Tooltip("Cuantas hojas hay a la vista.")]
     public int count = 7;
-    [Tooltip("Colores posibles (cada hoja toma uno al azar). Todos verdes.")]
-    public Color[] colors =
-    {
-        new Color(0.30f, 0.80f, 0.30f), new Color(0.20f, 0.65f, 0.25f),
-        new Color(0.40f, 0.90f, 0.35f), new Color(0.25f, 0.72f, 0.40f)
-    };
-    [Tooltip("Tamano minimo y maximo de cada hoja, en unidades.")]
+    [Tooltip("Tamano minimo y maximo de cada hoja (su ancho), en unidades.")]
     public float minSize = 0.14f;
     public float maxSize = 0.24f;
 
@@ -40,8 +34,6 @@ public class HojasCayendo : MonoBehaviour
     [Tooltip("Cuanto mas alla del borde de la pantalla siguen existiendo (para que no aparezcan de golpe).")]
     public float margin = 1.5f;
 
-    static Sprite s_hoja;
-
     Camera cam;
     Transform[] hojas;
     Vector2[] pos;        // posicion en el mundo, sin el hamaqueo
@@ -54,6 +46,8 @@ public class HojasCayendo : MonoBehaviour
         cam = GetComponent<Camera>();
         if (cam == null) cam = Camera.main;
         if (cam == null) { enabled = false; return; }
+        var dibujo = Resources.Load<Sprite>("Dibujos/hoja");
+        if (dibujo == null) { Debug.LogWarning("HojasCayendo: falta Resources/Dibujos/hoja."); enabled = false; return; }
 
         // mismo material que el fondo: las iluminan las luces del nivel igual que a todo lo demas
         Material material = null;
@@ -74,9 +68,8 @@ public class HojasCayendo : MonoBehaviour
             var go = new GameObject("Hoja");
             go.transform.SetParent(raiz, false);
             var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = Hoja();
+            sr.sprite = dibujo;
             if (material != null) sr.sharedMaterial = material;
-            sr.color = colors != null && colors.Length > 0 ? colors[Random.Range(0, colors.Length)] : Color.white;
             sr.sortingOrder = sortingOrder;
 
             hojas[i] = go.transform;
@@ -128,32 +121,5 @@ public class HojasCayendo : MonoBehaviour
             float canto = Mathf.Cos(vaiven * 0.5f + fase[i]);
             hojas[i].localScale = new Vector3(tamano[i] * (0.35f + 0.65f * Mathf.Abs(canto)), tamano[i], 1f);
         }
-    }
-
-    // Hoja pixel art de 6x4, blanca (el color lo pone cada una). Mide 1 unidad de ancho.
-    static Sprite Hoja()
-    {
-        if (s_hoja != null) return s_hoja;
-        string[] filas =   // de arriba hacia abajo; 2 = lleno, 1 = nervadura (un poco mas oscuro)
-        {
-            ".222..",
-            "22122.",
-            ".22122",
-            "..222."
-        };
-        int w = filas[0].Length, h = filas.Length;
-        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Point;
-        tex.wrapMode = TextureWrapMode.Clamp;
-        for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++)
-        {
-            char c = filas[h - 1 - y][x];
-            tex.SetPixel(x, y, c == '2' ? Color.white : c == '1' ? new Color(0.7f, 0.7f, 0.7f, 1f) : Color.clear);
-        }
-        tex.Apply();
-        s_hoja = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
-        s_hoja.name = "Hoja";
-        return s_hoja;
     }
 }

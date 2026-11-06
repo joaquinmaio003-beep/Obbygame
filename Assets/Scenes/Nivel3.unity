@@ -1059,6 +1059,7 @@ MonoBehaviour:
   zoomSpeed: 3
   focusSmooth: 4
   fallingLeaves: 1
+  maxTwoShotZoom: 1.8
 --- !u!1 &524507634
 GameObject:
   m_ObjectHideFlags: 0
@@ -3848,6 +3849,12 @@ MonoBehaviour:
     frames:
     - {fileID: 21300000, guid: 3e0db6e603e291a4495f5af5f51b67a3, type: 3}
     fps: 1
+  lift:
+    frames: []
+    fps: 8
+  carry:
+    frames: []
+    fps: 8
   walkThreshold: 0.3
   waveAfterIdle: 6
   jumpSprite: {fileID: 0}
@@ -3886,6 +3893,7 @@ MonoBehaviour:
   fadeDuration: 0.5
   hurtSound: {fileID: 0}
   deathSound: {fileID: 8300000, guid: 93c7bd80dd758414f92c4900d9492de2, type: 3}
+  deadGravity: 4
 --- !u!114 &1576281941
 MonoBehaviour:
   m_ObjectHideFlags: 0

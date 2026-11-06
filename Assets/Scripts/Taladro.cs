@@ -62,14 +62,6 @@ public class Taladro : MonoBehaviour
     [Tooltip("Radio de la luz, en unidades.")]
     public float fireLightRadius = 3f;
 
-    [Header("Aire caliente")]
-    [Tooltip("Sobre el fuego el aire tiembla y deforma lo que hay detras.")]
-    public bool heatHaze = true;
-    [Tooltip("Cuanto deforma (fraccion de la pantalla). 0.004 = sutil.")]
-    public float heatStrength = 0.004f;
-    [Tooltip("Alto de la zona de aire caliente sobre el fuego, en unidades.")]
-    public float heatHeight = 1.6f;
-
     Rigidbody2D rb;
     SpriteRenderer sr;
     BoxCollider2D col;
@@ -80,13 +72,10 @@ public class Taladro : MonoBehaviour
     static readonly Collider2D[] s_buf = new Collider2D[16];
     static readonly WaitForFixedUpdate s_pasoFisica = new WaitForFixedUpdate();
 
-    // luz y aire caliente: se prenden y apagan suave con el fuego
+    // luz del fuego: se prende y apaga suave con el fuego
     UnityEngine.Rendering.Universal.Light2D luz;
-    SpriteRenderer calor;
-    Material matCalor;
     float prendido;       // 0 apagado .. 1 fuego entero
     float semilla;        // para que cada taladro parpadee distinto
-    static Sprite s_mascaraCalor;
 
     void Awake()
     {
@@ -112,16 +101,11 @@ public class Taladro : MonoBehaviour
         if (idleFrame == null) idleFrame = sr.sprite;
 
         semilla = Random.value * 100f;
-        CrearLuzYCalor();
+        CrearLuz();
     }
 
-    void OnDestroy()
-    {
-        if (matCalor != null) Destroy(matCalor);
-    }
-
-    // La luz del fuego y el aire caliente, como hijos: bajan y suben con el taladro.
-    void CrearLuzYCalor()
+    // La luz del fuego, como hija: baja y sube con el taladro.
+    void CrearLuz()
     {
         Bounds b = col.bounds;
         float alto = burnHeight * Mathf.Abs(transform.lossyScale.y);
@@ -132,61 +116,10 @@ public class Taladro : MonoBehaviour
             luz = Luces.Punto(transform, centroFuego, fireLightColor, 0f, fireLightRadius, "Luz del fuego");
             luz.enabled = false;
         }
-
-        // El aire caliente va en la capa de dibujo "Calor" (la crea ConfigurarEfectos al compilar):
-        // se dibuja despues de todo y deforma la imagen de lo que tiene detras.
-        if (!heatHaze || !BuscarCapa("Calor", out int capa)) return;
-        var sh = Shader.Find("Obby/Calor");
-        if (sh == null) return;
-
-        matCalor = new Material(sh);
-        matCalor.SetFloat("_Fuerza", heatStrength);
-
-        var go = new GameObject("Aire caliente");
-        go.transform.SetParent(transform, false);
-        go.transform.position = new Vector3(b.center.x, b.max.y + alto * 0.3f, transform.position.z);   // desde las llamas
-        Vector3 e = transform.lossyScale;
-        go.transform.localScale = new Vector3(b.size.x * 1.1f / Mathf.Max(0.0001f, Mathf.Abs(e.x)),
-                                              heatHeight / Mathf.Max(0.0001f, Mathf.Abs(e.y)), 1f);
-        calor = go.AddComponent<SpriteRenderer>();
-        calor.sprite = MascaraCalor();
-        calor.sharedMaterial = matCalor;
-        calor.sortingLayerID = capa;
-        calor.enabled = false;
     }
 
-    static bool BuscarCapa(string nombre, out int id)
-    {
-        foreach (var c in SortingLayer.layers)
-            if (c.name == nombre) { id = c.id; return true; }
-        id = 0;
-        return false;
-    }
-
-    // Forma del aire caliente: 1 x 1 unidad con el pivote abajo al medio. Fuerte justo sobre las
-    // llamas y se apaga hacia arriba y hacia los costados (sin bordes que se noten).
-    static Sprite MascaraCalor()
-    {
-        if (s_mascaraCalor != null) return s_mascaraCalor;
-        const int W = 32, H = 32;   // 32 px a 32 por unidad = 1 x 1
-        var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-        for (int y = 0; y < H; y++)
-        for (int x = 0; x < W; x++)
-        {
-            float u = (x + 0.5f) / W, v = (y + 0.5f) / H;
-            float a = Mathf.Sin(u * Mathf.PI) * Mathf.SmoothStep(0f, 1f, v / 0.15f) * Mathf.Pow(1f - v, 1.3f);
-            tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
-        }
-        tex.Apply();
-        s_mascaraCalor = Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0f), H);
-        s_mascaraCalor.name = "Mascara aire caliente";
-        return s_mascaraCalor;
-    }
-
-    // Prende y apaga suave la luz y el aire caliente con el fuego. La luz parpadea como llama.
-    void ActualizarLuzYCalor()
+    // Prende y apaga suave la luz con el fuego. Parpadea como llama.
+    void ActualizarLuz()
     {
         prendido = Mathf.MoveTowards(prendido, fuego ? 1f : 0f, Time.deltaTime / 0.15f);
         bool algo = prendido > 0.001f;
@@ -196,11 +129,6 @@ public class Taladro : MonoBehaviour
             luz.enabled = algo;
             float llama = 0.75f + 0.25f * Mathf.PerlinNoise(Time.time * 9f, semilla);
             luz.intensity = fireLightIntensity * prendido * llama;
-        }
-        if (calor != null)
-        {
-            calor.enabled = algo;
-            calor.color = new Color(1f, 1f, 1f, prendido);
         }
     }
 
@@ -261,7 +189,7 @@ public class Taladro : MonoBehaviour
     // animacion del fuego (en loop mientras esta prendido)
     void Update()
     {
-        ActualizarLuzYCalor();
+        ActualizarLuz();
         if (!fuego || fireFrames == null || fireFrames.Length == 0) return;
         animT += Time.deltaTime;
         int n = (int)(animT * fireFps) % fireFrames.Length;

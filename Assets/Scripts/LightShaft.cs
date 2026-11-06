@@ -36,11 +36,24 @@ public class LightShaft : MonoBehaviour
     [Tooltip("Que tan rapido se balancea.")]
     public float swaySpeed = 0.25f;
 
+    [Header("Desvanecer (fade)")]
+    [Range(0f, 1f)]
+    [Tooltip("Que parte del rayo, desde la punta de abajo, se va apagando de a poco. 0 = corta de golpe.")]
+    public float fadeBottom = 0.4f;
+    [Range(0f, 1f)]
+    [Tooltip("Cuanto se apaga hacia los costados. 0 = bordes rectos, 1 = solo brilla el centro.")]
+    public float fadeSides = 0.6f;
+
     [Header("Luz del piso")]
     [Tooltip("Light 2D que ilumina el suelo donde pega el rayo; late junto con el. Vacio = la busca entre los hijos. La intensidad que le pongas es la que tiene con el rayo a medio latido.")]
     public Light2D floorLight;
 
     static Material sharedAdditive;   // un solo material para todos los rayos
+
+    static readonly int s_fadeBottom = Shader.PropertyToID("_FadeBottom");
+    static readonly int s_fadeSides = Shader.PropertyToID("_FadeSides");
+    MaterialPropertyBlock mpb;
+    float fadePuestoAbajo = -1f, fadePuestoCostados = -1f;   // lo ultimo que se mando al shader
 
     SpriteRenderer sr;
     float baseZ;
@@ -67,6 +80,18 @@ public class LightShaft : MonoBehaviour
 
     void Update()
     {
+        // fade: solo se manda cuando cambia (asi se puede ajustar en vivo durante el Play)
+        if (fadeBottom != fadePuestoAbajo || fadeSides != fadePuestoCostados)
+        {
+            if (mpb == null) mpb = new MaterialPropertyBlock();
+            sr.GetPropertyBlock(mpb);
+            mpb.SetFloat(s_fadeBottom, fadeBottom);
+            mpb.SetFloat(s_fadeSides, fadeSides);
+            sr.SetPropertyBlock(mpb);
+            fadePuestoAbajo = fadeBottom;
+            fadePuestoCostados = fadeSides;
+        }
+
         // latido suave de intensidad
         float t = (Mathf.Sin((Time.time + seed) * pulseSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
         Color c = shaftColor;
