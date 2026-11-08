@@ -4,6 +4,16 @@ using UnityEngine;
 // Parte de PlayerAnimator: estela del dash, flash de dano y estirar/aplastar. Las variables y el Update estan en PlayerAnimator.cs
 public partial class PlayerAnimator
 {
+    UnityEngine.Rendering.Universal.Light2D luzLinterna;
+
+    // La linterna parpadea apenas, como una llama.
+    void ActualizarLinterna()
+    {
+        if (luzLinterna == null) return;
+        float llama = 1f - lanternFlicker + lanternFlicker * 2f * Mathf.PerlinNoise(Time.time * 7f, 0.37f);
+        luzLinterna.intensity = lanternIntensity * llama;
+    }
+
     // Las copias de la estela: siluetas de color (el mismo shader del flash), sueltas en el mundo.
     void CrearEstela(Shader silueta)
     {

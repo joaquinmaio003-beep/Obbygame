@@ -194,7 +194,18 @@ public partial class PlayerController2D : MonoBehaviour
                 frictionCombine = PhysicsMaterialCombine2D.Minimum   // contra cualquier piso: 0
             };
         }
+
+        // ESQUINAS REDONDEADAS (mismo tamano por fuera): con esquinas filosas, al caminar sobre dos
+        // plataformas pegadas una apenas mas alta que la otra, la esquina de los pies se clavaba en la
+        // union y Obby quedaba trabado aunque apretara para avanzar. Redondeado, pasa por arriba.
+        if (col is BoxCollider2D caja && caja.edgeRadius <= 0f)
+        {
+            float r = Mathf.Min(EsquinaRedonda, caja.size.x * 0.25f, caja.size.y * 0.25f);
+            caja.size -= Vector2.one * (2f * r);
+            caja.edgeRadius = r;
+        }
     }
+    const float EsquinaRedonda = 0.05f;
 
     // Al empezar el nivel arranca parado en el piso (no cayendo desde donde lo pusiste en la escena).
     void Start()

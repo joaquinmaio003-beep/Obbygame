@@ -91,24 +91,32 @@ public partial class PushableBox
 
         // Contactos REALES del motor de fisica. Antes usaba un OverlapBox alrededor de la
         // caja y con eso Obby la empujaba desde lejos, sin llegar a tocarla.
+        Bounds roca = col.bounds;
         int n = rb.GetContacts(s_contacts);
         for (int i = 0; i < n; i++)
         {
             var cp = s_contacts[i];
+            Collider2D cuerpo = null;
             PlayerController2D p = null;
-            if (cp.collider != null) p = cp.collider.GetComponentInParent<PlayerController2D>();
-            if (p == null && cp.otherCollider != null) p = cp.otherCollider.GetComponentInParent<PlayerController2D>();
+            if (cp.collider != null && (p = cp.collider.GetComponentInParent<PlayerController2D>()) != null) cuerpo = cp.collider;
+            else if (cp.otherCollider != null && (p = cp.otherCollider.GetComponentInParent<PlayerController2D>()) != null) cuerpo = cp.otherCollider;
             if (p == null) continue;
             jugador = p;
 
-            // La caja se inclina con la colina, asi que no sirve mirar si la normal es
-            // horizontal "pura": comparamos cual manda. Mas horizontal que vertical = la
-            // toca de COSTADO (empuje). Mas vertical = esta parado ENCIMA.
-            if (Mathf.Abs(cp.normal.x) > Mathf.Abs(cp.normal.y))
+            // De que lado esta Obby se decide por DONDE esta, no por la inclinacion del choque.
+            // La roca tiene bordes en diagonal: si Obby estaba un poco mas alto o mas bajo que
+            // ella (parado en una plataforma), la tocaba en una diagonal y lo tomaba como
+            // "parado encima" -> la roca se trababa y ya no la podia empujar.
+            // Al COSTADO = su centro queda afuera del ancho de la roca, o la toca con el cuerpo
+            // (no con la planta de los pies). ENCIMA = esta sobre ella, apoyado con los pies.
+            Bounds o = cuerpo.bounds;
+            bool afuera = o.center.x < roca.min.x || o.center.x > roca.max.x;
+            bool conElCuerpo = cp.point.y > o.min.y + 0.1f;
+            if (afuera || conElCuerpo)
             {
-                if (lado == 0) lado = p.transform.position.x < transform.position.x ? -1 : 1;
+                if (lado == 0) lado = o.center.x < roca.center.x ? -1 : 1;
             }
-            else if (p.transform.position.y > transform.position.y)
+            else if (o.center.y > roca.center.y)
             {
                 encima = true;
             }

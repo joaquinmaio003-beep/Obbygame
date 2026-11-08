@@ -80,7 +80,20 @@ public partial class PlayerAnimator : MonoBehaviour
     [Tooltip("Radio de la luz, en unidades.")]
     public float softLightRadius = 2.5f;
 
-    Transform visual;                  // hijo que dibuja a Obby (se deforma sin tocar la fisica)
+    [Header("Linterna (solo en la cueva)")]
+    [Tooltip("Prende la linterna de la espalda de Obby. Tildalo solo en los niveles de cueva.")]
+    public bool lantern = false;
+    public Color lanternColor = new Color(1f, 0.72f, 0.38f, 1f);
+    public float lanternIntensity = 1.1f;
+    [Tooltip("Radio de la luz, en unidades.")]
+    public float lanternRadius = 5f;
+    [Tooltip("Donde esta la linterna en el dibujo, desde el centro de Obby (mirando a la derecha).")]
+    public Vector2 lanternOffset = new Vector2(-0.625f, 0.3f);
+    [Range(0f, 0.5f)]
+    [Tooltip("Cuanto parpadea, como una llama (0 = luz fija).")]
+    public float lanternFlicker = 0.12f;
+
+    Transform visual;                 // hijo que dibuja a Obby (se deforma sin tocar la fisica)
     Vector2 escalaVisual = Vector2.one;
     bool pisoAntes = true;
     float velCaida;
@@ -144,6 +157,8 @@ public partial class PlayerAnimator : MonoBehaviour
 
         if (softLight)
             Luces.Punto(transform, sr.bounds.center, softLightColor, softLightIntensity, softLightRadius, "Luz de Obby");
+        if (lantern)   // hija del dibujo: se da vuelta y se mueve con Obby
+            luzLinterna = Luces.Punto(visual, visual.TransformPoint(lanternOffset), lanternColor, lanternIntensity, lanternRadius, "Linterna");
 
         Play(idle, State.Idle, true);
     }
@@ -158,6 +173,7 @@ public partial class PlayerAnimator : MonoBehaviour
     {
         ActualizarEstiramiento();
         ActualizarEstela();
+        ActualizarLinterna();
 
         // muerto: reproduce la muerte una vez y se queda CONGELADO en el ultimo frame
         if (isDead)

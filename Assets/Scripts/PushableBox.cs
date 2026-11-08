@@ -295,6 +295,7 @@ public partial class PushableBox : MonoBehaviour
         quietaDesde = Time.time;                  // recien repuesta: que se acomode antes de descansar
         rb.bodyType = RigidbodyType2D.Dynamic;    // encajada quedaba fija (Kinematic)
         rb.constraints &= ~RigidbodyConstraints2D.FreezePositionX;
+        rb.mass = masaNormal;                     // como al empezar el nivel (si no, quedaba con el peso de apoyada)
         rb.linearVelocity = Vector2.zero;
         rb.angularVelocity = 0f;
         transform.SetPositionAndRotation(posInicial, Quaternion.Euler(0f, 0f, rotInicial));
