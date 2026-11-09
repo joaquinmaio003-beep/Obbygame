@@ -5450,6 +5450,12 @@ MonoBehaviour:
   softLightColor: {r: 1, g: 0.93, b: 0.8, a: 1}
   softLightIntensity: 0.35
   softLightRadius: 2.5
+  lantern: 0
+  lanternColor: {r: 1, g: 0.72, b: 0.38, a: 1}
+  lanternIntensity: 1.1
+  lanternRadius: 5
+  lanternOffset: {x: -0.625, y: 0.3}
+  lanternFlicker: 0.12
 --- !u!114 &1576281940
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31251,6 +31257,10 @@ PrefabInstance:
     - target: {fileID: 7056364254027969563, guid: f5babccd39834464ea6d86d87153602e, type: 3}
       propertyPath: m_LocalPosition.y
       value: -1.123
+      objectReference: {fileID: 0}
+    - target: {fileID: 7645233248947580735, guid: f5babccd39834464ea6d86d87153602e, type: 3}
+      propertyPath: m_SortingOrder
+      value: -14
       objectReference: {fileID: 0}
     - target: {fileID: 7968054374442993923, guid: f5babccd39834464ea6d86d87153602e, type: 3}
       propertyPath: m_LocalScale.x
