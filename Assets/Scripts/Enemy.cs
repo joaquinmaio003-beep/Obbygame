@@ -213,6 +213,9 @@ public partial class Enemy : MonoBehaviour, IStunnable
 
         if (isShooting) { rb.linearVelocity = Vector2.zero; return; }
 
+        // Move Speed en 0: no patrulla, se queda en su lugar (el minero de la TNT)
+        if (moveSpeed <= 0f) { rb.linearVelocity = Vector2.zero; return; }
+
         // patrulla: si adelante hay pared/precipicio/escalon alto -> FRENA y gira (pero SI baja colinas)
         if (flipCd > 0f) flipCd -= Time.fixedDeltaTime;
         if (!CanAdvance())
@@ -231,7 +234,7 @@ public partial class Enemy : MonoBehaviour, IStunnable
 
     bool PlayerInSight()
     {
-        if (player == null) return false;
+        if (player == null || PlayerRespawn.ObbyMuerto(player)) return false;   // muerto: ya no le tira
         Vector2 eye = col.bounds.center;
         Vector2 to = (Vector2)player.position - eye;
         if (to.sqrMagnitude > shootRange * shootRange) return false; // fuera de rango (circular)
@@ -265,6 +268,10 @@ public partial class Enemy : MonoBehaviour, IStunnable
                                              : new Vector2(dir, 0f);
                 proj.Launch(aim);
             }
+            // la dinamita del minero: va en curva hasta donde esta Obby
+            var tnt = go.GetComponent<Dinamita>();
+            if (tnt != null)
+                tnt.Lanzar(player != null ? (Vector2)player.position : (Vector2)spawn + new Vector2(dir * 3f, 0f));
             Sonidos.PlayEn(shootSound, transform.position, Sonidos.EnPantalla);
         }
 

@@ -191,7 +191,7 @@ public partial class EnemigoSierra : MonoBehaviour, IStunnable
         {
             // corriendo no se frena a pegar: si agarra a Obby con la sierra, lo agarro. Que pasa
             // ahi lo decide quien maneja la embestida (AlAtrapar); si nadie, le saca una vida.
-            if (!isStunned && !isRecovering && golpeCd <= 0f && playerHealth != null && PlayerEnCajaDeGolpe())
+            if (!isStunned && !isRecovering && golpeCd <= 0f && playerHealth != null && !playerHealth.EstaMuerto && PlayerEnCajaDeGolpe())
             {
                 golpeCd = 0.4f;
                 tiempoCorte = Mathf.Max(tiempoCorte, 0.3f);
@@ -306,7 +306,7 @@ public partial class EnemigoSierra : MonoBehaviour, IStunnable
     // ni nada rompible (las parte igual). Solo lo ciegan las paredes y el piso de verdad.
     bool CanSeePlayer()
     {
-        if (player == null) return false;
+        if (player == null || PlayerRespawn.ObbyMuerto(player)) return false;   // muerto: ya no lo ataca
         Vector2 eye = col.bounds.center;
         Vector2 to = (Vector2)player.position - eye;
         LayerMask blockers = sightBlockers.value != 0 ? sightBlockers : groundLayer;

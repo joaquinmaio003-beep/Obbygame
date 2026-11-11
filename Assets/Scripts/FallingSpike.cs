@@ -190,7 +190,7 @@ public class FallingSpike : MonoBehaviour
         var respawn = other.GetComponentInParent<PlayerRespawn>();
         if (respawn != null)
         {
-            respawn.Hurt(transform.position);
+            respawn.HurtPincho(transform.position);
             return;
         }
 

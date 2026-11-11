@@ -96,6 +96,7 @@ public partial class EnemigoSierra
     bool PlayerEnCajaDeGolpe()
     {
         if (col == null) return false;
+        if (playerHealth != null && playerHealth.EstaMuerto) return false;   // muerto: no le sigue serruchando el cuerpo
         Bounds b = col.bounds;
 
         float ancho = b.size.x + attackRange;

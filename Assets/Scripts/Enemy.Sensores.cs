@@ -105,6 +105,9 @@ public partial class Enemy
         Vector2 wallEye = new Vector2(b.center.x, b.min.y + maxStepHeight + 0.05f);
         if (ParedAdelante(wallEye, wdir, ahead + 0.05f, insideBox)) return false;
 
+        // pinchos adelante (en el piso o abajo, en el pozo que va a bajar): no se mete solo
+        if (SpikeHazard.HayAdelante(b, dir, maxStepHeight, maxDropHeight)) return false;
+
         // buscar el piso adelante: desde un poco arriba del pie hacia abajo.
         // si hay piso dentro de [subida tolerable .. bajada tolerable] -> puede avanzar (pendiente incluida)
         Vector2 probe = new Vector2(b.center.x + dir * (ahead + 0.05f), b.min.y + maxStepHeight);

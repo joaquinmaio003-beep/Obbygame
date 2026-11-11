@@ -164,6 +164,19 @@ public partial class PlayerController2D : MonoBehaviour
     }
     float empujonTimer;
 
+    /// <summary>
+    /// REBOTE: lo hace saltar para arriba hasta 'altura' unidades (los pinchos, al pincharlo).
+    /// Sigue pudiendo moverse de costado en el aire, pero no puede volver a saltar hasta tocar el piso.
+    /// </summary>
+    public void Rebotar(float altura)
+    {
+        if (rb == null || !enabled || altura <= 0f) return;   // muerto (control apagado): no rebota
+        isDashing = false;
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, Mathf.Sqrt(2f * gravityUp * altura));
+        coyoteCounter = 0f;   // no le queda el salto del piso que estaba pisando
+        bufferCounter = 0f;
+    }
+
     /// <summary>Lo da vuelta para que mire a ese lado (1 derecha, -1 izquierda).</summary>
     public void MirarHacia(int lado) { if (lado != 0) SetFacing(lado > 0 ? 1 : -1); }
 

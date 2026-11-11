@@ -9,21 +9,21 @@ using UnityEngine;
 /// Abajo se apaga, vuelve solo a su lugar y empieza de nuevo.
 ///
 /// Setup:
-/// - GameObject con SpriteRenderer (taladro_00) + BoxCollider2D + este script
+/// - GameObject con SpriteRenderer (taladro_00) + un Collider2D (Box o Polygon, uno solo) + este script
 ///   (el Rigidbody2D se agrega solo).
-/// - BoxCollider2D ajustado a la tapa: Size (1.1875, 0.4375), Offset (-0.0625, 0.125).
-/// - Idle Frame = taladro_00. Fire Frames = taladro_01, 02 y 03.
+/// - El collider ajustado a la forma del taladro.
+/// - Idle Frame = taladro_00 (sin fuego). Fire Frames = taladro_01, 02, 03 y 04.
 /// Solo se puede parar ENCIMA: de costado y de abajo se atraviesa (asi al bajar no aplasta a Obby).
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
-[RequireComponent(typeof(BoxCollider2D))]
+[RequireComponent(typeof(Collider2D))]
 [RequireComponent(typeof(Rigidbody2D))]
 public class Taladro : MonoBehaviour
 {
     [Header("Cuadros")]
     [Tooltip("Quieto, sin fuego (taladro_00).")]
     public Sprite idleFrame;
-    [Tooltip("Con fuego arriba, en orden (taladro_01, 02, 03).")]
+    [Tooltip("Con fuego arriba, en orden (taladro_01 a 04).")]
     public Sprite[] fireFrames;
     [Tooltip("Cuadros por segundo del fuego.")]
     public float fireFps = 10f;
@@ -64,7 +64,7 @@ public class Taladro : MonoBehaviour
 
     Rigidbody2D rb;
     SpriteRenderer sr;
-    BoxCollider2D col;
+    Collider2D col;
     Vector2 inicio;
     bool fuego;          // hay fuego arriba: quema
     float animT;
@@ -81,7 +81,7 @@ public class Taladro : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
-        col = GetComponent<BoxCollider2D>();
+        col = GetComponent<Collider2D>();
 
         rb.bodyType = RigidbodyType2D.Kinematic;   // lo mueve el script
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
@@ -134,8 +134,11 @@ public class Taladro : MonoBehaviour
 
     void Start()
     {
+        obby = FindFirstObjectByType<PlayerRespawn>();
         StartCoroutine(Ciclo());
     }
+
+    PlayerRespawn obby;
 
     IEnumerator Ciclo()
     {
@@ -144,6 +147,9 @@ public class Taladro : MonoBehaviour
             // 1) quieto arriba: Obby se puede parar tranquilo
             PonerFuego(false);
             yield return new WaitForSeconds(waitTime);
+
+            // Obby muerto: no baja sobre el cuerpo (espera arriba hasta que reaparece)
+            while (obby != null && obby.EstaMuerto) yield return null;
 
             // 2) prende el fuego y BAJA (si Obby esta encima, se quema)
             PonerFuego(true);
@@ -254,7 +260,7 @@ public class Taladro : MonoBehaviour
         Gizmos.DrawLine(desde, desde + Vector3.down * dropDistance);
         Gizmos.DrawWireSphere(desde + Vector3.down * dropDistance, 0.15f);
 
-        var c = GetComponent<BoxCollider2D>();
+        var c = GetComponent<Collider2D>();
         if (c == null) return;
         Bounds b = c.bounds;
         float alto = burnHeight * Mathf.Abs(transform.lossyScale.y);

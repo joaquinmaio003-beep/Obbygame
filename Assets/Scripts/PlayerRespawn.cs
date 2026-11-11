@@ -52,11 +52,23 @@ public class PlayerRespawn : MonoBehaviour
     CameraFollow2D cam;
     bool dying;
     bool invulnerable;
+    bool invulPorEnemigo;   // el ratito a salvo vino de un golpe de enemigo (un pincho lo atraviesa)
     bool festejando;      // llego a la meta: ya nada lo lastima ni lo manda al checkpoint
     Coroutine invulnCo;   // el parpadeo en curso (uno solo a la vez)
     static readonly WaitForSeconds s_parpadeo = new WaitForSeconds(0.08f);
 
     public int Lives => lives;
+
+    /// <summary>Se esta muriendo (perdio la ultima vida): los enemigos lo dejan de atacar.</summary>
+    public bool EstaMuerto => dying && lives <= 0;
+
+    /// <summary>True si 'algo' es Obby muerto (para que los enemigos no le sigan pegando al cuerpo).</summary>
+    public static bool ObbyMuerto(Component algo)
+    {
+        if (algo == null) return false;
+        var r = algo.GetComponentInParent<PlayerRespawn>();
+        return r != null && r.EstaMuerto;
+    }
 
     void Awake()
     {
@@ -102,12 +114,25 @@ public class PlayerRespawn : MonoBehaviour
 
     /// <summary>Golpe de enemigo/bala: pierde una vida y vuelve al ultimo checkpoint.</summary>
     /// <summary>Golpe de enemigo, bala o pincho: pierde una vida pero SIGUE donde esta.</summary>
-    public void Hurt(Vector2 fromPos)
+    /// Devuelve true si el golpe le saco una vida (false si lo esquivo: invulnerable, dash...).
+    public bool Hurt(Vector2 fromPos) { return Golpe(false); }
+
+    /// <summary>
+    /// Golpe de pincho (fijo o que cae). Atraviesa el ratito a salvo que deja el golpe de un
+    /// ENEMIGO: si un soldado te tira a los pinchos, te pinchan igual (y rebotas) en vez de
+    /// quedarte parado encima. Dos enemigos a la vez si te siguen salvando.
+    /// </summary>
+    public bool HurtPincho(Vector2 fromPos) { return Golpe(true); }
+
+    bool Golpe(bool esPincho)
     {
-        if (dying || invulnerable || festejando) return;
-        if (controller != null && controller.IsDashInvulnerable) return; // en el dash (y un instante despues) esquiva todo
+        if (dying || festejando) return false;
+        if (invulnerable && !(esPincho && invulPorEnemigo)) return false;
+        if (controller != null && controller.IsDashInvulnerable) return false; // en el dash (y un instante despues) esquiva todo
 
         LoseLife(false);   // un golpe NO te manda al checkpoint
+        invulPorEnemigo = !esPincho;   // despues de un pincho no lo atraviesa nada
+        return true;
     }
 
     /// <summary>
@@ -187,6 +212,7 @@ public class PlayerRespawn : MonoBehaviour
     {
         if (invulnCo != null) { StopCoroutine(invulnCo); invulnCo = null; }
         invulnerable = false;
+        invulPorEnemigo = false;
         if (anim != null) anim.SetVisible(true);
     }
 
@@ -202,6 +228,9 @@ public class PlayerRespawn : MonoBehaviour
         // la gravedad de Obby la pone su control (que se acaba de apagar): sin esto el cuerpo
         // quedaba flotando donde murio. Ahora cae al piso.
         rb.gravityScale = deadGravity;
+        // el cuerpo solo cae derecho: nada lo empuja ni lo hace deslizar para los costados
+        var trabasVivo = rb.constraints;
+        rb.constraints = trabasVivo | RigidbodyConstraints2D.FreezePositionX;
         if (anim != null) anim.PlayDeath();
         if (cam != null) { cam.Shake(0.4f, 0.25f); cam.Acercar(); } // temblor mas fuerte y se acerca
         if (deathSound != null && AudioManager.Instance != null)
@@ -225,6 +254,7 @@ public class PlayerRespawn : MonoBehaviour
         Debug.LogWarning("PlayerRespawn: la escena no esta en File > Build Profiles > Scene List; no se puede reiniciar el nivel.");
         lives = maxLives;
         rb.gravityScale = 0f;   // la gravedad vuelve a manejarla el control
+        rb.constraints = trabasVivo;
         if (controller != null) controller.enabled = true;
         if (anim != null) anim.Revive();
         if (cam != null) cam.SoltarZoom();
@@ -258,6 +288,7 @@ public class PlayerRespawn : MonoBehaviour
         EnemigoSierra.ResetAll();
         foreach (var bala in FindObjectsByType<EnemyProjectile>(FindObjectsSortMode.None))
             Destroy(bala.gameObject);  // las balas que venian en el aire
+        Dinamita.ResetAll();           // las dinamitas tiradas (en el aire o con la mecha prendida)
         PersecucionSierra.ResetAll();  // la persecucion de los arboles se rearma (al final: vuelve a esconder su sierra)
 
         // todo lo que se movio de lugar queda con su collider ya en el lugar nuevo (si no, el

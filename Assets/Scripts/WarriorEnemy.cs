@@ -312,7 +312,7 @@ public partial class WarriorEnemy : MonoBehaviour, IStunnable
     // linea de vision libre hasta Obby (una estructura en el medio lo tapa)
     bool CanSeePlayer()
     {
-        if (player == null) return false;
+        if (player == null || PlayerRespawn.ObbyMuerto(player)) return false;   // muerto: ya no lo ataca
         Vector2 eye = col.bounds.center;
         Vector2 to = (Vector2)player.position - eye;
         LayerMask blockers = sightBlockers.value != 0 ? sightBlockers : groundLayer;
