@@ -100,31 +100,58 @@ public class Dinamita : MonoBehaviour
         luz.intensity = luzMecha * (0.7f + 0.6f * Mathf.PerlinNoise(Time.time * 12f, transform.position.x));
     }
 
+    // le pega a Obby en el aire: explota ahi mismo
     void OnTriggerEnter2D(Collider2D other)
     {
-        if (!volando) return;
-
-        // le pega a Obby en el aire: explota ahi mismo
-        if (other.GetComponentInParent<PlayerRespawn>() != null) { Explotar(); return; }
-
-        if (other.isTrigger) return;   // ignora otros triggers (enemigos, checkpoints, agua)
-
-        // toca el piso (o una pared): se queda ahi con la mecha prendida
-        volando = false;
-        rb.linearVelocity = Vector2.zero;
-        rb.gravityScale = 0f;
-        rb.bodyType = RigidbodyType2D.Kinematic;
-        ApoyarEnElPiso(other);
-        StartCoroutine(MechaRoutine());
+        if (volando && other.GetComponentInParent<PlayerRespawn>() != null) Explotar();
     }
 
-    // La deja apoyada arriba de lo que toco (si no, quedaba medio hundida en el piso).
-    void ApoyarEnElPiso(Collider2D piso)
+    // El piso y las paredes se buscan ANTES de moverse (barriendo el cuerpo hacia donde va).
+    // Antes se enteraba cuando ya estaba adentro: rapida, a veces se metia en la pared y
+    // explotaba ahi adentro.
+    static readonly RaycastHit2D[] s_hits = new RaycastHit2D[8];
+    void FixedUpdate()
     {
-        Vector2 arriba = (Vector2)transform.position + Vector2.up * 0.6f;
-        var hit = Physics2D.Raycast(arriba, Vector2.down, 1.2f, 1 << piso.gameObject.layer);
-        if (hit.collider != null && hit.normal.y > 0.5f)
-            transform.position = new Vector3(transform.position.x, hit.point.y, transform.position.z);
+        if (!volando) return;
+        Vector2 v = rb.linearVelocity;
+        float dist = v.magnitude * Time.fixedDeltaTime + 0.05f;
+        if (v.sqrMagnitude < 0.0001f) return;
+
+        // caja del tamano del cuerpo (un pelito mas chica, para no "tocar" lo que ya roza).
+        // No usa col.Cast: el collider es trigger y asi no encontraba el piso.
+        var filtro = new ContactFilter2D { useTriggers = false };
+        Bounds b = col.bounds;
+        int n = Physics2D.BoxCast(b.center, b.size * 0.95f, 0f, v.normalized, filtro, s_hits, dist);
+        RaycastHit2D mejor = default; bool hay = false;
+        for (int i = 0; i < n; i++)
+        {
+            var h = s_hits[i];
+            if (h.collider == null || h.collider.attachedRigidbody == rb) continue;
+            if (h.distance <= 0f) continue;   // ya estaba adentro al arrancar: no lo toma como choque
+            if (h.collider.GetComponentInParent<PlayerRespawn>() != null) continue;   // Obby: lo maneja el trigger
+            if (Vector2.Dot(v, h.normal) >= -0.0001f) continue;                       // no va contra eso (ej: la pared por la que cae)
+            if (!hay || h.distance < mejor.distance) { mejor = h; hay = true; }
+        }
+        if (!hay) return;
+
+        // se acerca hasta tocar (sin meterse)
+        rb.position += v.normalized * Mathf.Max(0f, mejor.distance - 0.01f);
+
+        if (mejor.normal.y > 0.5f)
+        {
+            // piso: se queda ahi con la mecha prendida
+            volando = false;
+            rb.linearVelocity = Vector2.zero;
+            rb.gravityScale = 0f;
+            rb.bodyType = RigidbodyType2D.Kinematic;
+            StartCoroutine(MechaRoutine());
+        }
+        else
+        {
+            // pared o techo: pierde lo que iba contra la pared y cae pegada a ella
+            float contra = Vector2.Dot(v, mejor.normal);
+            if (contra < 0f) rb.linearVelocity = v - contra * mejor.normal;
+        }
     }
 
     IEnumerator MechaRoutine()

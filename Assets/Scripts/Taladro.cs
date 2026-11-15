@@ -18,7 +18,7 @@ using UnityEngine;
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(Collider2D))]
 [RequireComponent(typeof(Rigidbody2D))]
-public class Taladro : MonoBehaviour
+public partial class Taladro : MonoBehaviour
 {
     [Header("Cuadros")]
     [Tooltip("Quieto, sin fuego (taladro_00).")]
@@ -39,6 +39,10 @@ public class Taladro : MonoBehaviour
     public float bottomWait = 0.5f;
     [Tooltip("Velocidad al volver a su lugar.")]
     public float returnSpeed = 2f;
+
+    [Header("Activacion")]
+    [Tooltip("Opcional: un objeto vacio en la escena. El taladro no arranca hasta que Obby pasa ese punto (de costado); ahi baja de una. Vacio = arranca solo desde el principio. Al volver al checkpoint se vuelve a armar.")]
+    public Transform activarEn;
 
     [Header("Fuego")]
     [Tooltip("Hasta que altura sobre la tapa quema (el alto del fuego). Se escala con el objeto.")]
@@ -135,18 +139,35 @@ public class Taladro : MonoBehaviour
     void Start()
     {
         obby = FindFirstObjectByType<PlayerRespawn>();
+        // de que lado del punto de activacion arranca Obby: se activa cuando lo cruza
+        if (activarEn != null && obby != null)
+            ladoInicial = obby.transform.position.x < activarEn.position.x ? -1 : 1;
         StartCoroutine(Ciclo());
     }
 
     PlayerRespawn obby;
+    int ladoInicial;
+
+    // Obby ya paso el punto de activacion (o no hay punto)
+    bool Activado()
+    {
+        if (activarEn == null || obby == null || ladoInicial == 0) return true;
+        int lado = obby.transform.position.x < activarEn.position.x ? -1 : 1;
+        return lado != ladoInicial;
+    }
 
     IEnumerator Ciclo()
     {
+        // con punto de activacion: espera escondido a que Obby llegue y baja de una
+        bool primera = activarEn != null;
+        if (primera) { PonerFuego(false); while (!Activado()) yield return null; }
+
         while (true)
         {
             // 1) quieto arriba: Obby se puede parar tranquilo
             PonerFuego(false);
-            yield return new WaitForSeconds(waitTime);
+            if (!primera) yield return new WaitForSeconds(waitTime);
+            primera = false;
 
             // Obby muerto: no baja sobre el cuerpo (espera arriba hasta que reaparece)
             while (obby != null && obby.EstaMuerto) yield return null;
@@ -155,7 +176,9 @@ public class Taladro : MonoBehaviour
             PonerFuego(true);
             if (fireSound != null && AudioManager.Instance != null)
                 AudioManager.Instance.PlaySFX(fireSound, VolumenPorDistancia());   // solo cerca: lejos no suena
+            bajando = true;
             yield return Mover(inicio + Vector2.down * dropDistance, dropSpeed);
+            bajando = false;
 
             // 3) abajo se apaga un toque
             PonerFuego(false);
@@ -210,6 +233,7 @@ public class Taladro : MonoBehaviour
     {
         if (fuego) Quemar();
         PuntaPega();   // la parte de abajo lastima siempre: bajando, quieta abajo, volviendo o arriba
+        Romper();      // si tiene "Romper Estructuras": rompe lo que atraviesa al bajar
     }
 
     // Zona del fuego, arriba de la tapa (mientras hay fuego).
@@ -259,6 +283,15 @@ public class Taladro : MonoBehaviour
         Gizmos.color = Color.yellow;
         Gizmos.DrawLine(desde, desde + Vector3.down * dropDistance);
         Gizmos.DrawWireSphere(desde + Vector3.down * dropDistance, 0.15f);
+
+        // punto de activacion: linea vertical donde Obby lo despierta
+        if (activarEn != null)
+        {
+            Vector3 p = activarEn.position;
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawLine(p + Vector3.down * 6f, p + Vector3.up * 6f);
+            Gizmos.DrawLine(p, desde);
+        }
 
         var c = GetComponent<Collider2D>();
         if (c == null) return;

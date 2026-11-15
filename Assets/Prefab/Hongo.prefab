@@ -104,7 +104,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 933ba1a93e894141a460d4117ac1efaf, type: 3}
   - {fileID: 21300000, guid: b639d82bbf0849e4988fc594aca7e295, type: 3}
   - {fileID: 21300000, guid: 1e9c36442f39428098cddce68b736998, type: 3}
-  variant: -1
+  colorHongo: 0
   withLight: 1
   lightColors:
   - {r: 0.6, g: 0.9, b: 0.31, a: 1}
@@ -114,3 +114,8 @@ MonoBehaviour:
   lightRadius: 2.2
   flickerSpeed: 5
   flickerDepth: 0.6
+  espora: {fileID: 21300000, guid: 850294321ba5ef604b791cf634e52fce, type: 3}
+  esporaMaterial: {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
+  cantidadEsporas: 3
+  velocidadEsporas: 0.25
+  vidaEsporas: 4

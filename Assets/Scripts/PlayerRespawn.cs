@@ -289,6 +289,7 @@ public class PlayerRespawn : MonoBehaviour
         foreach (var bala in FindObjectsByType<EnemyProjectile>(FindObjectsSortMode.None))
             Destroy(bala.gameObject);  // las balas que venian en el aire
         Dinamita.ResetAll();           // las dinamitas tiradas (en el aire o con la mecha prendida)
+        Taladro.ResetAll();            // los bloques que rompieron los taladros vuelven y ellos se esconden de nuevo
         PersecucionSierra.ResetAll();  // la persecucion de los arboles se rearma (al final: vuelve a esconder su sierra)
 
         // todo lo que se movio de lugar queda con su collider ya en el lugar nuevo (si no, el
