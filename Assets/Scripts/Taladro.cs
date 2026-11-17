@@ -234,6 +234,7 @@ public partial class Taladro : MonoBehaviour
         if (fuego) Quemar();
         PuntaPega();   // la parte de abajo lastima siempre: bajando, quieta abajo, volviendo o arriba
         Romper();      // si tiene "Romper Estructuras": rompe lo que atraviesa al bajar
+        PolvoAlBajar(); // al bajar cae polvo del techo cerca
     }
 
     // Zona del fuego, arriba de la tapa (mientras hay fuego).

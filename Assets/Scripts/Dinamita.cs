@@ -110,9 +110,19 @@ public class Dinamita : MonoBehaviour
     // Antes se enteraba cuando ya estaba adentro: rapida, a veces se metia en la pared y
     // explotaba ahi adentro.
     static readonly RaycastHit2D[] s_hits = new RaycastHit2D[8];
+    // Apoyada arriba de algo que se mueve (el taladro, una plataforma movil): viaja con eso.
+    // Antes se quedaba clavada en el aire y el taladro la atravesaba al volver.
+    Transform apoyo;
+    Vector3 apoyoLocal;
+    static readonly Collider2D[] s_dentro = new Collider2D[8];
+
     void FixedUpdate()
     {
-        if (!volando) return;
+        if (!volando)
+        {
+            if (apoyo != null) rb.MovePosition(apoyo.TransformPoint(apoyoLocal));
+            return;
+        }
         Vector2 v = rb.linearVelocity;
         float dist = v.magnitude * Time.fixedDeltaTime + 0.05f;
         if (v.sqrMagnitude < 0.0001f) return;
@@ -121,6 +131,20 @@ public class Dinamita : MonoBehaviour
         // No usa col.Cast: el collider es trigger y asi no encontraba el piso.
         var filtro = new ContactFilter2D { useTriggers = false };
         Bounds b = col.bounds;
+
+        // algo que se mueve se le metio encima desde abajo (el taladro subiendo): se apoya arriba
+        int m = Physics2D.OverlapBox(b.center, b.size * 0.95f, 0f, filtro, s_dentro);
+        for (int i = 0; i < m; i++)
+        {
+            var c = s_dentro[i];
+            if (c == null || !SeMueve(c) || c.attachedRigidbody == rb) continue;
+            if (c.GetComponentInParent<PlayerRespawn>() != null) continue;
+            if (b.center.y < c.bounds.center.y) continue;   // le pego de costado o de abajo: que siga
+            rb.position += Vector2.up * (c.bounds.max.y - b.min.y + 0.01f);
+            Apoyar(c);
+            return;
+        }
+
         int n = Physics2D.BoxCast(b.center, b.size * 0.95f, 0f, v.normalized, filtro, s_hits, dist);
         RaycastHit2D mejor = default; bool hay = false;
         for (int i = 0; i < n; i++)
@@ -140,11 +164,7 @@ public class Dinamita : MonoBehaviour
         if (mejor.normal.y > 0.5f)
         {
             // piso: se queda ahi con la mecha prendida
-            volando = false;
-            rb.linearVelocity = Vector2.zero;
-            rb.gravityScale = 0f;
-            rb.bodyType = RigidbodyType2D.Kinematic;
-            StartCoroutine(MechaRoutine());
+            Apoyar(mejor.collider);
         }
         else
         {
@@ -152,6 +172,27 @@ public class Dinamita : MonoBehaviour
             float contra = Vector2.Dot(v, mejor.normal);
             if (contra < 0f) rb.linearVelocity = v - contra * mejor.normal;
         }
+    }
+
+    // Se queda apoyada con la mecha prendida. Si lo de abajo se mueve, viaja con eso.
+    void Apoyar(Collider2D piso)
+    {
+        volando = false;
+        rb.linearVelocity = Vector2.zero;
+        rb.gravityScale = 0f;
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        if (SeMueve(piso))
+        {
+            apoyo = piso.attachedRigidbody.transform;
+            apoyoLocal = apoyo.InverseTransformPoint(rb.position);
+        }
+        StartCoroutine(MechaRoutine());
+    }
+
+    static bool SeMueve(Collider2D c)
+    {
+        var r = c.attachedRigidbody;
+        return r != null && r.bodyType != RigidbodyType2D.Static;
     }
 
     IEnumerator MechaRoutine()
@@ -187,6 +228,7 @@ public class Dinamita : MonoBehaviour
         Sonidos.PlayEn(explosionSound, "dinamita_explota", centro, Sonidos.EnPantalla);
         var cam = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
         if (cam != null) cam.Shake(0.3f, 0.2f);
+        PolvoDelTecho.Sacudir(centro, 2.5f, 6, rb);   // se sacude la cueva: cae polvo del techo
 
         // el que esta cerca pierde una vida (se mide hasta el borde del cuerpo de Obby)
         var obby = FindFirstObjectByType<PlayerRespawn>();

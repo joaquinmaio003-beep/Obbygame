@@ -60,7 +60,20 @@ public partial class Taladro
         rb.position = inicio;
         transform.position = new Vector3(inicio.x, inicio.y, transform.position.z);
         PonerFuego(false);
+        // el punto de activacion se arma de nuevo desde donde reaparecio Obby: si ya lo habia
+        // pasado, no baja de golpe a lo lejos; espera a que lo vuelva a cruzar
+        if (activarEn != null && obby != null)
+            ladoInicial = obby.transform.position.x < activarEn.position.x ? -1 : 1;
         StartCoroutine(Ciclo());
+    }
+
+    // El taladro esta dentro de lo que muestra la camara (con un poquito de margen)?
+    bool EnPantalla()
+    {
+        var c = Camera.main;
+        if (c == null) return false;
+        Vector3 v = c.WorldToViewportPoint(col.bounds.center);
+        return v.z > 0f && v.x > -0.1f && v.x < 1.1f && v.y > -0.1f && v.y < 1.1f;
     }
 
     void BuscarMapas()
@@ -97,9 +110,20 @@ public partial class Taladro
         {
             ultimoGolpe = Time.time;
             Sonidos.PlayEn(null, "roca_rompe", transform.position, Sonidos.EnPantalla);
+            // tiembla solo si se ve: un taladro lejos no sacude la pantalla
             var cam = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
-            if (cam != null) cam.Shake(0.15f, 0.12f);
+            if (cam != null && EnPantalla()) cam.Shake(0.15f, 0.12f);
+            PolvoDelTecho.Sacudir(col.bounds.center, 2f, 4, rb);
         }
+    }
+
+    // Mientras baja, la cueva tiembla un poco: cae polvo del techo cerca.
+    float proximoPolvo;
+    void PolvoAlBajar()
+    {
+        if (!bajando || Time.time < proximoPolvo) return;
+        proximoPolvo = Time.time + 0.3f;
+        PolvoDelTecho.Sacudir(col.bounds.center, 1.5f, 2, rb);
     }
 
     // Los bloques del tilemap que caen dentro de la caja se deshacen en pixeles.
